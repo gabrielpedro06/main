@@ -2846,3 +2846,15 @@
 }
 
 .fx-like-btn > .fx-like-emoji { overflow: visible; }
+
+/* Membros de um grupo (modal "Membros do grupo" no chat; regras na migração 080) */
+.fx-members-title { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fx-muted, #64748b); }
+.fx-members-title span { min-width: 22px; height: 20px; padding: 0 7px; display: grid; place-items: center; border-radius: 999px; font-size: 0.7rem; color: var(--color-btnPrimary, #2563eb); background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 12%, transparent); }
+.fx-members { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+.fx-member { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 12px; }
+.fx-member:hover { background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 5%, transparent); }
+.fx-member-name { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 0.88rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.fx-member-name small { font-size: 0.72rem; font-weight: 700; color: var(--fx-muted, #64748b); }
+.fx-member-remove, .fx-member-leave { flex-shrink: 0; color: #dc2626 !important; }
+.fx-member-remove:hover:not(:disabled), .fx-member-leave:hover:not(:disabled) { background: #fef2f2 !important; border-color: #fecaca !important; }
+.fx-members-note { margin: -6px 0 14px; font-size: 0.78rem; }

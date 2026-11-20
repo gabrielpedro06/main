@@ -43,6 +43,18 @@ export default {
       nota: "Só entram colegas da conversa ou quem convidares. Se não atenderam a tempo, entram pelo cartão **Videochamada** no chat (**Entrar**).",
     },
     {
+      titulo: "Como ver, adicionar ou remover membros de um grupo",
+      passos: [
+        "Abre o grupo no chat da **Comunicação Interna**.",
+        "No topo da conversa, carrega em **Membros**.",
+        "Em **No grupo** vês quem lá está e quem criou o grupo.",
+        "Para tirar alguém, carrega em **Remover** ao lado do nome e confirma. Fica uma nota na conversa.",
+        "Para adicionar, escolhe as pessoas em **Adicionar pessoas** e carrega em **Adicionar**.",
+        "Para deixares o grupo, carrega em **Sair do grupo** ao lado do teu nome.",
+      ],
+      nota: "Só quem criou o grupo ou um admin/gestor pode remover membros. Qualquer pessoa pode sair. Quem sai ou é removido só volta se alguém do grupo o adicionar.",
+    },
+    {
       titulo: "Como atender ou recusar uma chamada",
       passos: [
         "Quando alguém te liga, aparece um aviso no topo do ecrã com o nome da pessoa e um som de toque.",

@@ -608,6 +608,7 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 | 077c | saldos_ferias_limite_anual | Ano de admissão = limite anual | [dados] pontual |
 | 078 | catalogo_programas_bizincontrol | `bizin_programas_financiamento()` para anon | |
 | 079 | chamadas_convites | Convites de videochamada (toque, atender/recusar) + Realtime | |
+| 080 | chat_remover_membros | `chat_pode_gerir()`, política DELETE em `chat_participants` (criador/staff removem, cada um sai); fim do auto-adicionar a grupos | |
 | — | modulo_ativos_ti.sql | Rascunho de modelo de Ativos TI | **não aplicado, não correr** |
 
 ---

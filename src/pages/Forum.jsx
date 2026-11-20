@@ -24,6 +24,7 @@ import "../styles/forum.css";
 import ImagemPrivada from "../components/ImagemPrivada";
 import { clicavel } from "../utils/clicavel";
 import { useChamadas } from "../context/ChamadasContext";
+import { confirmar } from "../utils/dialogo";
 
 /** Texto da mensagem que anuncia uma videochamada no chat (é mostrada como cartão com botão "Entrar"). */
 const MSG_CHAMADA = "📹 Iniciou uma videochamada";
@@ -351,6 +352,8 @@ export default function Forum() {
     const [newChatLoading, setNewChatLoading] = useState(false);
     const [showAddGroupMembersModal, setShowAddGroupMembersModal] = useState(false);
     const [existingGroupMemberIds, setExistingGroupMemberIds] = useState([]);
+    const [groupCreatorId, setGroupCreatorId] = useState(null); // chat_rooms.criado_por do grupo aberto
+    const [removingMemberId, setRemovingMemberId] = useState(null);
     const [selectedUsersToAddInGroup, setSelectedUsersToAddInGroup] = useState([]);
     const [addingGroupMembers, setAddingGroupMembers] = useState(false);
     const [chatStagedFile, setChatStagedFile] = useState(null); // <-- NOVO ESTADO
@@ -1925,18 +1928,75 @@ async function sendChatMessage(rawContent) {
       if (!activeChatRoom?.id || !activeChatRoom?.is_group) return;
 
       try {
-          const { data, error } = await supabase
-              .from("chat_participants")
-              .select("user_id")
-              .eq("room_id", activeChatRoom.id);
+          const [{ data, error }, { data: sala }] = await Promise.all([
+              supabase.from("chat_participants").select("user_id").eq("room_id", activeChatRoom.id),
+              supabase.from("chat_rooms").select("criado_por").eq("id", activeChatRoom.id).maybeSingle(),
+          ]);
 
           if (error) throw error;
 
           setExistingGroupMemberIds((data || []).map((row) => row.user_id));
+          setGroupCreatorId(sala?.criado_por || null);
           setSelectedUsersToAddInGroup([]);
           setShowAddGroupMembersModal(true);
       } catch (err) {
           setChatError(err?.message || "Não foi possível carregar os membros atuais do grupo.");
+      }
+  }
+
+  /** Pode remover membros: quem criou o grupo ou admin/administrador/gestor (igual à regra da migração 080). */
+  const canManageGroup = () =>
+      Boolean(user?.id) && (groupCreatorId === user.id || ["admin", "administrador", "gestor"].includes(String(userProfile?.role || userProfile?.tipo || "").toLowerCase()));
+
+  /** Remove um membro do grupo (ou sai, se for o próprio). Deixa uma nota na conversa. */
+  async function removeGroupMember(memberId) {
+      if (!activeChatRoom?.id || !activeChatRoom?.is_group || !memberId) return;
+      const souEu = memberId === user?.id;
+      const nome = souEu ? (userProfile?.nome || "Alguém") : (chatCollaborators.find((c) => c.id === memberId)?.nome || "Um membro");
+      const ok = await confirmar(souEu ? "Sair deste grupo?" : `Remover ${nome} do grupo?`, {
+          mensagem: souEu
+              ? "Deixas de ver as mensagens deste grupo. Só voltas se alguém do grupo te adicionar."
+              : `${nome} deixa de ver as mensagens deste grupo.`,
+          botao: souEu ? "Sair do grupo" : "Remover",
+          perigoso: true,
+      });
+      if (!ok) return;
+
+      setRemovingMemberId(memberId);
+      try {
+          const roomId = activeChatRoom.id;
+          // Ao sair, a nota vai antes (depois de sair já não se pode escrever no grupo)
+          if (souEu) {
+              await supabase.from("chat_messages").insert([{ room_id: roomId, sender_id: user.id, content: `👋 ${nome} saiu do grupo` }]);
+          }
+          const { data, error } = await supabase
+              .from("chat_participants")
+              .delete()
+              .eq("room_id", roomId)
+              .eq("user_id", memberId)
+              .select("user_id");
+          if (error) throw error;
+          if (!data?.length) throw new Error("Não tens permissão para remover este membro (só quem criou o grupo ou um admin/gestor).");
+
+          if (souEu) {
+              closeAddMembersDialog();
+              closeInternalChatModal();
+              showToast("Saíste do grupo.", "success");
+              if (!chatRlsNeedsFix) await loadMyChatRooms();
+          } else {
+              // Nota na conversa para os restantes membros
+              await supabase.from("chat_messages").insert([{
+                  room_id: roomId,
+                  sender_id: user.id,
+                  content: `👋 ${userProfile?.nome || "Alguém"} removeu ${nome} do grupo`,
+              }]);
+              setExistingGroupMemberIds((prev) => prev.filter((id) => id !== memberId));
+              showToast(`${nome} foi removido do grupo.`, "success");
+          }
+      } catch (err) {
+          setChatError(err?.message || "Não foi possível remover o membro.");
+      } finally {
+          setRemovingMemberId(null);
       }
   }
 
@@ -3203,8 +3263,8 @@ async function sendChatMessage(rawContent) {
                             </button>
                         )}
                         {activeChatRoom?.is_group && (
-                            <button type="button" onClick={openAddGroupMembersModal} className="fx-btn fx-btn-ghost fx-btn-sm">
-                                <Icons.Plus size={14} /> <span className="fx-hide-sm">Adicionar pessoas</span>
+                            <button type="button" onClick={openAddGroupMembersModal} className="fx-btn fx-btn-ghost fx-btn-sm" title="Ver, adicionar e remover membros">
+                                <Icons.Users size={15} /> <span className="fx-hide-sm">Membros</span>
                             </button>
                         )}
                         <button type="button" onClick={closeInternalChatModal} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
@@ -3376,17 +3436,47 @@ async function sendChatMessage(rawContent) {
       {showAddGroupMembersModal && (
           <ModalPortal>
               <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal-max) + 5)" }} onClick={closeAddMembersDialog}>
-                  <div className="fx-modal fx-modal-sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Adicionar pessoas">
+                  <div className="fx-modal fx-modal-sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Membros do grupo">
                       <div className="fx-modal-head">
                           <div>
-                              <p className="fx-kicker">Grupo</p>
-                              <h3>Adicionar pessoas</h3>
+                              <p className="fx-kicker">{chatModal.target?.title || "Grupo"}</p>
+                              <h3>Membros do grupo</h3>
                           </div>
                           <button type="button" onClick={closeAddMembersDialog} className="fx-close" aria-label="Fechar"><Icons.Close size={18} /></button>
                       </div>
 
                       <div className="fx-modal-body">
-                          <p className="fx-modal-hint">Seleciona quem queres adicionar à conversa.</p>
+                          <p className="fx-members-title">No grupo <span>{existingGroupMemberIds.length}</span></p>
+                          <ul className="fx-members custom-scrollbar">
+                              {[...existingGroupMemberIds]
+                                  .sort((a, b) => (a === user?.id ? -1 : b === user?.id ? 1 : 0))
+                                  .map((id) => {
+                                      const souEu = id === user?.id;
+                                      const pessoa = souEu ? { nome: userProfile?.nome, avatar_url: userProfile?.avatar_url } : chatCollaborators.find((c) => c.id === id);
+                                      const nome = pessoa?.nome || "Colaborador";
+                                      return (
+                                          <li key={id} className="fx-member">
+                                              <span className="fx-avatar fx-avatar-sm">{renderAvatar(nome, pessoa?.avatar_url || null, 36, "0.78rem")}</span>
+                                              <span className="fx-member-name">
+                                                  {nome}{souEu && " (tu)"}
+                                                  {id === groupCreatorId && <small>Criou o grupo</small>}
+                                              </span>
+                                              {souEu ? (
+                                                  <button type="button" className="fx-btn fx-btn-ghost fx-btn-sm fx-member-leave" disabled={removingMemberId === id} onClick={() => removeGroupMember(id)}>
+                                                      {removingMemberId === id ? <span className="fx-spinner is-dark" /> : "Sair do grupo"}
+                                                  </button>
+                                              ) : canManageGroup() && (
+                                                  <button type="button" className="fx-btn fx-btn-ghost fx-btn-sm fx-member-remove" disabled={removingMemberId === id} onClick={() => removeGroupMember(id)} aria-label={`Remover ${nome}`}>
+                                                      {removingMemberId === id ? <span className="fx-spinner is-dark" /> : "Remover"}
+                                                  </button>
+                                              )}
+                                          </li>
+                                      );
+                                  })}
+                          </ul>
+                          {!canManageGroup() && <p className="fx-modal-hint fx-members-note">Só quem criou o grupo ou um admin/gestor pode remover membros.</p>}
+
+                          <p className="fx-members-title">Adicionar pessoas</p>
                           <div className="fx-search">
                               <Icons.Search size={16} />
                               <input type="text" value={chatPeopleQuery} onChange={(e) => setChatPeopleQuery(e.target.value)} placeholder="Procurar colega…" />
