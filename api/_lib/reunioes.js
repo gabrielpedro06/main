@@ -18,10 +18,16 @@ const DURACAO_S = 2 * 60 * 60;
 
 const b64url = (v) => Buffer.from(typeof v === "string" ? v : JSON.stringify(v)).toString("base64url");
 
-/** Aceita a chave com quebras de linha reais ou com "\n" literais (formato habitual no Vercel). */
+/**
+ * Chave privada em PEM. Aceita: quebras de linha reais, "\n" literais (formato habitual
+ * no Vercel) ou só o conteúdo base64 sem as linhas BEGIN/END (acrescentadas aqui).
+ */
 function chavePrivada() {
-  const k = String(process.env.JAAS_PRIVATE_KEY || "").trim().replace(/^"|"$/g, "").replace(/\\n/g, "\n");
-  return k.includes("PRIVATE KEY") ? k : "";
+  const k = String(process.env.JAAS_PRIVATE_KEY || "").trim().replace(/^"|"$/g, "").replace(/\\n/g, "\n").trim();
+  if (k.includes("PRIVATE KEY")) return k;
+  const corpo = k.replace(/\s+/g, "");
+  if (corpo.length < 100 || !/^[A-Za-z0-9+/=]+$/.test(corpo)) return "";
+  return `-----BEGIN PRIVATE KEY-----\n${corpo.match(/.{1,64}/g).join("\n")}\n-----END PRIVATE KEY-----`;
 }
 
 /** Nível de autenticação do token Supabase ("aal1" só password, "aal2" com 2FA). Só lê; a assinatura já foi validada por autenticar(). */
