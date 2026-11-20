@@ -133,6 +133,7 @@ Catálogo de **programas de financiamento** e dos **avisos** de candidatura (nã
 - **Segurança:**
   - O token JaaS é gerado no servidor (`/api/reunioes`, que exige 2FA) e vale só para a sala `bizin-chat-<id>`.
   - O "convidar por link" do Jitsi está desligado (`disableInviteFunctions`).
-  - A sala de espera é ligada ao entrar (`toggleLobby`): quem entra sem token, por exemplo com um link partilhado, espera que um moderador o aceite.
+  - **Chamadas internas, sem sala de espera** (decisão de 20/11/2026: não compensa). O link não é mostrado nem partilhável e a sala tem o id da conversa. **Risco aceite:** se alguém copiar à mão o endereço `8x8.vc/<appId>/bizin-chat-<id>` de dentro da chamada, um convidado sem token pode entrar enquanto houver alguém na reunião (e conta para os 25 utilizadores/mês). Se for preciso fechar, voltar a ligar o lobby + recusa automática (`toggleLobby`, `knockingParticipant` → `answerKnockingParticipant(id, false)`) ou procurar na consola do JaaS uma opção para desligar convidados.
+  - O nome é fixo, vem do token (`readOnlyName`, `disableProfile`).
   - O RLS de `chamadas_convites` só deixa ver os próprios convites. Só se cria um convite em nome próprio, numa conversa em que se participa. O trigger só deixa mudar o estado.
 - **Limites:** o plano gratuito tem 25 utilizadores ativos por mês. Gravação e transcrição estão desligadas no token.

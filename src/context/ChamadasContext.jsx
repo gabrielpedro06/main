@@ -17,6 +17,23 @@ import VideoChamada from "../components/VideoChamada";
 import "../styles/videochamada.css";
 
 const TOQUE_MS = 45000;     // tempo máximo a tocar
+const GUARDA = "bizin_chamada_ativa";       // sessionStorage: sobrevive ao F5 neste separador
+const GUARDA_MAX_MS = 3 * 60 * 60 * 1000;   // depois de 3 h já não se retoma
+
+/** Chamada guardada neste separador (para voltar a entrar depois de um F5). */
+function lerGuardada(userId) {
+  try {
+    const g = JSON.parse(sessionStorage.getItem(GUARDA) || "null");
+    if (g?.conversa && userId && g.user === userId && Date.now() - (g.desde || 0) < GUARDA_MAX_MS) return { conversa: g.conversa, titulo: g.titulo, retomada: true };
+  } catch { /* sem storage */ }
+  return null;
+}
+function guardar(a, userId) {
+  try {
+    if (a && userId) sessionStorage.setItem(GUARDA, JSON.stringify({ conversa: a.conversa, titulo: a.titulo, user: userId, desde: Date.now() }));
+    else sessionStorage.removeItem(GUARDA);
+  } catch { /* sem storage */ }
+}
 const ChamadasCtx = createContext(null);
 
 /** Acesso às chamadas: { ativa, ligar, convidar, convites } (null fora do Dashboard). */
@@ -26,14 +43,20 @@ export const useChamadas = () => useContext(ChamadasCtx);
 export function ChamadasProvider({ children }) {
   const { user } = useAuth();
   const meuId = user?.id || null;
-  const [ativa, setAtiva] = useState(null);       // { conversa, titulo }
+  // { conversa, titulo, retomada? } — começa com a chamada guardada, se houve F5 a meio de uma
+  const [ativa, setAtiva] = useState(() => lerGuardada(meuId));
   const [recebida, setRecebida] = useState(null); // convite a tocar + { nome, avatar }
   const [convites, setConvites] = useState({});   // para → { estado, nome } (chamada ativa)
   const [aviso, setAviso] = useState("");
   const ativaRef = useRef(ativa);
   const convitesRef = useRef(convites);
   const avisoTimer = useRef(0);
-  useEffect(() => { ativaRef.current = ativa; }, [ativa]);
+  useEffect(() => {
+    ativaRef.current = ativa;
+    // Guarda só ao abrir/mudar de sala (não renova a hora a cada render)
+    if (!ativa) guardar(null);
+    else if (!ativa.retomada) guardar(ativa, meuId);
+  }, [ativa, meuId]);
   useEffect(() => { convitesRef.current = convites; }, [convites]);
 
   const mostrarAviso = useCallback((t) => {
@@ -146,13 +169,8 @@ export function ChamadasProvider({ children }) {
     return () => { window.clearInterval(toque); window.clearTimeout(fim); };
   }, [recebida, responder]);
 
-  // Ao fechar o separador com uma chamada aberta, cancela os toques pendentes.
-  useEffect(() => {
-    if (!ativa) return undefined;
-    const sair = () => { terminar(); };
-    window.addEventListener("pagehide", sair);
-    return () => window.removeEventListener("pagehide", sair);
-  }, [ativa, terminar]);
+  // Nota: um F5 não cancela os toques — a chamada volta a abrir sozinha (sessionStorage)
+  // e quem está a ser chamado pode atender. Os toques expiram sozinhos ao fim de 45 s.
 
   const valor = useMemo(() => ({ ativa, ligar, convidar, convites }), [ativa, ligar, convidar, convites]);
 
@@ -164,6 +182,7 @@ export function ChamadasProvider({ children }) {
           key={ativa.conversa}
           conversa={ativa.conversa}
           titulo={ativa.titulo}
+          retomada={Boolean(ativa.retomada)}
           onFechar={terminar}
           convites={convites}
           onConvidar={convidar}

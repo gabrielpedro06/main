@@ -4,9 +4,10 @@
 // chamada continua ao mudar de página.
 // Pede um token à nossa API (/api/reunioes: sessão + 2FA + participante da
 // conversa ou convidado), carrega o external_api.js do JaaS e mostra a reunião.
-// Segurança: o "convidar por link" do Jitsi está desligado e a sala de espera
-// (lobby) é ligada ao entrar — quem não vem pelo Bizin fica à porta até um
-// moderador aceitar. Convidar colegas faz-se pelo botão "Convidar" (toca-lhes no Bizin).
+// Segurança — chamadas internas: tokens só para colegas (API, com 2FA); o "convidar por
+// link" do Jitsi está desligado e a sala tem o id da conversa (não se adivinha). Sem sala
+// de espera (decisão: não compensa). O nome vem do Bizin e não se pode mudar. Convidar
+// colegas faz-se pelo botão "Convidar" (toca-lhes no Bizin).
 // Estilos em src/styles/videochamada.css.
 // =====================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -46,8 +47,9 @@ function carregarJitsi(appId) {
  * @param {() => void} p.onFechar
  * @param {Record<string, {estado: string, nome: string}>} [p.convites] estado de quem foi chamado
  * @param {(ids: string[]) => void} [p.onConvidar] chama colegas (toca-lhes no Bizin)
+ * @param {boolean} [p.retomada] reaberta depois de um F5: entra logo, sem o ecrã de preparação
  */
-export default function VideoChamada({ conversa, titulo, onFechar, convites = {}, onConvidar }) {
+export default function VideoChamada({ conversa, titulo, onFechar, convites = {}, onConvidar, retomada = false }) {
   const contentorRef = useRef(null);
   const apiRef = useRef(null);
   const [estado, setEstado] = useState("a-ligar"); // a-ligar | ligado | erro
@@ -74,19 +76,19 @@ export default function VideoChamada({ conversa, titulo, onFechar, convites = {}
           height: "100%",
           lang: "pt",
           configOverwrite: {
-            prejoinConfig: { enabled: true },
+            prejoinConfig: { enabled: !retomada },
             disableDeepLinking: true,
             disableInviteFunctions: true,
+            // O nome e a foto vêm do Bizin (no token) e não se podem mudar dentro da chamada.
+            readOnlyName: true,
+            disableProfile: true,
+            hideDisplayName: false,
             subject: titulo || "Chamada Bizin",
           },
           interfaceConfigOverwrite: { MOBILE_APP_PROMO: false },
         });
         apiRef.current = api;
-        api.addListener("videoConferenceJoined", () => {
-          setEstado("ligado");
-          // Sala de espera: quem entrar sem token do Bizin (ex.: link partilhado) espera por aprovação.
-          try { api.executeCommand("toggleLobby", true); } catch { /* sem permissão: ignora */ }
-        });
+        api.addListener("videoConferenceJoined", () => setEstado("ligado"));
         api.addListener("readyToClose", () => onFecharRef.current?.());
         setEstado("ligado");
       } catch (e) {
@@ -98,7 +100,7 @@ export default function VideoChamada({ conversa, titulo, onFechar, convites = {}
       try { apiRef.current?.dispose(); } catch { /* já fechada */ }
       apiRef.current = null;
     };
-  }, [conversa, titulo]);
+  }, [conversa, titulo, retomada]);
 
   const sair = () => {
     try { apiRef.current?.executeCommand("hangup"); } catch { /* ignora */ }
@@ -113,7 +115,7 @@ export default function VideoChamada({ conversa, titulo, onFechar, convites = {}
         <header className="vc-topo">
           <span className="vc-ico" aria-hidden="true"><Video size={16} /></span>
           <strong className="vc-titulo">{titulo || "Chamada"}</strong>
-          {estado === "a-ligar" && <span className="vc-estado">A ligar…</span>}
+          {estado === "a-ligar" && <span className="vc-estado">{retomada ? "A voltar à chamada…" : "A ligar…"}</span>}
           {estado !== "a-ligar" && aTocar > 0 && <span className="vc-estado">A tocar a {aTocar} {aTocar === 1 ? "pessoa" : "pessoas"}…</span>}
           <div className="vc-acoes">
             {onConvidar && estado !== "erro" && (
