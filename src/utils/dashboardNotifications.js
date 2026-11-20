@@ -9,7 +9,8 @@
  * @param {object} p.supabaseClient cliente Supabase (passado para facilitar testes)
  * @param {string[]} p.recipientIds  ids de utilizador; duplicados/vazios são ignorados
  * @param {string|null} [p.createdBy] autor
- * @param {string} p.type    coluna `tipo` (ex.: "absence_status_changed"; ver TIPO em NotificationsPanel)
+ * @param {string} p.type    coluna `tipo` (ex.: "absence_status_changed"). Atenção: o sino do
+ *   Início só carrega os tipos listados no filtro de pages/DashboardHome.jsx.
  * @param {string} p.title   coluna `titulo`
  * @param {string} p.message coluna `mensagem`
  * @param {string} [p.link="/dashboard/ferias"] rota aberta ao clicar

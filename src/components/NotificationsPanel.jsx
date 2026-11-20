@@ -1,5 +1,6 @@
 // Painel do sino de notificações do Início (projetos novos, aprovações de Marketing,
-// alertas de segurança, decisões de ausências). Estilos .np-* em home.css.
+// alertas de segurança). Quais os tipos carregados decide o DashboardHome (filtro .in("tipo", …)).
+// Estilos .np-* em home.css.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -18,7 +19,8 @@ const I = {
 /**
  * Aspeto de cada tipo de notificação (coluna notificacoes_projetos.tipo).
  * Tipos sem entrada aqui caem em project_created (ícone de foguete, "Abrir projeto").
- * Ao criar um tipo novo de notificação, acrescentar aqui o ícone e o texto do botão.
+ * Ao criar um tipo novo de notificação, acrescentar aqui o ícone e o texto do botão
+ * E o tipo ao filtro da query em pages/DashboardHome.jsx (senão nunca aparece).
  */
 const TIPO = {
   project_created: { Icon: I.Rocket, acao: "Abrir projeto" },

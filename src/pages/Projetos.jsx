@@ -144,7 +144,7 @@ const createBlankProjetoFase = (index = 0) => ({
     prazo: "",
 });
 
-/** Normaliza prazos_fases (jsonb ou string JSON) para [{ nome, data }]; descarta lixo. */
+/** Normaliza prazos_fases para [{ nome, prazo }] (aceita "fase"/"data" antigos); não-arrays dão []. */
 const normalizeProjetoFases = (value) => {
     if (!Array.isArray(value) || value.length === 0) return [];
 
