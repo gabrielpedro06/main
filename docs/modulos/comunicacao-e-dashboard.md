@@ -129,6 +129,7 @@ Catálogo de **programas de financiamento** e dos **avisos** de candidatura (nã
   - Ao fim de 45 s sem resposta, a chamada passa a `perdida`.
   - Quem liga recebe as respostas, também por Realtime, e vê uma mensagem como "X recusou".
   - Ao sair da chamada, os toques pendentes passam a `cancelada`.
+- **Em curso / terminada:** quem está numa chamada marca presença no canal Realtime `chamada-presenca-<conversa>` (`useChamadaEmCurso` em `ChamadasContext`, sem tabelas). O cartão mais recente da conversa mostra "Videochamada em curso · N pessoas" com **Entrar**; os outros cartões, ou quando ninguém está na chamada, mostram "Terminada". A última pessoa a sair deixa a mensagem `MSG_CHAMADA_FIM` ("📞 Chamada terminada · 12 min"; textos em `utils/chamadas.js`). Se dois saírem ao mesmo tempo, essa mensagem pode não aparecer, mas o cartão mostra "Terminada" na mesma.
 - **Convidar:** o botão **Convidar** da janela abre a lista de colegas ativos. **Chamar** cria um convite, e o convidado entra mesmo sem participar na conversa (a `/api/reunioes` aceita um convite recente, de até 3 h).
 - **Segurança:**
   - O token JaaS é gerado no servidor (`/api/reunioes`, que exige 2FA) e vale só para a sala `bizin-chat-<id>`.

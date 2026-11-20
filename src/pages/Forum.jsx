@@ -23,11 +23,9 @@ import EmojiPicker from 'emoji-picker-react';
 import "../styles/forum.css";
 import ImagemPrivada from "../components/ImagemPrivada";
 import { clicavel } from "../utils/clicavel";
-import { useChamadas } from "../context/ChamadasContext";
+import { useChamadas, useChamadaEmCurso } from "../context/ChamadasContext";
+import { MSG_CHAMADA, MSG_CHAMADA_FIM } from "../utils/chamadas";
 import { confirmar } from "../utils/dialogo";
-
-/** Texto da mensagem que anuncia uma videochamada no chat (é mostrada como cartão com botão "Entrar"). */
-const MSG_CHAMADA = "📹 Iniciou uma videochamada";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -325,6 +323,7 @@ export default function Forum() {
     const [activeChatRoom, setActiveChatRoom] = useState(null);
     const chamadas = useChamadas(); // videochamadas (context/ChamadasContext.jsx)
     const chamada = chamadas?.ativa || null;
+    const pessoasNaChamada = useChamadaEmCurso(activeChatRoom?.id); // presença na chamada da conversa aberta
     const [chatMessages, setChatMessages] = useState([]);
     const chatMessagesRef = useRef([]);
     const activeRoomChannelRef = useRef(null);
@@ -3368,13 +3367,32 @@ async function sendChatMessage(rawContent) {
                                         )}
 
                                         <div className="fx-bubble-line">
-                                            {msg.content === MSG_CHAMADA ? (
-                                                <div className="fx-bubble-call">
+                                            {msg.content === MSG_CHAMADA ? (() => {
+                                                // Só o anúncio mais recente pode estar "em curso"; os anteriores já acabaram.
+                                                const ultimoAnuncio = [...chatMessages].reverse().find((m) => m.content === MSG_CHAMADA);
+                                                const estouNesta = chamada?.conversa === msg.room_id;
+                                                const emCurso = ultimoAnuncio?.id === msg.id && (pessoasNaChamada > 0 || estouNesta);
+                                                return emCurso ? (
+                                                    <div className="fx-bubble-call">
+                                                        <span className="fx-bubble-call-ico is-live"><Icons.Video size={16} /></span>
+                                                        <span className="fx-bubble-call-txt">
+                                                            Videochamada em curso
+                                                            {pessoasNaChamada > 0 && <small>{pessoasNaChamada} {pessoasNaChamada === 1 ? "pessoa" : "pessoas"}</small>}
+                                                        </span>
+                                                        <button type="button" className="fx-btn fx-btn-sm fx-bubble-call-btn" disabled={Boolean(chamada)} onClick={() => chamadas?.ligar({ conversa: msg.room_id, titulo: chatModal.target?.title || "Chamada", tocar: false })}>
+                                                            {estouNesta ? "Estás na chamada" : "Entrar"}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="fx-bubble-call is-ended">
+                                                        <span className="fx-bubble-call-ico"><Icons.Video size={16} /></span>
+                                                        <span className="fx-bubble-call-txt">{mine ? "Iniciaste uma videochamada" : "Videochamada"}<small>Terminada</small></span>
+                                                    </div>
+                                                );
+                                            })() : String(msg.content || "").startsWith(MSG_CHAMADA_FIM) ? (
+                                                <div className="fx-bubble-call is-ended">
                                                     <span className="fx-bubble-call-ico"><Icons.Video size={16} /></span>
-                                                    <span>{mine ? "Iniciaste uma videochamada" : "Videochamada"}</span>
-                                                    <button type="button" className="fx-btn fx-btn-sm fx-bubble-call-btn" disabled={Boolean(chamada)} onClick={() => chamadas?.ligar({ conversa: msg.room_id, titulo: chatModal.target?.title || "Chamada", tocar: false })}>
-                                                        {mine ? "Voltar a entrar" : "Entrar"}
-                                                    </button>
+                                                    <span className="fx-bubble-call-txt">Chamada terminada{msg.content.slice(MSG_CHAMADA_FIM.length) && <small>Duração{msg.content.slice(MSG_CHAMADA_FIM.length).replace(" · ", ": ")}</small>}</span>
                                                 </div>
                                             ) : msg.content && <div className="fx-bubble-text">{msg.content}</div>}
                                             <span className="fx-bubble-meta">

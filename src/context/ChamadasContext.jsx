@@ -14,6 +14,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "./AuthContext";
 import { playNotifySound } from "../utils/notifySound";
 import VideoChamada from "../components/VideoChamada";
+import { MSG_CHAMADA, MSG_CHAMADA_FIM, duracaoChamada } from "../utils/chamadas";
 import "../styles/videochamada.css";
 
 const TOQUE_MS = 45000;     // tempo máximo a tocar
@@ -40,6 +41,18 @@ const ChamadasCtx = createContext(null);
 // eslint-disable-next-line react-refresh/only-export-components
 export const useChamadas = () => useContext(ChamadasCtx);
 
+/**
+ * Nº de pessoas que estão agora na videochamada desta conversa (0 = nenhuma / terminou).
+ * Usa a presença Realtime do Supabase (canal "chamada-presenca-<conversa>"), sem tabelas.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useChamadaEmCurso(conversa) {
+  const ctx = useContext(ChamadasCtx);
+  const observar = ctx?.observar;
+  useEffect(() => (observar && conversa ? observar(conversa) : undefined), [observar, conversa]);
+  return conversa ? (ctx?.presencas?.[conversa] || 0) : 0;
+}
+
 export function ChamadasProvider({ children }) {
   const { user } = useAuth();
   const meuId = user?.id || null;
@@ -64,6 +77,71 @@ export function ChamadasProvider({ children }) {
     window.clearTimeout(avisoTimer.current);
     avisoTimer.current = window.setTimeout(() => setAviso(""), 4500);
   }, []);
+
+  // ---- Presença: quem está em cada chamada (Realtime presence; um canal por conversa) ----
+  const canais = useRef(new Map()); // conversa → { canal, obs, emChamada, pronto }
+  const [presencas, setPresencas] = useState({}); // conversa → nº de pessoas na chamada
+
+  const canalDe = useCallback((conversa) => {
+    let c = canais.current.get(conversa);
+    if (c) return c;
+    const canal = supabase.channel(`chamada-presenca-${conversa}`, { config: { presence: { key: meuId || "anon" } } });
+    c = { canal, obs: 0, emChamada: false, pronto: false };
+    const entrada = c;
+    canal
+      .on("presence", { event: "sync" }, () => {
+        const n = Object.keys(canal.presenceState()).length;
+        setPresencas((p) => (p[conversa] === n ? p : { ...p, [conversa]: n }));
+      })
+      .subscribe((estado) => {
+        if (estado !== "SUBSCRIBED") return;
+        entrada.pronto = true;
+        if (entrada.emChamada) canal.track({ desde: Date.now() });
+      });
+    canais.current.set(conversa, c);
+    return c;
+  }, [meuId]);
+
+  const largarCanal = useCallback((conversa) => {
+    const c = canais.current.get(conversa);
+    if (!c || c.obs > 0 || c.emChamada) return;
+    supabase.removeChannel(c.canal);
+    canais.current.delete(conversa);
+    setPresencas((p) => { const n = { ...p }; delete n[conversa]; return n; });
+  }, []);
+
+  /** Começa a observar a presença de uma conversa; devolve a função para parar. */
+  const observar = useCallback((conversa) => {
+    const c = canalDe(conversa);
+    c.obs += 1;
+    return () => { c.obs -= 1; largarCanal(conversa); };
+  }, [canalDe, largarCanal]);
+
+  // Enquanto estou numa chamada, marco presença no canal dessa conversa.
+  useEffect(() => {
+    const conversa = ativa?.conversa;
+    if (!conversa || !meuId) return undefined;
+    const c = canalDe(conversa);
+    c.emChamada = true;
+    if (c.pronto) c.canal.track({ desde: Date.now() });
+    return () => {
+      c.emChamada = false;
+      try { c.canal.untrack(); } catch { /* já fechado */ }
+      largarCanal(conversa);
+    };
+  }, [ativa?.conversa, meuId, canalDe, largarCanal]);
+
+  /** Se fui a última pessoa a sair, deixa na conversa "📞 Chamada terminada · duração". */
+  const anunciarFimSeUltimo = useCallback(async (conversa) => {
+    const c = canais.current.get(conversa);
+    const outros = c ? Object.keys(c.canal.presenceState()).filter((k) => k !== meuId).length : 0;
+    if (outros > 0 || !meuId) return;
+    const { data: inicio } = await supabase.from("chat_messages").select("created_at")
+      .eq("room_id", conversa).eq("content", MSG_CHAMADA).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const dur = inicio?.created_at ? ` · ${duracaoChamada(Date.now() - new Date(inicio.created_at).getTime())}` : "";
+    // Convidados de fora da conversa não podem escrever nela: o erro é ignorado.
+    await supabase.from("chat_messages").insert([{ room_id: conversa, sender_id: meuId, content: `${MSG_CHAMADA_FIM}${dur}` }]);
+  }, [meuId]);
 
   /** Cria convites "a tocar" para estas pessoas na sala indicada. */
   const tocarA = useCallback(async (conversa, titulo, ids) => {
@@ -95,16 +173,17 @@ export function ChamadasProvider({ children }) {
     if (a) tocarA(a.conversa, a.titulo, ids);
   }, [tocarA]);
 
-  /** Ao sair: cancela os convites que ainda estão a tocar. */
+  /** Ao sair: anuncia o fim (se fui o último) e cancela os convites que ainda estão a tocar. */
   const terminar = useCallback(async () => {
     const a = ativaRef.current;
+    if (a) anunciarFimSeUltimo(a.conversa).catch(() => {});
     setAtiva(null);
     setConvites({});
     if (a && meuId) {
       await supabase.from("chamadas_convites").update({ estado: "cancelada" })
         .eq("sala", a.conversa).eq("de", meuId).eq("estado", "a_tocar");
     }
-  }, [meuId]);
+  }, [meuId, anunciarFimSeUltimo]);
 
   const responder = useCallback(async (estado) => {
     const r = recebida;
@@ -172,7 +251,10 @@ export function ChamadasProvider({ children }) {
   // Nota: um F5 não cancela os toques — a chamada volta a abrir sozinha (sessionStorage)
   // e quem está a ser chamado pode atender. Os toques expiram sozinhos ao fim de 45 s.
 
-  const valor = useMemo(() => ({ ativa, ligar, convidar, convites }), [ativa, ligar, convidar, convites]);
+  const valor = useMemo(
+    () => ({ ativa, ligar, convidar, convites, observar, presencas }),
+    [ativa, ligar, convidar, convites, observar, presencas]
+  );
 
   return (
     <ChamadasCtx.Provider value={valor}>

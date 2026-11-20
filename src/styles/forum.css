@@ -2858,3 +2858,13 @@
 .fx-member-remove, .fx-member-leave { flex-shrink: 0; color: #dc2626 !important; }
 .fx-member-remove:hover:not(:disabled), .fx-member-leave:hover:not(:disabled) { background: #fef2f2 !important; border-color: #fecaca !important; }
 .fx-members-note { margin: -6px 0 14px; font-size: 0.78rem; }
+
+/* Estados do cartão de chamada: em curso (ponto a pulsar) / terminada (cinzento) */
+.fx-bubble-call-txt { display: flex; flex-direction: column; line-height: 1.25; }
+.fx-bubble-call-txt small { font-size: 0.72rem; font-weight: 600; opacity: 0.75; }
+.fx-bubble-call-ico.is-live { position: relative; }
+.fx-bubble-call-ico.is-live::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid #22c55e; animation: fxCallPulse 1.6s ease-out infinite; }
+@keyframes fxCallPulse { from { opacity: 0.9; transform: scale(0.95); } to { opacity: 0; transform: scale(1.4); } }
+.fx-bubble-call.is-ended .fx-bubble-call-ico { background: #94a3b8; }
+.fx-msg-row.is-mine .fx-bubble-call.is-ended .fx-bubble-call-ico { background: rgba(255, 255, 255, 0.18); }
+@media (prefers-reduced-motion: reduce) { .fx-bubble-call-ico.is-live::after { animation: none; } }
