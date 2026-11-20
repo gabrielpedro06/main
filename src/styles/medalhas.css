@@ -184,11 +184,11 @@
 /* Medalha no canto da foto (Equipa online) */
 .mdl-avatar-badge {
   /* Só a medalha (PNG transparente), sem círculo à volta; a sombra segue o contorno da imagem */
-  position: absolute; top: -8px; right: -10px; width: 30px; height: 30px; display: grid; place-items: center;
+  position: absolute; top: -14px; right: -16px; width: 46px; height: 46px; display: grid; place-items: center;
   filter: drop-shadow(0 2px 3px rgba(15, 23, 42, 0.35));
   animation: mdlBadge 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both; pointer-events: none;
 }
-.mdl-avatar-badge img { width: 30px !important; height: 30px !important; border-radius: 0 !important; object-fit: contain !important; background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.mdl-avatar-badge img { width: 46px !important; height: 46px !important; border-radius: 0 !important; object-fit: contain !important; background: transparent !important; border: 0 !important; box-shadow: none !important; }
 .mdl-avatar-badge b {
   position: absolute; right: -5px; bottom: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
   display: grid; place-items: center; font-size: 0.58rem; font-weight: 900; color: #fff; background: #d97706;
