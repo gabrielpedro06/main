@@ -52,7 +52,7 @@ Esta lista foi feita a 20/11/2026, ao documentar o código. São achados de leit
 - `/api/sicae-caes`, `/api/cae-descriptions` e a edge function `fetch-caes-sicae` não pedem sessão, por isso funcionam como proxy público para o SICAE.
 - `api/_lib/nif.js` aceita `VITE_NIFPT_KEY`. Uma variável com prefixo `VITE_` corre o risco de ir parar ao bundle público.
 
-- **Enviar Agora** (Leads) e **Enviar** (TransferGest) não pedem confirmação. Em Leads, com **Arquivo** marcado, os contactos arquivados também recebem a campanha.
+- **Enviar Agora** (Leads) e **Enviar** (TransferGest) não pedem confirmação (um duplo clique ou um reenvio igual nos 15 min seguintes já não manda emails a dobrar: idempotência, migração 081). Em Leads, com **Arquivo** marcado, os contactos arquivados também recebem a campanha.
 - O Organizador de PDFs diz "100% local · nada é enviado", mas **Pedir à IA** envia texto (já redigido) para o servidor.
 - Em Tarefas, quem vê a equipa toda é decidido por `profiles.tipo`, e não por `role`.
 

@@ -9,10 +9,20 @@ import './styles/camadas.css'
 import './styles/main.css'
 import './styles/motion.css'
 import './styles/acessibilidade.css'
+import './styles/refinamentos.css'
 import { instalarAberturaSegura } from './utils/ficheirosPrivados'
+import { instalarPlaceholders } from './utils/placeholderImagem'
+import { instalarTrianguloSeguro } from './utils/trianguloSeguro'
+import { instalarSaidaJanelas } from './utils/saidaJanelas'
 
 // Links para ficheiros privados (RH, documentos, chat) abrem com link temporário
 instalarAberturaSegura()
+// Fotos de perfil: placeholder desfocado enquanto carregam (estilo BlurHash)
+instalarPlaceholders()
+// Menus de hover (ex.: reações do Fórum): não fecham ao levar o rato na diagonal
+instalarTrianguloSeguro()
+// Janelas: animação curta (e interrompível) ao fechar, em todas de uma vez
+instalarSaidaJanelas()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

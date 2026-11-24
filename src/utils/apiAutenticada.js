@@ -8,15 +8,17 @@ import { supabase } from "../services/supabase";
  * (o servidor recusa pedidos sem sessão válida).
  * @param {string} url  URL completo (normalmente `${VITE_MARKETING_API_BASE}/api/...`)
  * @param {object} body serializado em JSON
+ * @param {Record<string,string>} [cabecalhos] cabeçalhos extra (ex.: Idempotency-Key)
  * @returns {Promise<Response>} Response do fetch; não lança em 4xx/5xx (verificar `r.ok`)
  */
-export async function postAutenticado(url, body) {
+export async function postAutenticado(url, body, cabecalhos = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   return fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${session?.access_token || ""}`,
+      ...cabecalhos,
     },
     body: JSON.stringify(body),
   });

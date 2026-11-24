@@ -1,0 +1,73 @@
+/* =====================================================================
+   Esqueletos de carregamento (skeleton loaders), reutilizáveis em toda a app.
+   .sk = bloco cinzento com brilho a passar. Cores derivadas do tema ativo.
+   ===================================================================== */
+.sk {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-borderColor, #e2e8f0) 55%, transparent) 0%,
+    color-mix(in srgb, var(--color-borderColor, #e2e8f0) 100%, transparent) 50%,
+    color-mix(in srgb, var(--color-borderColor, #e2e8f0) 55%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: skBrilho 1.3s linear infinite;
+}
+@keyframes skBrilho { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; }
+}
+
+/* Esqueleto de página inteira (enquanto o ficheiro da página é descarregado) */
+.sk-pagina {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 0;
+  animation: skAparece 0.25s ease 0.15s both; /* só aparece se demorar */
+}
+@keyframes skAparece { from { opacity: 0; } to { opacity: 1; } }
+
+.sk-hero { height: 120px; border-radius: 22px; }
+.sk-barra { display: flex; gap: 10px; }
+.sk-barra .sk { height: 38px; border-radius: 12px; }
+.sk-barra .sk:first-child { flex: 1; max-width: 320px; }
+.sk-barra .sk:not(:first-child) { width: 110px; }
+
+.sk-cartoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.sk-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--color-borderColor, #e2e8f0);
+  background: var(--color-bgSecondary, #fff);
+}
+
+.sk-linha { height: 12px; }
+.sk-linha.is-80 { width: 80%; }
+.sk-linha.is-60 { width: 60%; }
+.sk-linha.is-40 { width: 40%; }
+.sk-titulo { height: 18px; width: 55%; }
+.sk-avatar { width: 40px; height: 40px; border-radius: 50%; flex: none; }
+.sk-linhas { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.sk-fila { display: flex; align-items: center; gap: 12px; }
+
+/* Tabela (lista de linhas) */
+.sk-tabela {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid var(--color-borderColor, #e2e8f0);
+  background: var(--color-bgSecondary, #fff);
+  overflow: hidden;
+}
+.sk-tabela .sk-fila { padding: 14px 16px; }
+.sk-tabela .sk-fila + .sk-fila { border-top: 1px solid var(--color-borderColorLight, #f1f5f9); }

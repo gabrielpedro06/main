@@ -4,62 +4,65 @@
 // /dashboard/* passa por <ProtectedRoute> (sessão + 2FA); rotas com `allowedRoles`
 // também exigem um papel (profiles.role/tipo). Isto é só UX: a proteção real dos dados
 // está nas políticas RLS do Supabase e nas verificações das rotas em api/.
-// Ao criar uma página: importar aqui, acrescentar a <Route>, o título em
+// Ao criar uma página: acrescentar o import em rotas.js, o lazy() e a <Route> aqui, o título em
 // pages/Dashboard.jsx (PAGE_TITLES) e o link em components/Sidebar.jsx.
 // =====================================================================
+import { lazy, Suspense } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 
 // Contexto de Autenticação e Tema
-import { AuthProvider } from "./context/AuthContext"; // 👈 IMPORTADO AQUI
-import { ThemeProvider } from "./context/ThemeContext"; // 👈 IMPORTADO AQUI
+import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
-// Páginas de Autenticação
+// Login e layout vêm no ficheiro principal; o resto é carregado por partes (ver rotas.js)
 import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-
-// Layout e Proteção
 import ProtectedRoute from "./components/ProtectedRoute";
 import GlobalTooltipProvider from "./components/GlobalTooltipProvider";
 import DialogoGlobal from "./components/DialogoGlobal";
-import Dashboard from "./pages/Dashboard"; 
+import ToastGlobal from "./components/ToastGlobal";
+import Dashboard from "./pages/Dashboard";
+import { PAGINAS } from "./rotas";
+import "./estilosPaginas"; // CSS de todas as páginas, pela ordem original
 
-// Páginas do Dashboard
-import DashboardHome from "./pages/DashboardHome";
-import MinhasTarefas from "./pages/MinhasTarefas";
-import Tarefas from "./pages/Tarefas";
-import Projetos from "./pages/Projetos";
-import ProjetoDetalhe from "./pages/ProjetoDetalhe"; 
-import Clientes from "./pages/Clientes";
-import Atividades from "./pages/Atividades";
-import Forum from "./pages/Forum";
-import RecursosHumanos from "./pages/RecursosHumanos"; 
-import Ferias from "./pages/Ausencias"; 
-import PedidoKm from "./pages/PedidoKm";
-import GestaoLeads from "./pages/GestaoLeads"; 
-import Marketing from "./pages/Marketing";
-import TransferGest from "./pages/TransferGest";
-import Perfil from "./pages/Perfil";
-import AdminDashboard from "./pages/AdminDashboard";
-import GestaoTemplates from "./components/GestaoTemplates"; 
-import PropostasComerciais from "./pages/PropostasComerciais";
-import ListaPropostas from "./pages/ListaPropostas";
-import GestaoAvisos from "./pages/GestaoAvisos";
-import Cursos from "./pages/Cursos";
-import AtivosTIDashboard from "./pages/AtivosTIDashboard";
-import AcoesFormacao from "./pages/AcoesFormacao";
-import OrganizadorPdf from "./pages/OrganizadorPdf";
-import RegistoAtividade from "./pages/RegistoAtividade";
-import AprovarPedido from "./pages/AprovarPedido";
-import Ajuda from "./pages/Ajuda";
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+
+// Páginas do Dashboard (cada uma num ficheiro à parte)
+const DashboardHome = lazy(PAGINAS[""]);
+const MinhasTarefas = lazy(PAGINAS["minhas-tarefas"]);
+const Tarefas = lazy(PAGINAS.tarefas);
+const Projetos = lazy(PAGINAS.projetos);
+const ProjetoDetalhe = lazy(PAGINAS["projetos/:id"]);
+const Clientes = lazy(PAGINAS.clientes);
+const Atividades = lazy(PAGINAS.atividades);
+const Forum = lazy(PAGINAS.forum);
+const RecursosHumanos = lazy(PAGINAS.rh);
+const Ferias = lazy(PAGINAS.ferias);
+const PedidoKm = lazy(PAGINAS["pedido-km"]);
+const GestaoLeads = lazy(PAGINAS.leads);
+const Marketing = lazy(PAGINAS.marketing);
+const TransferGest = lazy(PAGINAS.transfergest);
+const Perfil = lazy(PAGINAS.perfil);
+const AdminDashboard = lazy(PAGINAS.admin);
+const GestaoTemplates = lazy(PAGINAS.modelos);
+const PropostasComerciais = lazy(PAGINAS["propostas/:id"]);
+const ListaPropostas = lazy(PAGINAS.propostas);
+const GestaoAvisos = lazy(PAGINAS.avisos);
+const Cursos = lazy(PAGINAS.cursos);
+const AtivosTIDashboard = lazy(PAGINAS["ativos-ti"]);
+const AcoesFormacao = lazy(PAGINAS["acoes-formacao"]);
+const OrganizadorPdf = lazy(PAGINAS["organizador-pdf"]);
+const RegistoAtividade = lazy(PAGINAS.registos);
+const AprovarPedido = lazy(PAGINAS["pedidos/:id"]);
+const Ajuda = lazy(PAGINAS.ajuda);
 
 export default function App() {
   return (
-    // 👈 O AUTH PROVIDER E THEME PROVIDER ENVOLVEM AGORA TODA A APP
     <ThemeProvider>
       <AuthProvider>
         <GlobalTooltipProvider>
           <HashRouter>
+          <Suspense fallback={null}>
           <Routes>
           {/* === ROTAS PÚBLICAS === */}
           <Route path="/" element={<Login />} />
@@ -125,8 +128,10 @@ export default function App() {
           } />
 
           </Routes>
+          </Suspense>
         </HashRouter>
           <DialogoGlobal />
+          <ToastGlobal />
       </GlobalTooltipProvider>
     </AuthProvider>
     </ThemeProvider>

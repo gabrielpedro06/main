@@ -1,0 +1,167 @@
+/* =====================================================================
+   Refinamentos globais de tipografia e de telemóvel.
+   Usa :where() (especificidade zero): são só valores por omissão, qualquer
+   regra de uma página ganha a estes. Carregado no fim, em main.jsx.
+   ===================================================================== */
+
+/* Títulos equilibrados: as linhas de um título quebram com tamanhos parecidos
+   (evita uma palavra sozinha na última linha). Parágrafos sem "viúvas". */
+:where(h1, h2, h3, h4, h5, h6, [role="heading"], legend, dt) {
+  text-wrap: balance;
+}
+:where(p, li, dd, figcaption, blockquote, label) {
+  text-wrap: pretty;
+}
+
+/* Números tabulares: todos os algarismos com a mesma largura, para as colunas
+   de valores, horas e datas alinharem e não "dançarem" quando mudam. */
+:where(td, th, time, output, kbd, input[type="number"], input[type="time"],
+       input[type="date"], .num, [data-num]) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hit slop: aumenta a zona de toque de um botão pequeno sem mudar o aspeto.
+   Usar com class="hit-slop" (o botão precisa de position diferente de static,
+   que esta classe já põe). */
+.hit-slop { position: relative; }
+.hit-slop::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+@media (pointer: fine) {
+  .hit-slop::after { inset: -4px; }
+}
+
+/* Hit slop automático nos botões pequenos (ícones de tabelas, chat, agenda).
+   Só em ecrãs de toque: a área de toque cresce 8px para cada lado sem mudar
+   o desenho. Usa ::before (estes botões não o usam) e :where() para não se
+   sobrepor a quem já posiciona o botão (absolute, etc.). */
+@media (pointer: coarse) {
+  :where(
+    .fx-pm-tool-btn, .fx-text-btn, .fx-icon-btn, .fx-bubble-react,
+    .ag-check, .ag-play,
+    .mk-icon-btn, .ti-icon-btn, .en-icon-btn, .pd-icon-btn, .ab-icon-btn,
+    .rh-icon-btn, .pa-icon-btn, .po-icon-btn, .pf-icon-btn
+  ) { position: relative; }
+  :where(
+    .fx-pm-tool-btn, .fx-text-btn, .fx-icon-btn, .fx-bubble-react,
+    .ag-check, .ag-play,
+    .mk-icon-btn, .ti-icon-btn, .en-icon-btn, .pd-icon-btn, .ab-icon-btn,
+    .rh-icon-btn, .pa-icon-btn, .po-icon-btn, .pf-icon-btn
+  )::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
+}
+
+/* Safe areas (iPhone com notch / ilha, Android com barras de gestos) */
+@media (max-width: 900px) {
+  /* telemóvel deitado: o conteúdo não fica por baixo do notch lateral */
+  .dashboard-main {
+    padding-left: max(14px, env(safe-area-inset-left)) !important;
+    padding-right: max(14px, env(safe-area-inset-right)) !important;
+  }
+  /* avisos flutuantes por baixo da barra de estado */
+  .ti-toast, .mk-toast {
+    top: calc(env(safe-area-inset-top) + 12px);
+    right: max(12px, env(safe-area-inset-right));
+  }
+  .pa-toast {
+    bottom: calc(env(safe-area-inset-bottom) + var(--bz-bottomnav-h, 64px) + 12px);
+  }
+}
+
+/* Marcador invisível da gaveta aberta (components/GestosJanelas.jsx) */
+.bz-gaveta-marcador { position: fixed; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+/* ---------------------------------------------------------------------
+   Transição entre páginas (View Transitions) — utils/transicaoPagina.js
+   Só durante a navegação (classe bz-vt-pagina no <html>): a área de conteúdo
+   tem nome próprio e é animada; o resto (barra lateral, topo) fica parado.
+   --------------------------------------------------------------------- */
+html.bz-vt-pagina .dashboard-main { view-transition-name: bz-pagina; }
+html.bz-vt-pagina::view-transition-old(root),
+html.bz-vt-pagina::view-transition-new(root) { animation: none; }
+html.bz-vt-pagina::view-transition-old(bz-pagina) {
+  animation: bzVtSai 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+}
+html.bz-vt-pagina::view-transition-new(bz-pagina) {
+  animation: bzVtEntra 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+html.bz-vt-pagina::view-transition-group(bz-pagina) { animation-duration: 0.3s; }
+@keyframes bzVtSai { to { opacity: 0; transform: translateY(-6px) scale(0.995); } }
+@keyframes bzVtEntra { from { opacity: 0; transform: translateY(10px); } }
+/* a página que entrou com View Transition não repete a animação de entrada antiga */
+.bz-route.sem-entrada,
+.bz-route.sem-entrada > * > * { animation: none !important; }
+
+/* ---------------------------------------------------------------------
+   Continuous corners (cantos "squircle", como no iPhone)
+   Em vez de um quarto de círculo, a curva do canto começa mais cedo e
+   acaba mais suave. Só nos browsers que suportam `corner-shape`
+   (Chrome/Edge 139+); nos outros fica o canto redondo normal.
+   Só em cartões, janelas e painéis (nunca em círculos/pílulas: avatares
+   e botões redondos têm de continuar redondos).
+   Para um elemento novo: acrescentar a classe à lista abaixo.
+   --------------------------------------------------------------------- */
+@supports (corner-shape: superellipse(1.5)) {
+  :where(
+    /* janelas */
+    .cm-caixa, .dlg-box, .ab-modal, .ab-dialog, .af-modal, .ag-modal, .apv-dialog-box, .cal-modal,
+    .cc-modal, .fx-modal, .gm-modal, .gm-dialog, .mk-modal, .pa-modal, .pd-modal, .pf-dialog,
+    .po-modal, .po-dialog, .rh-modal, .sgm-dialog, .tk-modal, .tk-dialog, .np-panel,
+    /* cartões e painéis */
+    .card, .total-card, .ag-card, .adm-card, .adm-kpi, .af-fcard, .af-kpi, .af-set-card, .apv-card,
+    .cc-card, .en-card, .en-fcard, .en-panel, .en-pcard, .hx-card, .hx-kpi, .km-route-card,
+    .mdl-card, .mdl-panel, .mk-card, .mk-pcard, .pa-card, .pa-fcard, .pd-card, .pd-subcard,
+    .pd-fin-kpi, .pf-card, .pf-cc-card, .po-card, .po-nav-card, .po-vg-kpi, .propostas-card,
+    .propostas-programa-card, .propostas-service-card, .rh-fcard, .rh-fin-tile, .rh-detail-box,
+    .sgm-kpi, .ti-card, .ti-dcard, .ti-ecard, .tk-kcard, .tk-proj-tile, .sk-cartao,
+    .login-box, .otp-box, .au-panel,
+    /* avisos */
+    .tg-aviso
+  ) {
+    corner-shape: superellipse(1.5);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Amazon safe triangle (utils/trianguloSeguro.js)
+   Menus que abrem ao passar o rato e ficam POR CIMA do botão:
+     <div data-triangulo>  <button data-triangulo-gatilho>…</button>  <div data-triangulo-painel>…</div>  </div>
+   (o painel tem de ter z-index ≤ 30 e position absolute/relative)
+   Enquanto o rato vai do botão para o menu na diagonal, um triângulo
+   invisível (do cursor até à base do menu) mantém o menu aberto, mesmo
+   que o rato passe por cima de outro botão pelo caminho.
+   --------------------------------------------------------------------- */
+[data-triangulo-painel]::after {
+  content: "";
+  position: absolute;
+  left: -60px;
+  right: -60px;
+  top: 100%;
+  height: var(--st-h, 0px);
+  clip-path: polygon(calc(var(--st-x, 0px) + 60px) 100%, 60px 0, calc(100% - 60px) 0);
+  pointer-events: auto;
+}
+/* O botão fica por cima do triângulo: continua a receber o clique */
+[data-triangulo-gatilho] { position: relative; z-index: 31; }
+
+/* ---------------------------------------------------------------------
+   Placeholder das fotos de perfil (utils/placeholderImagem.js)
+   O mosaico 4×4 com as cores da foto é ampliado pelo browser (fica
+   desfocado) e aparece por trás até a foto chegar.
+   --------------------------------------------------------------------- */
+img.bz-ph {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent; /* esconde o texto alternativo enquanto carrega */
+}
+img.bz-ph-neutro {
+  background-image: linear-gradient(135deg,
+    color-mix(in srgb, var(--color-btnPrimary, #3b82f6) 18%, #e2e8f0),
+    color-mix(in srgb, var(--color-btnPrimary, #3b82f6) 8%, #f1f5f9));
+}

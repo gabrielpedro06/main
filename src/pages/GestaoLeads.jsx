@@ -373,7 +373,9 @@ export default function GestaoLeads() {
           setLastCampaignSummary(summary);
 
           const failedCount = summary?.failedRecipients?.length || 0;
-          if (failedCount > 0) {
+          if (summary?.repetido) {
+              showToast("Esta campanha já tinha sido enviada há poucos minutos (mesmos destinatários e conteúdo). Não foi enviada outra vez.", "warning");
+          } else if (failedCount > 0) {
               const reason = getFirstFailureReason(summary);
               if (reason.toLowerCase().includes("unrecognised ip address")) {
                   showToast("Falha Brevo: IP não autorizado. Adiciona este IP em Brevo > Security > Authorised IPs.", "error");

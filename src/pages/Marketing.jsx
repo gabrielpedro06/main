@@ -32,6 +32,8 @@ import { I } from "../components/marketing/mkIcons";
 import { ETAPAS, ETAPAS_ANTES_AGENDAR, ETAPA_INICIAL, estadoInfo, canalInfo, CANAIS, prioridadeInfo, avaliacaoInfo } from "../constants/marketing";
 import { fmtData, diasAte, norm } from "../components/marketing/mkUtils";
 import "../styles/marketing.css";
+import { CronoChip, CampanhaTempo } from "../components/marketing/Cronometro";
+import { useCronometroMarketing, formatarMinutos } from "../utils/cronometroMarketing";
 import { clicavel } from "../utils/clicavel";
 
 const LS_MARCA = "bizin-mk-marca";
@@ -50,7 +52,7 @@ const ordemAgora = () => Date.now() / 1000;
  * (vermelho se atrasada, laranja a ≤2 dias); depois mostra a 1.ª publicação.
  * Alertas: alterações pedidas, à espera de aprovador, placeholders [..] por preencher.
  */
-function Cartao({ it, pessoas = [], aprovadores = [], personasDoItem = [], onAbrir, onDragStart, onDragEnd, arrastando, dropAntes, onDragOverCard }) {
+function Cartao({ it, pessoas = [], aprovadores = [], personasDoItem = [], crono, onAbrir, onDragStart, onDragEnd, arrastando, dropAntes, onDragOverCard }) {
   const prio = prioridadeInfo(it.prioridade);
   const antesDeAgendar = ETAPAS_ANTES_AGENDAR.includes(it.estado);
   let data = null;
@@ -100,6 +102,7 @@ function Cartao({ it, pessoas = [], aprovadores = [], personasDoItem = [], onAbr
           </span>
         )}
         {data && <span className={`mk-date ${data.tom ? `is-${data.tom}` : ""}`}><I.Clock size={12} /> {data.txt}</span>}
+        {crono && <CronoChip {...crono} />}
         <AvatarStack pessoas={pessoas} size={24} />
       </div>
     </article>
@@ -140,6 +143,8 @@ export default function Marketing() {
   const location = useLocation();
   const navigate = useNavigate();
   const toastTimer = useRef(null);
+  // Cronómetro das peças (mesmo sistema das tarefas: task_logs)
+  const crono = useCronometroMarketing(user?.id);
 
   const avisar = useCallback((msg, tipo = "ok") => {
     clearTimeout(toastTimer.current);
@@ -481,6 +486,8 @@ export default function Marketing() {
   const factosPendentes = useMemo(() => recursos.filter((r) => r.tipo === "facto" && r.estado === "a_confirmar").length, [recursos]);
 
   const aberto = conteudos.find((c) => c.id === abertoId) || null;
+  /** Ids das peças de uma campanha (para somar o tempo da campanha) */
+  const idsDaCampanha = useCallback((nome) => conteudos.filter((c) => (c.campanha || "").trim() === nome).map((c) => c.id), [conteudos]);
 
   /* ---------- arrastar no quadro ---------- */
   /**
@@ -617,7 +624,11 @@ export default function Marketing() {
             onChange={setFCamp}
             icon={<I.Flag size={14} />}
             menuWidth={320}
-            options={[{ value: "", label: "Todas as campanhas" }, ...campanhas.map((c) => ({ value: c, label: c, hint: `${conteudos.filter((x) => x.campanha === c).length} peças` }))]}
+            options={[{ value: "", label: "Todas as campanhas" }, ...campanhas.map((c) => {
+              const ids = idsDaCampanha(c);
+              const min = crono.tempoDe(ids).total;
+              return { value: c, label: c, hint: `${ids.length} peças${min >= 1 ? ` · ${formatarMinutos(min)}` : ""}` };
+            })]}
           />
         )}
         <button type="button" className="mk-btn is-ghost mk-import-btn" onClick={() => setImportarFluxo(true)} title="Importar o CSV do Fluxo de Conteúdos / Banco de Ideias do Notion"><I.Archive size={15} /> Importar</button>
@@ -634,6 +645,14 @@ export default function Marketing() {
           <button type="button" className="mk-btn is-primary" onClick={() => setGerirMarcas(true)}><I.Plus size={15} /> Criar marca</button>
         </div>
       ) : tab === "fluxo" ? (
+        <>
+        {/* Tempo da campanha filtrada (todas as pessoas, todas as peças) */}
+        {fCamp && (() => {
+          const ids = idsDaCampanha(fCamp);
+          const tempo = crono.tempoDe(ids);
+          const pecas = conteudos.filter((c) => ids.includes(c.id)).map((c) => ({ id: c.id, titulo: c.titulo, minutos: crono.tempoDe(c.id).total }));
+          return <CampanhaTempo nome={fCamp} tempo={tempo} pecas={pecas} nPecas={ids.length} perfis={perfis} userId={user?.id} onAbrir={setAbertoId} />;
+        })()}
         <div className="mk-board" key={marcaAtual}>
           {ETAPAS.map((etapa, ci) => {
             const lista = colunas[etapa.id] || [];
@@ -661,6 +680,15 @@ export default function Marketing() {
                       pessoas={idsResp(it).map(pessoa).filter(Boolean)}
                       aprovadores={(it.aprovadores || []).map(pessoa).filter(Boolean)}
                       personasDoItem={(it.persona_ids || []).map((id) => personaPorId[id]).filter(Boolean)}
+                      crono={{
+                        tempo: crono.tempoDe(it.id),
+                        meuAqui: crono.meuAtivo?.conteudo_id === it.id,
+                        inicio: crono.meuAtivo?.start_time,
+                        desativado: crono.aMudar,
+                        onIniciar: () => crono.iniciar(it),
+                        onParar: crono.parar,
+                        nomeDe: (id) => pessoa(id)?.nome?.split(" ")[0],
+                      }}
                       arrastando={drag?.id === it.id}
                       dropAntes={dropAntes === it.id && drag?.id !== it.id}
                       onAbrir={() => setAbertoId(it.id)}
@@ -688,6 +716,7 @@ export default function Marketing() {
             );
           })}
         </div>
+        </>
       ) : tab === "estrategia" ? (
         <Estrategia
           key={marcaAtual}
@@ -819,6 +848,17 @@ export default function Marketing() {
           onArquivar={arquivar}
           onRestaurar={restaurar}
           onEliminar={eliminar}
+          crono={{
+            tempo: crono.tempoDe(aberto.id),
+            meuAqui: crono.meuAtivo?.conteudo_id === aberto.id,
+            inicio: crono.meuAtivo?.start_time,
+            aMudar: crono.aMudar,
+            onIniciar: () => crono.iniciar(aberto),
+            onParar: crono.parar,
+            campanha: (aberto.campanha || "").trim()
+              ? { nome: aberto.campanha.trim(), tempo: crono.tempoDe(idsDaCampanha(aberto.campanha.trim())) }
+              : null,
+          }}
         />
       )}
 

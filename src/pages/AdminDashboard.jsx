@@ -321,7 +321,7 @@ export default function AdminDashboard() {
   const resolveActiveLabel = (log) => {
     if (!log) return "N/A";
     const tree = getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
-    return [tree.p?.titulo, tree.a?.titulo, tree.t?.titulo, tree.s?.titulo].filter(Boolean).join(" > ") || "Em curso";
+    return [tree.p?.titulo, tree.a?.titulo, tree.t?.titulo, tree.s?.titulo].filter(Boolean).join(" > ") || (log.conteudo_id ? "Marketing" : "Em curso");
   };
 
   const logsFiltered = useMemo(() => {

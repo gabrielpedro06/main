@@ -33,7 +33,9 @@ import "./../styles/dashboard.css";
 import "../styles/absences.css";
 import FancySelect from "../components/FancySelect";
 import { postAutenticado } from "../utils/apiAutenticada";
+import { cabecalhoIdempotencia } from "../utils/idempotencia";
 import { uuidSeguro } from "../utils/filtroSeguro";
+import { lerCache, guardarCache } from "../utils/cachePaginas";
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -128,12 +130,15 @@ export default function Ferias({ forcedType = null }) {
     const isKmOnlyMode = forcedType === KM_REQUEST_TYPE;
 
   const { user } = useAuth(); 
-  const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [diasFerias, setDiasFerias] = useState(null); 
-        const [diasFeriasDisponiveis, setDiasFeriasDisponiveis] = useState(null);
-    const [diasFeriasTotal, setDiasFeriasTotal] = useState(null);
-        const [dataAdmissao, setDataAdmissao] = useState(null);
+  // Stale-while-revalidate: ao voltar à página mostra logo os últimos dados (utils/cachePaginas.js)
+  const chaveCache = `ausencias:${forcedType || "todos"}`;
+  const emCache = lerCache(chaveCache);
+  const [pedidos, setPedidos] = useState(() => emCache?.pedidos || []);
+  const [loading, setLoading] = useState(() => !emCache?.pedidos);
+  const [diasFerias, setDiasFerias] = useState(() => emCache?.diasFerias ?? null); 
+        const [diasFeriasDisponiveis, setDiasFeriasDisponiveis] = useState(() => emCache?.diasFeriasDisponiveis ?? null);
+    const [diasFeriasTotal, setDiasFeriasTotal] = useState(() => emCache?.diasFeriasTotal ?? null);
+        const [dataAdmissao, setDataAdmissao] = useState(() => emCache?.dataAdmissao ?? null);
     const [hasDiasFeriasTotalColumn, setHasDiasFeriasTotalColumn] = useState(true);
   const [tolerancias, setTolerancias] = useState([]);
   
@@ -279,6 +284,13 @@ export default function Ferias({ forcedType = null }) {
               tolerancias,
           });
           setDiasFeriasDisponiveis(saldoAnual.diasDisponiveis);
+          guardarCache(chaveCache, {
+              ...(lerCache(chaveCache) || {}),
+              diasFerias: data.dias_ferias,
+              diasFeriasTotal: getAnnualVacationLimitFromProfile(data),
+              dataAdmissao: data.data_admissao || null,
+              diasFeriasDisponiveis: saldoAnual.diasDisponiveis,
+          });
           setMeusVeiculos(Array.isArray(data.veiculos) ? data.veiculos : []); // 💡 Guarda veículos
       }
   }
@@ -308,7 +320,8 @@ export default function Ferias({ forcedType = null }) {
   }
 
   async function fetchPedidos() {
-    setLoading(true);
+    // Com dados em cache não volta a mostrar o esqueleto: atualiza por trás
+    if (!lerCache(chaveCache)?.pedidos) setLoading(true);
         let query = supabase.from("ferias").select("*").eq("user_id", user.id);
         if (forcedType) {
             query = query.eq("tipo", forcedType);
@@ -316,7 +329,10 @@ export default function Ferias({ forcedType = null }) {
             query = query.neq("tipo", KM_REQUEST_TYPE);
         }
         const { data, error } = await query.order("created_at", { ascending: false });
-    if (!error) setPedidos(data || []);
+    if (!error) {
+        setPedidos(data || []);
+        guardarCache(chaveCache, { ...(lerCache(chaveCache) || {}), pedidos: data || [] });
+    }
     setLoading(false);
   }
 
@@ -529,7 +545,7 @@ export default function Ferias({ forcedType = null }) {
           if (savedRequestId) {
               const apiBase = import.meta.env.VITE_MARKETING_API_BASE || "";
               // O servidor lê o pedido e os administradores na base de dados (só envia o id)
-              const response = await postAutenticado(`${apiBase}/api/notificacoes/pedido-ausencia`, { requestId: savedRequestId, isEditing });
+              const response = await postAutenticado(`${apiBase}/api/notificacoes/pedido-ausencia`, { requestId: savedRequestId, isEditing }, await cabecalhoIdempotencia("pedido-ausencia", { savedRequestId, isEditing, minuto: Math.floor(Date.now() / 60000) }));
               if (!response.ok) throw new Error(`Dispatcher de email respondeu ${response.status}.`);
           }
       } catch (notificationError) {

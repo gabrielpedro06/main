@@ -3,6 +3,7 @@
 // A base (VITE_TRANSFERGEST_API_BASE ou VITE_MARKETING_API_BASE) é ignorada se apontar para
 // localhost com a app aberta noutro host, ou para a própria origem → usa /api da mesma origem.
 import { postAutenticado } from "../utils/apiAutenticada";
+import { cabecalhoIdempotencia } from "../utils/idempotencia";
 const RAW_TRANSFERGEST_API_BASE = import.meta.env.VITE_TRANSFERGEST_API_BASE || import.meta.env.VITE_MARKETING_API_BASE || "";
 
 const trimTrailingSlash = (value) => String(value || "").replace(/\/+$/, "");
@@ -68,7 +69,7 @@ export async function sendTransfergestCampaign(payload) {
 
   let response;
   try {
-    response = await postAutenticado(endpoint, payload);
+    response = await postAutenticado(endpoint, payload, await cabecalhoIdempotencia("campanha_transfergest", payload));
   } catch {
     throw new Error(getNetworkHelpMessage());
   }
@@ -87,5 +88,6 @@ export async function sendTransfergestCampaign(payload) {
     throw error;
   }
 
-  return data.summary;
+  // repetido = o servidor reconheceu este envio como repetição e NÃO voltou a enviar
+  return data.repetido ? { ...data.summary, repetido: true, repetidoDesde: data.repetidoDesde } : data.summary;
 }

@@ -54,6 +54,7 @@ export default {
       passos: [
         "Carrega no círculo à esquerda do cartão (**Marcar como concluído**).",
         "A tarefa sai do quadro e passa para o **Histórico**.",
+        "Enganaste-te? Carrega em **Desfazer** no aviso que aparece em baixo (ou **Ctrl+Z**) nos segundos seguintes e a tarefa volta.",
       ],
     },
     {
@@ -104,10 +105,10 @@ export default {
       titulo: "Como apagar uma tarefa",
       passos: [
         "Abre os detalhes da tarefa.",
-        "Carrega no ícone do caixote do lixo (**Apagar tarefa**).",
-        "Confirma.",
+        "Carrega no ícone do caixote do lixo (**Apagar tarefa**). A tarefa sai logo do quadro.",
+        "Enganaste-te? Carrega em **Desfazer** no aviso que aparece em baixo (ou **Ctrl+Z**). Tens cerca de 6 segundos.",
       ],
-      nota: "Esta ação não pode ser desfeita. Se só quiseres tirá-la do quadro, marca-a como concluída.",
+      nota: "Passado esse tempo, a tarefa é apagada de vez. O mesmo vale para apagar do **Arquivo de concluídas** e para apagar um registo de tempo. Se só quiseres tirá-la do quadro, marca-a como concluída.",
     },
   ],
   faq: [

@@ -2,6 +2,7 @@
 // GET /api/health e POST /api/notificacoes/marketing (com sessão). Por omissão usa a mesma
 // origem; VITE_MARKETING_API_BASE só serve para apontar para outro servidor.
 import { postAutenticado } from "../utils/apiAutenticada";
+import { cabecalhoIdempotencia } from "../utils/idempotencia";
 const DEFAULT_MARKETING_API_BASE = import.meta.env.VITE_MARKETING_API_BASE || "";
 
 export async function checkMarketingApiHealth() {
@@ -25,7 +26,7 @@ export async function checkMarketingApiHealth() {
 export async function sendMarketingCampaign(payload) {
   const endpoint = `${DEFAULT_MARKETING_API_BASE}/api/notificacoes/marketing`;
 
-  const response = await postAutenticado(endpoint, payload);
+  const response = await postAutenticado(endpoint, payload, await cabecalhoIdempotencia("campanha_marketing", payload));
 
   const data = await response.json().catch(() => ({}));
 
@@ -42,5 +43,6 @@ export async function sendMarketingCampaign(payload) {
     throw error;
   }
 
-  return data.summary;
+  // repetido = o servidor reconheceu este envio como repetição e NÃO voltou a enviar
+  return data.repetido ? { ...data.summary, repetido: true, repetidoDesde: data.repetidoDesde } : data.summary;
 }

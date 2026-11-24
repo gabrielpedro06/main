@@ -17,6 +17,7 @@ import {
   urlDaApp, origemApp, limitar, auditar, emailValido,
 } from "./seguranca.js";
 import { construirEmailPedido } from "./emailPedidoAusencia.js";
+import { umaVez } from "./idempotencia.js";
 
 const MAX_DESTINATARIOS_CAMPANHA = 2000;
 
@@ -168,6 +169,9 @@ const TIPOS = {
   "pedido-ausencia": pedidoAusencia,
 };
 
+/** Tipos protegidos contra repetição (cabeçalho Idempotency-Key, ver idempotencia.js). */
+const IDEMPOTENTES = new Set(["marketing", "transfergest", "pedido-ausencia"]);
+
 export function tipoValido(tipo) {
   return Object.prototype.hasOwnProperty.call(TIPOS, tipo);
 }
@@ -188,7 +192,9 @@ export default async function notificar(tipo, req, res) {
   }
   try {
     const ctx = await autenticar(req);
-    const out = await TIPOS[tipo](req, ctx);
+    const out = IDEMPOTENTES.has(tipo)
+      ? await umaVez(req, ctx, tipo, () => TIPOS[tipo](req, ctx))
+      : await TIPOS[tipo](req, ctx);
     res.status(200).json(out);
   } catch (err) {
     if (err instanceof ErroHttp) {

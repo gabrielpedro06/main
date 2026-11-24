@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { announceNewMessages, bindNotificationUnlock } from "../utils/notifySound";
 import { useAuth } from "../context/AuthContext";
+import { abrirComando, ATALHO_COMANDO } from "../utils/comando";
 import { supabase } from "../services/supabase"; 
 import WidgetCalendar from "./WidgetCalendar"; 
 import AccountMenu from "./AccountMenu";
@@ -406,6 +407,23 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
           <ul ref={navListRef} className="sidebar-nav-list" style={{ margin: 0 }}>
             <div ref={pillRef} className="sidebar-active-pill" aria-hidden="true" />
             
+            {/* --- PESQUISAR (Command Menu, Ctrl+K) --- */}
+            <li className="sidebar-pesquisar">
+              <a
+                href="#"
+                role="button"
+                aria-keyshortcuts="Control+K Meta+K"
+                title={getSidebarTooltip(`Pesquisar (${ATALHO_COMANDO})`)}
+                onClick={(e) => { e.preventDefault(); abrirComando(); }}
+              >
+                <span className="icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                </span>
+                <span className="link-text">Pesquisar</span>
+                <kbd className="link-text sidebar-kbd">{ATALHO_COMANDO}</kbd>
+              </a>
+            </li>
+
             {/* --- INÍCIO --- */}
             <li className={isActive('/dashboard')}>
               <Link to="/dashboard" title={getSidebarTooltip("Início")}>

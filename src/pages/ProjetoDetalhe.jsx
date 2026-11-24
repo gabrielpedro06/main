@@ -22,6 +22,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import { toast } from "../utils/toast";
 import jsPDF from "jspdf";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
@@ -1449,7 +1450,14 @@ export default function ProjetoDetalhe() {
       setAtividades(prev => prev.map(a => ({
           ...a, tarefas: a.tarefas.map(t => t.id === tarefaId ? {...t, estado: novoEstado} : t)
       })));
-      await supabase.from("tarefas").update({ estado: novoEstado }).eq("id", tarefaId);
+      const { error } = await supabase.from("tarefas").update({ estado: novoEstado }).eq("id", tarefaId);
+      if (error) {
+          // Optimistic update falhou: repõe o estado anterior
+          setAtividades(prev => prev.map(a => ({
+              ...a, tarefas: a.tarefas.map(t => t.id === tarefaId ? {...t, estado: estadoAtual} : t)
+          })));
+          toast("Não foi possível gravar. Tenta de novo.", { tipo: "erro" });
+      }
   }
 
   async function toggleSubtarefaStatus(subId, estadoAtual) {
@@ -1459,7 +1467,15 @@ export default function ProjetoDetalhe() {
               ...t, subtarefas: t.subtarefas.map(s => s.id === subId ? {...s, estado: novoEstado} : s)
           }))
       })));
-      await supabase.from("subtarefas").update({ estado: novoEstado }).eq("id", subId);
+      const { error } = await supabase.from("subtarefas").update({ estado: novoEstado }).eq("id", subId);
+      if (error) {
+          setAtividades(prev => prev.map(a => ({
+              ...a, tarefas: a.tarefas.map(t => ({
+                  ...t, subtarefas: t.subtarefas.map(s => s.id === subId ? {...s, estado: estadoAtual} : s)
+              }))
+          })));
+          toast("Não foi possível gravar. Tenta de novo.", { tipo: "erro" });
+      }
   }
 
   async function handleSaveAtividade(e) {

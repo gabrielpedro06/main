@@ -94,9 +94,9 @@ export default {
       passos: [
         "Na tua publicação, carrega no ícone de lápis (**Editar Publicação**) ou no caixote do lixo (**Apagar Publicação**).",
         "Para editar, faz as alterações e carrega em **Guardar alterações**.",
-        "Para apagar, confirma com **Sim, apagar**.",
+        "Ao apagar, a publicação desaparece logo. Se te enganaste, carrega em **Desfazer** no aviso que aparece em baixo (ou **Ctrl+Z**) nos segundos seguintes.",
       ],
-      nota: "Apagar uma publicação apaga também todos os comentários. Não pode ser desfeito.",
+      nota: "Apagar uma publicação apaga também todos os comentários. Os comentários também se apagam com **Desfazer**. Passados uns segundos, já não dá para recuperar.",
     },
     {
       titulo: "Como ver só as publicações de uma pessoa",
@@ -166,7 +166,7 @@ export default {
     },
     {
       pergunta: "Posso sair de um grupo ou apagar uma conversa?",
-      resposta: "Não. De momento a página não tem nenhuma opção para sair de um grupo nem para apagar uma conversa.",
+      resposta: "Podes sair de um grupo: no topo da conversa carrega em **Membros** e depois em **Sair do grupo**. Apagar uma conversa ainda não é possível.",
     },
     {
       pergunta: "Não recebo a notificação do Windows quando chegam mensagens. Porquê?",

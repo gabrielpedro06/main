@@ -2,12 +2,20 @@
 // marca, decorações de tema e <Outlet /> com a página atual. Em mobile (≤900px)
 // a sidebar passa a gaveta e aparecem a barra de topo e a navegação inferior.
 // Documentação: docs/modulos/comunicacao-e-dashboard.md
-import { useEffect, useRef, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import BrandIntro from "../components/BrandIntro";
 import ThemeDecor from "../components/ThemeDecor";
 import { ChamadasProvider } from "../context/ChamadasContext";
+import PaginaSkeleton from "../components/Skeleton";
+import CommandMenu from "../components/CommandMenu";
+import { abrirComando } from "../utils/comando";
+import GestosJanelas from "../components/GestosJanelas";
+import AtalhosTeclado from "../components/AtalhosTeclado";
+import { arrastarParaFechar } from "../utils/gestos";
+import { navegarComTransicao, paginaMudou, podeTransicao } from "../utils/transicaoPagina";
+import { prefetchEmSegundoPlano, prefetchRota } from "../rotas";
 import "../styles/dashboard.css";
 
 const MOBILE_QUERY = "(max-width: 900px)";
@@ -35,11 +43,20 @@ const PAGE_TITLES = [
   ["/dashboard/acoes-formacao", "Ações de Formação"],
   ["/dashboard/organizador-pdf", "Organizador de PDFs"],
   ["/dashboard/ajuda", "Ajuda"],
+  ["/dashboard/marketing", "Marketing"],
+  ["/dashboard/registos", "Registos"],
+  ["/dashboard/pedidos", "Pedido"],
 ];
 
 const getPageTitle = (pathname) => {
   const match = PAGE_TITLES.find(([path]) => pathname.startsWith(path));
   return match ? match[1] : "Início";
+};
+
+// Pré-carrega a página de qualquer link interno ao passar o rato, focar ou tocar
+const prefetchDoLink = (e) => {
+  const a = e.target.closest?.("a[href]");
+  if (a) prefetchRota(a.getAttribute("href"));
 };
 
 const getIsMobile = () =>
@@ -62,6 +79,24 @@ const BOTTOM_NAV = [
 
 export default function Dashboard() {
   const location = useLocation();
+  const navigate = useNavigate();
+  // Página que entrou com View Transition (não repete a animação de entrada antiga)
+  const [entrouComVT, setEntrouComVT] = useState(null);
+
+  // A nova página já está no ecrã: termina a "fotografia" da View Transition
+  useLayoutEffect(() => { paginaMudou(); }, [location.key]);
+
+  // Cliques em links internos (#/...) passam a navegar com View Transition
+  const onClickLink = (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest?.("a[href^='#/']");
+    if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+    const destino = a.getAttribute("href").slice(1);
+    if (destino === location.pathname + location.search) return;
+    e.preventDefault(); // o <Link> do React Router vê isto e não navega ele próprio
+    setEntrouComVT(podeTransicao() ? destino.split("?")[0] : null);
+    navegarComTransicao(navigate, destino);
+  };
   const mainRef = useRef(null);
   const [isMobile, setIsMobile] = useState(getIsMobile);
   const [menuOpen, setMenuOpen] = useState(() => !getIsMobile());
@@ -84,6 +119,19 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
+  // Gaveta aberta no telemóvel: arrastar para a esquerda fecha
+  useEffect(() => {
+    if (!isMobile || !menuOpen) return;
+    const gaveta = document.querySelector(".sidebar.is-mobile");
+    if (!gaveta) return;
+    return arrastarParaFechar(gaveta, {
+      eixo: "x",
+      sentido: -1,
+      fundo: document.querySelector(".bz-drawer-backdrop"),
+      aoFechar: () => setMenuOpen(false),
+    });
+  }, [isMobile, menuOpen]);
+
   // Bloqueia o scroll de fundo com a gaveta aberta
   useEffect(() => {
     if (!isMobile) return;
@@ -91,14 +139,32 @@ export default function Dashboard() {
     return () => document.body.classList.remove("bz-drawer-open");
   }, [isMobile, menuOpen]);
 
+  // Com o browser parado, descarrega as páginas mais usadas (a 1.ª visita fica rápida)
+  useEffect(() => {
+    prefetchEmSegundoPlano(["/dashboard", "/dashboard/minhas-tarefas", "/dashboard/tarefas", "/dashboard/projetos", "/dashboard/forum", "/dashboard/ferias"]);
+  }, []);
+
   const isActive = (item) =>
     item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to);
 
   return (
     <ChamadasProvider>
-    <div className={`dashboard-container ${isMobile ? "is-mobile" : ""}`}>
+    <div
+      className={`dashboard-container ${isMobile ? "is-mobile" : ""}`}
+      onMouseOver={prefetchDoLink}
+      onFocus={prefetchDoLink}
+      onTouchStart={prefetchDoLink}
+      onClickCapture={onClickLink}
+    >
       <BrandIntro />
       <ThemeDecor />
+      <CommandMenu />
+      <GestosJanelas />
+      <AtalhosTeclado />
+      {/* Marcador da gaveta aberta: faz o "voltar" do telemóvel fechar a gaveta (ver GestosJanelas) */}
+      {isMobile && menuOpen && (
+        <span data-janela className="bz-gaveta-marcador" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+      )}
       <Sidebar menuOpen={menuOpen} setMenuOpen={setMenuOpen} isMobile={isMobile} />
 
       {isMobile && (
@@ -123,14 +189,27 @@ export default function Dashboard() {
             <span key={location.pathname} className="bz-topbar-title">
               {getPageTitle(location.pathname)}
             </span>
+            <button
+              type="button"
+              className="bz-icon-btn bz-topbar-pesquisa"
+              onClick={abrirComando}
+              aria-label="Pesquisar"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            </button>
             <img src="/logo3.png" alt="Bizin" className="bz-topbar-logo" />
           </header>
         )}
 
         <main className="dashboard-main" ref={mainRef}>
-          {/* A key faz com que cada página entre com animação */}
-          <div key={location.pathname} className="bz-route">
-            <Outlet />
+          {/* A key faz com que cada página entre com animação (sem-entrada: já animada pela View Transition) */}
+          <div
+            key={location.pathname}
+            className={`bz-route ${entrouComVT === location.pathname ? "sem-entrada" : ""}`}
+          >
+            <Suspense fallback={<PaginaSkeleton />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
 

@@ -20,8 +20,8 @@ const buildActiveTimerTitle = ({ clientName, projectName, itemTitle }) => {
 
 /**
  * Resolve os metadados de um registo de tempo ativo, por ordem de especificidade:
- * subtarefa → tarefa (task_id ou tarefa_id) → atividade → projeto.
- * Tabelas lidas: subtarefas, tarefas, atividades, projetos, clientes (só leitura).
+ * subtarefa → tarefa (task_id ou tarefa_id) → atividade → peça de marketing (conteudo_id) → projeto.
+ * Tabelas lidas: subtarefas, tarefas, atividades, marketing_conteudos, projetos, clientes (só leitura).
  *
  * @param {object} supabase
  * @param {object|null} activeLog linha de task_logs
@@ -86,6 +86,15 @@ export async function resolveActiveTimerMeta(supabase, activeLog) {
     projectId = project?.id || data?.projeto_id || projectId;
     projectName = project?.titulo || "";
     clientName = getClientDisplayName(getSingle(project?.clientes));
+  } else if (activeLog.conteudo_id) {
+    // Peça de Marketing (migração 082): "Marca - Título"
+    const { data } = await supabase
+      .from("marketing_conteudos")
+      .select("titulo, marketing_marcas(nome)")
+      .eq("id", activeLog.conteudo_id)
+      .maybeSingle();
+    itemTitle = data?.titulo || "Peça de marketing";
+    clientName = getSingle(data?.marketing_marcas)?.nome || "Marketing";
   } else if (activeLog.projeto_id) {
     const { data } = await supabase
       .from("projetos")
@@ -102,7 +111,9 @@ export async function resolveActiveTimerMeta(supabase, activeLog) {
   const title = buildActiveTimerTitle({ clientName, projectName, itemTitle });
 
   let route = "/dashboard/tarefas";
-  if (projectId) {
+  if (activeLog.conteudo_id && !projectId) {
+    route = `/dashboard/marketing?conteudo=${activeLog.conteudo_id}`;
+  } else if (projectId) {
     route = `/dashboard/projetos/${projectId}`;
   } else if (activeLog.atividade_id) {
     route = "/dashboard/atividades";

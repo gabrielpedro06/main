@@ -34,6 +34,16 @@ export default {
         "Cada coluna é uma etapa: **Briefing**, **Curadoria**, **Criação**, **Revisão**, **Aprovação**, **Alterações necessárias**, **Agendamento / Programação** e **Publicado / Agendado**. Cada cartão mostra o formato, a prioridade, a campanha, os canais, as personas, a data e os responsáveis. Avisos a vermelho indicam alterações pedidas, peças em aprovação sem aprovador (**Sem aprovador: abra e envie**) ou campos por preencher no texto.",
     },
     {
+      titulo: "Cronometrar uma peça",
+      texto:
+        "Podes registar o tempo gasto em cada peça, como nas tarefas. No cartão do quadro, passa o rato e carrega no **▶** (no telemóvel aparece sempre). Também podes abrir a peça e carregar em **Cronometrar**, no topo. Enquanto o cronómetro corre, o botão fica verde com o tempo a andar. Carrega outra vez para parar e o tempo fica guardado. No cartão vês o tempo total da peça. Um ponto verde indica que um colega está a cronometrá-la agora. Dentro da peça vês o total, o teu tempo e o tempo de cada pessoa. Só podes ter um cronómetro ligado: se tiveres uma tarefa a correr, a app pergunta se a queres terminar. Se ainda não picaste o ponto, também pergunta se queres picar.",
+    },
+    {
+      titulo: "Tempo por campanha",
+      texto:
+        "Para ver quanto tempo levou uma campanha, escolhe-a no filtro de campanhas (no separador **Fluxo**). Por cima do quadro aparece o **total da campanha**, que é a soma do tempo de todas as pessoas em todas as peças dessa campanha. Por baixo vês o tempo **de cada pessoa**, com uma barra para comparar, e as **peças com mais tempo**. Carrega numa peça para a abrir. No próprio filtro, cada campanha mostra o número de peças e o tempo total. Dentro de uma peça, ao lado do cronómetro, também aparece o total da campanha a que pertence.",
+    },
+    {
       titulo: "Calendário",
       texto:
         "Vista mensal. Cada conteúdo pode aparecer até três vezes: **Entrega** (copy e design prontos), **1.ª publicação** (com hora e canal) e **2.ª publicação** (repost ou lembrete). Uma entrega aparece como **ATRASADA** se a data passou e a peça ainda não saiu da produção, ou como **já entregue** se já avançou. As bandeiras são pontos de controlo da estratégia. À direita, a lista **Sem data** mostra as peças ainda sem 1.ª publicação.",

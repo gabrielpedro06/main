@@ -1234,3 +1234,138 @@
 .mk-aprov-hist li div { display: flex; flex-direction: column; gap: 1px; font-size: 13px; }
 .mk-aprov-hist li span { color: #64748b; font-size: 12px; }
 .mk-aprov-hist li p { margin: 4px 0 0; white-space: pre-wrap; color: #334155; }
+
+/* =========================================================================
+   CRONÓMETRO das peças (components/marketing/Cronometro.jsx)
+   ========================================================================= */
+/* --- botão no cartão do quadro --- */
+.mk-crono-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: var(--mk-muted);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.2s var(--mk-spring);
+}
+.mk-crono-chip:hover { background: color-mix(in srgb, var(--brand) 12%, #fff); color: color-mix(in srgb, var(--brand) 80%, #0f172a); border-color: color-mix(in srgb, var(--brand) 25%, transparent); }
+.mk-crono-chip:active { transform: scale(0.94); }
+.mk-crono-chip:disabled { opacity: 0.5; cursor: wait; }
+/* sem tempo: só um ▶ discreto, que aparece ao passar o rato no cartão */
+.mk-crono-chip.is-vazio { width: 24px; padding: 0; justify-content: center; background: transparent; border-color: var(--mk-line, #e2e8f0); opacity: 0; }
+.mk-card:hover .mk-crono-chip.is-vazio, .mk-crono-chip.is-vazio:focus-visible { opacity: 1; }
+@media (hover: none) { .mk-crono-chip.is-vazio { opacity: 0.75; } }
+/* a correr (eu) */
+.mk-crono-chip.is-meu { background: #16a34a; color: #fff; border-color: transparent; box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); animation: mkCronoPulso 1.8s ease-out infinite; }
+.mk-crono-chip.is-meu:hover { background: #dc2626; color: #fff; animation: none; }
+.mk-crono-dot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 2px #fff; animation: mkCronoPisca 1.4s ease-in-out infinite; }
+@keyframes mkCronoPulso { 0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); } 70% { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); } 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); } }
+@keyframes mkCronoPisca { 50% { opacity: 0.35; } }
+
+/* --- painel na gaveta (cabeçalho escuro) --- */
+.mk-crono {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 8px 10px 8px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.mk-crono-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-sidebarBg, #0f172a);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s var(--mk-spring), background 0.2s ease, color 0.2s ease;
+}
+.mk-crono-btn:hover { transform: translateY(-1px); }
+.mk-crono-btn:active { transform: scale(0.96); }
+.mk-crono-btn:disabled { opacity: 0.6; cursor: wait; }
+.mk-crono.is-meu .mk-crono-btn { background: #16a34a; color: #fff; min-width: 118px; justify-content: center; animation: mkCronoPulso 1.8s ease-out infinite; }
+.mk-crono.is-meu .mk-crono-btn:hover { background: #dc2626; animation: none; }
+.mk-crono-info { display: flex; flex-direction: column; gap: 1px; font-size: 0.74rem; color: rgba(255, 255, 255, 0.75); font-variant-numeric: tabular-nums; }
+.mk-crono-total b { color: #fff; font-size: 0.95rem; font-weight: 900; }
+.mk-crono-meu { font-size: 0.7rem; color: rgba(255, 255, 255, 0.6); }
+.mk-crono-pessoas { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.mk-crono-pessoa {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px 0 3px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.mk-crono-pessoa.is-a-correr { background: rgba(22, 163, 74, 0.35); box-shadow: 0 0 0 1px rgba(134, 239, 172, 0.5) inset; }
+@media (max-width: 640px) {
+  .mk-crono-pessoas { margin-left: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-crono-chip.is-meu, .mk-crono.is-meu .mk-crono-btn, .mk-crono-dot { animation: none; }
+}
+
+/* --- tempo da campanha (por cima do quadro, ao filtrar por campanha) --- */
+.mk-camp-tempo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0 0 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--mk-line, #e2e8f0);
+  box-shadow: 0 14px 30px -26px rgba(15, 23, 42, 0.45);
+  animation: mkRise 0.35s var(--mk-ease, ease) both;
+}
+.mk-camp-tempo-head { display: flex; align-items: center; gap: 14px; }
+.mk-camp-tempo-head > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mk-camp-tempo-ico { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 14px; background: color-mix(in srgb, var(--brand, #2563eb) 12%, #fff); color: color-mix(in srgb, var(--brand, #2563eb) 85%, #0f172a); }
+.mk-camp-tempo-label { font-size: 0.76rem; color: var(--mk-muted); }
+.mk-camp-tempo-label b { color: var(--mk-ink); }
+.mk-camp-tempo-total { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; color: var(--mk-ink); font-variant-numeric: tabular-nums; }
+.mk-camp-tempo-sub { font-size: 0.74rem; color: var(--mk-muted); font-variant-numeric: tabular-nums; }
+.mk-camp-tempo-sub b { color: var(--mk-ink); }
+.mk-camp-tempo-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 28px; }
+.mk-camp-tempo-cols h4 { margin: 0 0 8px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mk-faint, #94a3b8); }
+.mk-camp-tempo-pessoas, .mk-camp-tempo-pecas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mk-camp-tempo-pessoas li { display: grid; grid-template-columns: auto minmax(0, 1fr) 90px auto; align-items: center; gap: 8px; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.mk-camp-tempo-pessoas li b { min-width: 56px; text-align: right; color: var(--mk-ink); }
+.mk-camp-tempo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mk-ink); font-weight: 600; }
+.mk-camp-tempo-barra { height: 6px; border-radius: 6px; background: #f1f5f9; overflow: hidden; }
+.mk-camp-tempo-barra i { display: block; height: 100%; border-radius: inherit; background: color-mix(in srgb, var(--brand, #2563eb) 70%, #fff); }
+.mk-camp-tempo-pessoas li.is-a-correr .mk-camp-tempo-barra i { background: #16a34a; }
+.mk-camp-tempo-pessoas li.is-a-correr .mk-camp-tempo-nome::after { content: " · a cronometrar"; color: #16a34a; font-weight: 700; }
+.mk-camp-tempo-pecas button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: none; border-radius: 10px; background: #f8fafc; color: var(--mk-ink); font: inherit; font-size: 0.8rem; text-align: left; cursor: pointer; transition: background 0.15s ease; }
+.mk-camp-tempo-pecas button:hover { background: color-mix(in srgb, var(--brand, #2563eb) 8%, #fff); }
+.mk-camp-tempo-pecas button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-camp-tempo-pecas button b { font-variant-numeric: tabular-nums; }
+.mk-camp-tempo-vazio { margin: 0; font-size: 0.82rem; color: var(--mk-muted); }
+.mk-crono-meu b { color: #fff; }

@@ -27,6 +27,9 @@ import "../styles/entidades.css";
 import * as XLSX from "xlsx";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
+import { toastDesfazer } from "../utils/toast";
+import { lerCache, guardarCache } from "../utils/cachePaginas";
+import PaginaSkeleton from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
@@ -176,8 +179,8 @@ export default function Clientes() {
   const location = useLocation();
 
   const [podeVerAcessos, setPodeVerAcessos] = useState(false);
-  const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [clientes, setClientes] = useState(() => lerCache("clientes") || []);
+  const [loading, setLoading] = useState(() => !lerCache("clientes")); // com cache: mostra já e atualiza por trás
   const [busca, setBusca] = useState("");
   const [statusTab, setStatusTab] = useState("ativos");
   const [viewMode, setViewMode] = useState("cards");
@@ -948,7 +951,7 @@ export default function Clientes() {
 
   /** Lista de entidades com contactos, localidade e projetos associados (líder ou parceira). */
   async function fetchClientes() {
-    setLoading(true);
+    if (!lerCache("clientes")) setLoading(true);
     
     try {
       // 1. Vamos buscar os clientes e contactos de forma simples e segura
@@ -1001,6 +1004,7 @@ export default function Clientes() {
           });
           
           setClientes(clientesComDados);
+          guardarCache("clientes", clientesComDados);
       } else if (errCli) {
           console.error("Erro ao carregar clientes:", errCli);
           showToast("Erro ao carregar lista de Entidades", "error");
@@ -1935,22 +1939,13 @@ export default function Clientes() {
 
   function deleteItem(tabela, id, stateSetter, listaAtual) {
     if (isViewOnly) return;
-    setConfirmDialog({
-        show: true,
-        message: "Tem a certeza? Este registo será apagado permanentemente.",
-        confirmText: "Sim, Apagar",
-        isDanger: true,
-        onConfirm: async () => {
-            setConfirmDialog({ show: false });
-            const { error } = await supabase.from(tabela).delete().eq("id", id);
-            if (!error) {
-                stateSetter(listaAtual.filter(i => i.id !== id));
-                showToast("Apagado com sucesso!");
-                if (tabela === 'moradas_cliente' || tabela === 'contactos_cliente') fetchClientes(); 
-            } else {
-                showToast("Erro ao apagar.", "error");
-            }
-        }
+    // Undo toast: sai logo da lista; só é apagado da BD se ninguém carregar em Desfazer
+    stateSetter(listaAtual.filter(i => i.id !== id));
+    toastDesfazer("Registo apagado.", {
+        executar: () => supabase.from(tabela).delete().eq("id", id),
+        desfazer: () => stateSetter(listaAtual),
+    }).then((r) => {
+        if (r === "executado" && (tabela === 'moradas_cliente' || tabela === 'contactos_cliente')) fetchClientes();
     });
   }
 
@@ -2043,7 +2038,7 @@ export default function Clientes() {
     ...(form.eh_empresa_consultora ? [{ id: 'configuracoes', label: 'Configurações', icon: Icons.FileText }] : [])
   ];
 
-  if (loading) return <div className="page-container en-loading"><span className="en-spinner" /> A carregar entidades…</div>;
+  if (loading) return <div className="page-container"><PaginaSkeleton /></div>;
 
   const entCounts = {
     ativos: clientes.filter((c) => c.ativo === true && !c.eh_organismo).length,

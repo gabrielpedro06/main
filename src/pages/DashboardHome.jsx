@@ -32,6 +32,8 @@ import NotificationsPanel from "../components/NotificationsPanel";
 import AprovacaoModal from "../components/marketing/AprovacaoModal";
 import { TIPOS_NOTIF_MK } from "../components/marketing/mkAprovacao";
 import { clicavel } from "../utils/clicavel";
+import { lerCache, guardarCache } from "../utils/cachePaginas";
+import { ListaSkeleton } from "../components/Skeleton";
 
 import AvisoToast from "../components/AvisoToast";
 // --- MEGA ÍCONES SVG PROFISSIONAIS ---
@@ -135,19 +137,25 @@ const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
 
+// Stale-while-revalidate: o Início abre logo com os últimos dados (utils/cachePaginas.js)
+const cacheInicio = () => lerCache("inicio") || {};
+const guardarInicio = (parte) => guardarCache("inicio", { ...cacheInicio(), ...parte });
+
 export default function DashboardHome() {
     const { user } = useAuth(); 
     const navigate = useNavigate();
   
-    const [tarefasHoje, setTarefasHoje] = useState([]);
-    const [tarefasGerais, setTarefasGerais] = useState([]);
-    const [tarefasEmAnalise, setTarefasEmAnalise] = useState([]);
-    const [stats, setStats] = useState({ projetos: 0, clientes: 0, forum: 0 });
+    const [tarefasHoje, setTarefasHoje] = useState(() => cacheInicio().tarefasHoje || []);
+    const [tarefasGerais, setTarefasGerais] = useState(() => cacheInicio().tarefasGerais || []);
+    const [tarefasEmAnalise, setTarefasEmAnalise] = useState(() => cacheInicio().tarefasEmAnalise || []);
+    // Primeira visita (sem cache): esqueleto na lista de tarefas até chegarem os dados
+    const [tarefasCarregadas, setTarefasCarregadas] = useState(() => !!cacheInicio().tarefasHoje);
+    const [stats, setStats] = useState(() => cacheInicio().stats || { projetos: 0, clientes: 0, forum: 0 });
     const [userProfile, setUserProfile] = useState(null);
     const [usersOnline, setUsersOnline] = useState([]);
     const [selectedOnlineUser, setSelectedOnlineUser] = useState(null);
-    const [registosMes, setRegistosMes] = useState([]); 
-    const [aniversarios, setAniversarios] = useState([]);
+    const [registosMes, setRegistosMes] = useState(() => cacheInicio().registosMes || []); 
+    const [aniversarios, setAniversarios] = useState(() => cacheInicio().aniversarios || []);
     const proximosAniversarios = aniversarios.slice(0, 3);
 
     const [activeLog, setActiveLog] = useState(null);
@@ -167,7 +175,7 @@ export default function DashboardHome() {
     const [isAdding, setIsAdding] = useState(false);
     const [addForm, setAddForm] = useState({ data: "", hora_entrada: "", hora_saida: "", tempo_pausa: 0, observacoes: "", motivo_alteracao: "" });
 
-    const [recentWorkLogs, setRecentWorkLogs] = useState([]);
+    const [recentWorkLogs, setRecentWorkLogs] = useState(() => cacheInicio().recentWorkLogs || []);
     const [alertModal, setAlertModal] = useState({ show: false, message: "" });
     const [notification, setNotification] = useState(null);
     const [projectNotifications, setProjectNotifications] = useState([]);
@@ -175,7 +183,7 @@ export default function DashboardHome() {
     const [aprovacaoConteudoId, setAprovacaoConteudoId] = useState(null);
     const [showBellDropdown, setShowBellDropdown] = useState(false);
     const [homeTab, setHomeTab] = useState('hoje');
-    const [horasMesAtual, setHorasMesAtual] = useState({ h: 0, m: 0 });
+    const [horasMesAtual, setHorasMesAtual] = useState(() => cacheInicio().horasMesAtual || { h: 0, m: 0 });
     const closeProfilePeek = useCallback(() => setSelectedOnlineUser(null), []);
     // Medalha mais recente de cada pessoa online (aparece no canto da foto)
     const medalhasOnline = useMedalhasEquipa(usersOnline.map((u) => u.user_id));
@@ -241,6 +249,13 @@ export default function DashboardHome() {
     async function markProjectNotificationAsRead(notificationId) {
         if (!notificationId || !user?.id) return;
 
+        // Optimistic update: sai logo da lista; se a gravação falhar, volta
+        let removida = null;
+        setProjectNotifications((current) => {
+            removida = current.find((n) => n.id === notificationId) || null;
+            return current.filter((notificationItem) => notificationItem.id !== notificationId);
+        });
+
         const { error } = await supabase
             .from("notificacoes_projetos")
             .update({ is_read: true, read_at: new Date().toISOString() })
@@ -249,10 +264,12 @@ export default function DashboardHome() {
 
         if (error) {
             console.error("Erro ao marcar notificação como lida:", error);
-            return;
+            if (removida) {
+                setProjectNotifications((current) => (current.some((n) => n.id === notificationId)
+                    ? current
+                    : [...current, removida].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))));
+            }
         }
-
-        setProjectNotifications((current) => current.filter((notificationItem) => notificationItem.id !== notificationId));
     }
 
     /**
@@ -341,7 +358,7 @@ export default function DashboardHome() {
     async function refreshDashboardWorkItems() {
         if (!user?.id) return;
         await Promise.all([
-            fetchTarefasPessoais(),
+            fetchTarefasPessoais().finally(() => setTarefasCarregadas(true)),
             fetchTarefasEmAnalise(),
             fetchRecentWorkLogs(),
             checkActiveLog(),
@@ -548,6 +565,13 @@ export default function DashboardHome() {
                           brandName = getClientDisplayName(proj.clientes);
                       }
                   }
+              } else if (activeRow.conteudo_id) {
+                  // Peça de Marketing (migração 082)
+                  const { data: res } = await supabase.from("marketing_conteudos").select("titulo, marketing_marcas(nome)").eq("id", activeRow.conteudo_id).maybeSingle();
+                  title = res?.titulo || "Peça de marketing";
+                  const marcaMk = Array.isArray(res?.marketing_marcas) ? res.marketing_marcas[0] : res?.marketing_marcas;
+                  projName = "Marketing";
+                  brandName = marcaMk?.nome || "";
               } else if (activeRow.projeto_id) {
                   const { data: res } = await supabase.from("projetos").select("titulo, clientes!cliente_id(marca, sigla)").eq("id", activeRow.projeto_id).maybeSingle();
                   if (res) {
@@ -573,7 +597,9 @@ export default function DashboardHome() {
 
   function navigateToActiveTask() {
       if (!activeLog) return;
-      if (activeLog.resolvedProjectId) {
+      if (activeLog.conteudo_id) {
+          navigate(`/dashboard/marketing?conteudo=${activeLog.conteudo_id}`);
+      } else if (activeLog.resolvedProjectId) {
           navigate(`/dashboard/projetos/${activeLog.resolvedProjectId}`);
       } else {
           navigate("/dashboard/minhas-tarefas");
@@ -846,6 +872,7 @@ export default function DashboardHome() {
 
           lista.sort((a, b) => a.proximoAniversario - b.proximoAniversario);
           setAniversarios(lista);
+          guardarInicio({ aniversarios: lista });
 
           if (myBirthdayIsToday && !sessionStorage.getItem('birthdayPopupSeen')) {
               setShowBirthdayPopup(true);
@@ -873,7 +900,7 @@ export default function DashboardHome() {
       const hoje = new Date();
       const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
       const { data, error } = await supabase.from("assiduidade").select("*").eq("user_id", user.id).gte("data_registo", primeiroDia).order("data_registo", { ascending: false }).limit(5);
-      if (!error && data) setRegistosMes(data);
+      if (!error && data) { setRegistosMes(data); guardarInicio({ registosMes: data }); }
   }
 
   async function fetchTarefasPessoais() {
@@ -1015,6 +1042,7 @@ export default function DashboardHome() {
 
       setTarefasHoje(urgentesHoje);
       setTarefasGerais(outras);
+      guardarInicio({ tarefasHoje: urgentesHoje, tarefasGerais: outras });
   }
 
   async function fetchRecentWorkLogs() {
@@ -1038,6 +1066,7 @@ export default function DashboardHome() {
               }
           }
           setRecentWorkLogs(unique);
+          guardarInicio({ recentWorkLogs: unique });
       }
   }
 
@@ -1152,6 +1181,7 @@ export default function DashboardHome() {
           });
 
           setTarefasEmAnalise(combinedAnalysis);
+          guardarInicio({ tarefasEmAnalise: combinedAnalysis });
       } catch (err) {
           console.error("Erro ao carregar tarefas em análise:", err);
           setTarefasEmAnalise([]);
@@ -1163,7 +1193,9 @@ export default function DashboardHome() {
     const { count: countClientes } = await supabase.from("clientes").select("*", { count: 'exact', head: true }).eq("ativo", true);
     const { count: countForum } = await supabase.from("forum_posts").select("*", { count: 'exact', head: true });
     
-    setStats({ projetos: countProjetos || 0, clientes: countClientes || 0, forum: countForum || 0 });
+    const novasStats = { projetos: countProjetos || 0, clientes: countClientes || 0, forum: countForum || 0 };
+    setStats(novasStats);
+    guardarInicio({ stats: novasStats });
   }
 
 
@@ -1376,7 +1408,9 @@ export default function DashboardHome() {
           .then(({ data, error }) => {
               if (cancelled || error || !data) return;
               const total = data.reduce((acc, r) => acc + calcularSegundosExatos(r.hora_entrada, r.hora_saida, r.tempo_pausa_acumulado), 0);
-              setHorasMesAtual({ h: Math.floor(total / 3600), m: Math.floor((total % 3600) / 60) });
+              const horas = { h: Math.floor(total / 3600), m: Math.floor((total % 3600) / 60) };
+              setHorasMesAtual(horas);
+              guardarInicio({ horasMesAtual: horas });
           });
       return () => { cancelled = true; };
   }, [user?.id, activeLog?.id]);
@@ -1608,7 +1642,9 @@ export default function DashboardHome() {
             />
 
             <div key={homeTab} className="hx-task-list bz-tab-panel">
-              {currentTaskList.length === 0 ? (
+              {!tarefasCarregadas ? (
+                <ListaSkeleton linhas={4} avatar={false} />
+              ) : currentTaskList.length === 0 ? (
                 <div className="hx-empty">
                   <span className="hx-empty-icon"><Icons.CheckCircle size={28} /></span>
                   <strong>{emptyTaskMessage.title}</strong>

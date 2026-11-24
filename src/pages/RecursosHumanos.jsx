@@ -63,6 +63,13 @@ import { clicavel } from "../utils/clicavel";
 import { Cake } from "lucide-react";
 import { registarEvento } from "../utils/registarEvento";
 import { uuidSeguro } from "../utils/filtroSeguro";
+import { lerCache, guardarCache } from "../utils/cachePaginas";
+import { toastDesfazer } from "../utils/toast";
+import { ListaSkeleton } from "../components/Skeleton";
+
+// Stale-while-revalidate: os RH abrem logo com os últimos dados (utils/cachePaginas.js)
+const cacheRh = () => lerCache("rh") || {};
+const guardarRh = (parte) => guardarCache("rh", { ...cacheRh(), ...parte });
 
 // --- ÍCONES SVG ESTILO SAAS ---
 const Icons = {
@@ -405,13 +412,16 @@ export default function RecursosHumanos() {
 
   const { user } = useAuth();
   
-  const [colaboradores, setColaboradores] = useState([]);
+  const [colaboradores, setColaboradores] = useState(() => cacheRh().colaboradores || []);
     const [hasDiasFeriasTotalColumn, setHasDiasFeriasTotalColumn] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null); 
   
   // Dados
-  const [pedidosPendentes, setPedidosPendentes] = useState([]); 
-  const [pedidosKmPendentes, setPedidosKmPendentes] = useState([]); 
+  const [pedidosPendentes, setPedidosPendentes] = useState(() => cacheRh().pedidosPendentes || []); 
+  const [pedidosKmPendentes, setPedidosKmPendentes] = useState(() => cacheRh().pedidosKmPendentes || []); 
+  // Primeira visita (sem cache): esqueleto nas tabelas de pedidos
+  const [pendentesCarregados, setPendentesCarregados] = useState(() => cacheRh().pedidosPendentes !== undefined);
+  const [kmCarregados, setKmCarregados] = useState(() => cacheRh().pedidosKmPendentes !== undefined);
   const [assiduidadeMes, setAssiduidadeMes] = useState([]);
   const [ausenciasMes, setAusenciasMes] = useState([]);
   const [historicoUser, setHistoricoUser] = useState([]); 
@@ -1166,6 +1176,7 @@ export default function RecursosHumanos() {
         });
 
         setColaboradores(mappedProfiles);
+        guardarRh({ colaboradores: mappedProfiles });
     } catch (error) {
         console.error(error);
         showNotification("Erro ao carregar colaboradores.", "error");
@@ -1179,7 +1190,8 @@ export default function RecursosHumanos() {
         .in("estado", ["pendente", "pedido_cancelamento"]) 
         .neq("tipo", KM_REQUEST_TYPE)
         .order("created_at", { ascending: false });
-    if(!error && data) setPedidosPendentes(data);
+    if(!error && data) { setPedidosPendentes(data); guardarRh({ pedidosPendentes: data }); }
+    setPendentesCarregados(true);
   }
 
   async function fetchPedidosKmPendentes() {
@@ -1189,7 +1201,8 @@ export default function RecursosHumanos() {
         .in("estado", ["pendente", "pedido_cancelamento"]) 
         .eq("tipo", KM_REQUEST_TYPE)
         .order("created_at", { ascending: false });
-    if(!error && data) setPedidosKmPendentes(data);
+    if(!error && data) { setPedidosKmPendentes(data); guardarRh({ pedidosKmPendentes: data }); }
+    setKmCarregados(true);
   }
 
   async function fetchHistoricoUser(userId) {
@@ -1296,6 +1309,14 @@ export default function RecursosHumanos() {
    */
   async function executarAcaoRH() {
       const { pedido, acao } = confirmModal;
+      // Optimistic update: o pedido sai logo da lista e a janela fecha.
+      // Se a validação/gravação falhar, o pedido volta ao sítio onde estava.
+      const isKmPedido = pedido.tipo === KM_REQUEST_TYPE;
+      const setLista = isKmPedido ? setPedidosKmPendentes : setPedidosPendentes;
+      const listaAntes = isKmPedido ? pedidosKmPendentes : pedidosPendentes;
+      setLista((prev) => prev.filter((p) => p.id !== pedido.id));
+      setConfirmModal({ show: false, pedido: null, acao: null });
+      let gravado = false;
       try {
           const eFerias = isVacationType(pedido.tipo);
           const profile = colaboradores.find((c) => c.id === pedido.user_id);
@@ -1341,6 +1362,8 @@ export default function RecursosHumanos() {
 
           const { error } = await supabase.from("ferias").update({ estado: novoEstadoDB }).eq("id", pedido.id);
           if(error) throw error;
+          gravado = true;
+          showNotification("Ação executada com sucesso!", "success");
           await notificarAlteracaoPedido(pedido, novoEstadoDB, acao);
           
           const isKmRequest = pedido.tipo === KM_REQUEST_TYPE;
@@ -1358,19 +1381,20 @@ export default function RecursosHumanos() {
               }
           }
 
-          if (isKmRequest) {
-              setPedidosKmPendentes(pedidosKmPendentes.filter(p => p.id !== pedido.id));
-          } else {
-              setPedidosPendentes(pedidosPendentes.filter(p => p.id !== pedido.id));
-          }
           if (selectedUser) fetchHistoricoUser(selectedUser);
           fetchDadosMensais();
           fetchColaboradores();
-          
-          setConfirmModal({ show: false, pedido: null, acao: null });
-          showNotification("Ação executada com sucesso!", "success"); 
       } catch (error) {
-          showNotification("Erro ao processar: " + error.message, "error"); 
+          if (!gravado) {
+              // Repõe o pedido na posição original
+              setLista((prev) => (prev.some((p) => p.id === pedido.id)
+                  ? prev
+                  : listaAntes.filter((p) => p.id === pedido.id || prev.some((q) => q.id === p.id))));
+              showNotification("Erro ao processar: " + error.message, "error");
+          } else {
+              // A decisão ficou gravada; falhou só o aviso ao colaborador / o saldo
+              showNotification("Decisão gravada, mas houve um erro a seguir: " + error.message, "error");
+          }
       }
   }
 
@@ -2829,26 +2853,18 @@ export default function RecursosHumanos() {
       }
   }
 
-  async function confirmarDeleteFormacao() {
-      if (!deleteFormacaoModal.grupo) return;
-      setIsSubmittingFormacao(true);
-      try {
-          // Apaga todas as linhas (IDs) que pertencem a este grupo de formação
-          const { error } = await supabase
-              .from("formacoes")
-              .delete()
-              .in("id", deleteFormacaoModal.grupo.ids);
-              
-          if (error) throw error;
-          
-          showNotification("Ação de formação eliminada com sucesso.", "success");
-          setDeleteFormacaoModal({ show: false, grupo: null });
-          fetchFormacoes();
-      } catch (err) {
-          showNotification("Erro ao eliminar a formação.", "error");
-      } finally {
-          setIsSubmittingFormacao(false);
-      }
+  /** Undo toast: a formação sai logo da lista; só é apagada da BD se ninguém carregar em Desfazer. */
+  function confirmarDeleteFormacao() {
+      const grupo = deleteFormacaoModal.grupo;
+      if (!grupo) return;
+      setDeleteFormacaoModal({ show: false, grupo: null });
+      const ids = grupo.ids || [];
+      const antes = formacoes;
+      setFormacoes((prev) => prev.filter((f) => !ids.includes(f.id)));
+      toastDesfazer(`Formação "${grupo.nome}" eliminada.`, {
+          executar: () => supabase.from("formacoes").delete().in("id", ids),
+          desfazer: () => setFormacoes(antes),
+      }).then((r) => { if (r === "executado") fetchFormacoes(); });
   }
 
   // Lidar com checkboxes de seleção múltipla no Modal
@@ -3078,7 +3094,10 @@ export default function RecursosHumanos() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {pedidosPendentesFiltrados.length === 0 && (
+                                {!pendentesCarregados && (
+                                    <tr><td colSpan={7}><ListaSkeleton linhas={3} /></td></tr>
+                                )}
+                                {pendentesCarregados && pedidosPendentesFiltrados.length === 0 && (
                                     <tr><td colSpan={7} className="rh-no-results">Nenhuma ausência corresponde aos filtros.</td></tr>
                                 )}
                                 {pedidosPendentesFiltrados.map(p => (
@@ -3158,7 +3177,10 @@ export default function RecursosHumanos() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {pedidosKmFiltrados.length === 0 && (
+                                {!kmCarregados && (
+                                    <tr><td colSpan={8}><ListaSkeleton linhas={3} /></td></tr>
+                                )}
+                                {kmCarregados && pedidosKmFiltrados.length === 0 && (
                                     <tr><td colSpan={8} className="rh-no-results">Nenhuma deslocação corresponde aos filtros.</td></tr>
                                 )}
                                 {pedidosKmFiltrados.map(p => {

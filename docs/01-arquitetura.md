@@ -156,9 +156,133 @@ Papéis conhecidos (coluna `profiles.role`, espelhada em `profiles.tipo`): `cola
 `marketing`, `marketing plus`, `admin` (`administrador` é aceite como sinónimo antigo). A lista
 válida para mudança de papel está em `api/_lib/adminContas.js` (`PAPEIS_VALIDOS`).
 
-**Ao criar uma página nova** é preciso tocar em três sítios: `<Route>` em `App.jsx`, o título em
-`PAGE_TITLES` de `pages/Dashboard.jsx` e o link em `components/Sidebar.jsx` (que tem a sua própria
-verificação de papéis, nem sempre igual à de `App.jsx` — ex.: o menu usa `role` exato `'admin'`).
+**Ao criar uma página nova** é preciso tocar em cinco sítios:
+1. o importador em `src/rotas.js` (`PAGINAS`);
+2. o `lazy(...)` e a `<Route>` em `App.jsx`;
+3. se a página tiver CSS novo, o import no fim de `src/estilosPaginas.js`;
+4. o título em `PAGE_TITLES` de `pages/Dashboard.jsx`;
+5. o link em `components/Sidebar.jsx` (que tem a sua própria verificação de papéis, nem sempre igual
+   à de `App.jsx`, ex.: o menu usa `role` exato `'admin'`) e a entrada em `PAGINAS` de
+   `components/CommandMenu.jsx` (com os mesmos papéis da rota).
+
+### Carregamento por partes (code splitting)
+
+Cada página é um ficheiro JS à parte (`React.lazy` + `src/rotas.js`), descarregado só quando é
+aberta. O ficheiro principal passou de 5,4 MB para ~780 KB.
+- **Pré-carregamento:** `Dashboard.jsx` tem um ouvinte único (`onMouseOver`/`onFocus`/`onTouchStart`)
+  que, ao passar por cima de qualquer link interno, chama `prefetchRota(href)`. Com o browser parado
+  descarrega também as páginas mais usadas (`prefetchEmSegundoPlano`).
+- **Enquanto carrega:** `<Suspense fallback={<PaginaSkeleton/>}>` à volta do `<Outlet>`
+  (`components/Skeleton.jsx`, estilos `styles/skeleton.css`). Também exporta `ListaSkeleton` e
+  `CartoesSkeleton` para listas a carregar dados.
+- **CSS:** fica todo no pacote principal (`src/estilosPaginas.js`), **pela mesma ordem de antes**,
+  porque há estilos partilhados entre páginas e a ordem decide empates. Foi verificado que o CSS
+  gerado é idêntico ao anterior.
+
+### Command Menu (Ctrl+K / ⌘K)
+
+`components/CommandMenu.jsx`, montado em `Dashboard.jsx`. Abre com Ctrl+K, com o botão
+"Pesquisar" da barra lateral ou com a lupa da barra de topo no telemóvel (evento `bz:comando`,
+`utils/comando.js`). Procura páginas (filtradas pelo papel), ações rápidas, projetos, entidades
+(abre a ficha via `state.openClienteId`), pessoas (abre o `ProfilePeek`) e áreas da Ajuda.
+Os dados ficam em cache em memória e são atualizados ao reabrir; os últimos escolhidos ficam em
+`localStorage` (`bz-comando-recentes`).
+
+### Avisos com Desfazer (toasts globais)
+
+`utils/toast.js` + `components/ToastGlobal.jsx` (montado em `App.jsx`, estilos `styles/toast.css`).
+- `toast(msg, { tipo })` para avisos simples.
+- `toastDesfazer(msg, { executar, desfazer })` para apagar com Desfazer: a interface tira o item logo e
+  `executar` (o `delete` no Supabase) só corre passados ~6 s. `desfazer` repõe o estado. Se `executar`
+  falhar, chama `desfazer` e mostra erro. Ao fechar a página, as ações pendentes correm já (`pagehide`).
+- Ctrl+Z / ⌘Z desfaz o último (fora de campos de texto). Rato por cima pausa; arrastar para o lado fecha.
+- Já usado em: Agenda (apagar tarefa, apagar do arquivo, apagar registo de tempo, **concluir tarefa**),
+  Tarefas globais (concluir tarefa/passo) e Fórum (publicações e comentários; `postsAApagar` impede que
+  um recarregamento as faça reaparecer). Concluir usa `toastDesfazer` só com `desfazer` (reabre na BD).
+  Também: apagar tarefa/passo/atividade e registo de tempo em Tarefas globais (`itensAApagar`), apagar
+  projeto (`projetosAApagar`), apagar sub-registos das Entidades (`deleteItem`) e apagar formação nos RH.
+- `components/AvisoToast.jsx` é agora uma ponte: as páginas que ainda usam o estado `notification`
+  mostram os avisos na pilha global (tipos `success|error|warning|info` → `sucesso|erro|aviso|info`).
+  Ainda com avisos próprios: Fórum, Marketing e Ativos TI.
+- Optimistic updates: concluir na Agenda tira o cartão logo (a BD grava em paralelo; se falhar, repõe);
+  no detalhe do projeto, concluir tarefa/passo repõe o estado se a gravação falhar.
+  Aprovar/recusar pedidos nos RH (`executarAcaoRH`) tira a linha e fecha a janela logo; se a validação
+  (saldo) ou a gravação falhar, a linha volta. Marcar notificação como lida (Início) sai logo da lista. As páginas ainda têm os
+  seus próprios toasts (`showToast`), que devem ir passando para este.
+
+### Atalhos de teclado (tecla "?")
+
+`components/AtalhosTeclado.jsx` (montado em `Dashboard.jsx`, estilos `.at-*` em `styles/command-menu.css`).
+`?` abre a lista de atalhos (também pelo evento `bz:atalhos`, usado pela ação "Atalhos de teclado" do
+Command Menu). `G` + letra (até 1,2 s) navega com `navegarComTransicao` (lista `IR_PARA`, com papéis).
+Ignorado em campos de texto, com Ctrl/Alt/⌘ e quando há uma janela aberta.
+
+### Hit slop
+
+`styles/refinamentos.css`: classe `.hit-slop` (manual) e, em ecrãs de toque, um `::before` com `inset: -8px`
+nos botões pequenos de ícone (chat, agenda, tabelas: `.fx-*`, `.ag-check`, `.ag-play`, `.*-icon-btn`).
+Ao criar um botão de ícone pequeno novo, acrescentá-lo a essa lista (ou usar `.hit-slop`).
+
+### Placeholders das fotos (estilo BlurHash)
+
+`utils/placeholderImagem.js`, ligado em `main.jsx` (`instalarPlaceholders()`). Ao carregar uma foto em
+`Perfil.jsx`, as cores da imagem reduzida a 4×4 vão no nome do ficheiro (`<user>-<data>-ph<64 chars>.jpg`).
+Um `MutationObserver` vê as `<img>` com `/avatars/` no `src` ainda por carregar e põe por trás o mosaico
+ampliado (desfocado); fotos antigas sem código têm um fundo neutro. Sem coluna nova na BD.
+
+### Cantos contínuos e safe triangle
+
+`styles/refinamentos.css`: `corner-shape: superellipse(1.5)` (só com `@supports`) numa lista de cartões e
+janelas (nunca em círculos/pílulas). Menus de hover por cima de um botão usam `data-triangulo` /
+`data-triangulo-gatilho` / `data-triangulo-painel` + `utils/trianguloSeguro.js` (ligado em `main.jsx`):
+um triângulo invisível do cursor até ao menu mantém-no aberto na diagonal. Usado nas reações do Fórum.
+
+### Animação ao fechar janelas
+
+`utils/saidaJanelas.js` (ligado em `main.jsx`): quando um fundo de janela (`utils/janelas.js`, lista
+partilhada com `GestosJanelas`) sai do DOM, uma cópia "fantasma" (`.bz-janela-fantasma`, inerte) é
+animada para fora com a Web Animations API (~170 ms) e apagada. Se abrir outra janela entretanto, os
+fantasmas saem logo. Fica de fora: reduzir movimento, fecho por gesto (`data-fechado-por-gesto`),
+`data-sem-saida`, janelas com saída própria (`.is-closing`/`.is-leaving`/`.is-saindo`) e > 600 elementos.
+
+### Cronómetro do Marketing
+
+`utils/cronometroMarketing.js` (`useCronometroMarketing`) + `components/marketing/Cronometro.jsx`
+(`CronoChip` no cartão do quadro, `CronoPainel` no cabeçalho do `ConteudoDrawer`). Usa `task_logs`
+com `conteudo_id` (082) e as mesmas regras das tarefas: um cronómetro por pessoa
+(`closeAllActiveTaskLogsForUser`), pergunta pela picagem (`attendanceGuard`), dispara/ouve
+`task-logs-updated`. `activeTimerResolver.js` e o Início reconhecem `conteudo_id` (rota
+`/dashboard/marketing?conteudo=<id>`).
+Total por campanha: `tempoDe([ids])` soma várias peças; `CampanhaTempo` aparece por cima do quadro
+quando há filtro de campanha (total, por pessoa, peças com mais tempo); o filtro mostra o total em
+cada opção e o `CronoPainel` mostra o total da campanha da peça.
+
+### Gestos no telemóvel (voltar fecha / arrastar fecha)
+
+`components/GestosJanelas.jsx` (montado em `Dashboard.jsx`, só em ecrãs ≤ 900px ou de toque) observa o
+DOM e, para cada fundo de janela conhecido (lista `JANELAS`, ou atributo `data-janela`):
+- acrescenta um passo ao histórico: o "voltar" do telemóvel fecha a janela em vez de sair da página;
+- liga `arrastarParaFechar` (`utils/gestos.js`) à caixa da janela: arrastar para baixo fecha.
+Para fechar simula Esc e, se não chegar, um clique no fundo (se a janela não fechar assim, fica aberta).
+`data-sem-gestos` no fundo deixa uma janela de fora; a videochamada (`vc-overlay`) está de fora de propósito.
+A gaveta do menu fecha arrastando para a esquerda e com "voltar" (marcador `.bz-gaveta-marcador`).
+
+### Transições entre páginas (View Transitions)
+
+`utils/transicaoPagina.js`. `Dashboard.jsx` interceta (fase de captura) os cliques em links internos
+`#/...` e navega dentro de `document.startViewTransition`; só `.dashboard-main` é animado
+(`view-transition-name: bz-pagina` durante `html.bz-vt-pagina`, CSS em `styles/refinamentos.css`).
+A página que entrou assim recebe `.sem-entrada` para não repetir a animação antiga `.bz-route`.
+Sem suporte do browser ou com "reduzir movimento", navega normalmente.
+
+### Cache das páginas (stale-while-revalidate)
+
+`utils/cachePaginas.js` (`lerCache`/`guardarCache`): Agenda (`agenda`), Tarefas (`tarefas`),
+Projetos (`projetos`), Entidades (`clientes`), Início (`inicio`), RH (`rh`: colaboradores e pedidos
+pendentes) e Ausências (`ausencias:<tipo>`) guardam em memória os últimos dados. Ao voltar à
+página, os estados começam com esses dados (sem spinner) e o fetch normal atualiza por trás.
+Só em memória (F5 limpa) e apagada ao terminar sessão ou mudar de conta. Na primeira visita
+aparece o `PaginaSkeleton` em vez do spinner.
 
 > A verificação de papéis no frontend é só conveniência de interface. Quem garante o acesso aos
 > dados são as **políticas RLS** no Supabase e as verificações nas rotas de `api/`.

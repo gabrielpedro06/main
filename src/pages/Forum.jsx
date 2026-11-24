@@ -14,6 +14,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { toastDesfazer } from "../utils/toast";
+
 import { useAuth } from "../context/AuthContext";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
@@ -26,6 +28,9 @@ import { clicavel } from "../utils/clicavel";
 import { useChamadas, useChamadaEmCurso } from "../context/ChamadasContext";
 import { MSG_CHAMADA, MSG_CHAMADA_FIM } from "../utils/chamadas";
 import { confirmar } from "../utils/dialogo";
+
+// Publicações apagadas há segundos, à espera do fim do Desfazer (não voltam a aparecer ao recarregar)
+const postsAApagar = new Set();
 
 // --- ÍCONES SVG PROFISSIONAIS ---
 const Icons = {
@@ -299,7 +304,6 @@ export default function Forum() {
   const [selectedUserFilter, setSelectedUserFilter] = useState(null); 
 
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
-    const [confirmModal, setConfirmModal] = useState({ show: false, id: null, type: null, postId: null }); 
 
   // Dados Novo Post
     const [newPost, setNewPost] = useState({ titulo: "", categoria: "geral" });
@@ -979,7 +983,8 @@ export default function Forum() {
       `)
       .order("created_at", { ascending: false });
 
-    if (!error) setPosts(data || []);
+    // esconde publicações apagadas há pouco (ainda à espera do Desfazer)
+    if (!error) setPosts((data || []).filter((p) => !postsAApagar.has(p.id)));
     if (showLoader) setLoading(false);
   }
 
@@ -1074,54 +1079,50 @@ export default function Forum() {
     }
   }
 
+  // Apagar publicação/comentário com Desfazer: sai logo do ecrã e só é apagado na
+  // base de dados passados uns segundos (utils/toast.js). Desfazer repõe tudo.
   function requestDelete(id, type, postId = null) {
-      setConfirmModal({ show: true, id, type, postId });
-  }
+      const antes = { posts, comments, postCommentsByPost, selectedPost };
+      const repor = () => {
+          setPosts(antes.posts);
+          setComments(antes.comments);
+          setPostCommentsByPost(antes.postCommentsByPost);
+          if (antes.selectedPost?.id === id) setSelectedPost(antes.selectedPost);
+      };
 
-  async function confirmDelete() {
-      const { id, type, postId } = confirmModal;
-      try {
-          if (type === 'post') {
-              const { error } = await supabase.from("forum_posts").delete().eq("id", id);
-              if (error) throw error;
-              setPosts(posts.filter(p => p.id !== id));
-              if (selectedPost?.id === id) setSelectedPost(null);
-              setPostCommentsByPost((prev) => {
-                  const next = { ...prev };
-                  delete next[id];
-                  return next;
-              });
-              showToast("Publicação apagada.", "success");
-          } 
-          else if (type === 'comment') {
-              const { error } = await supabase.from("forum_comments").delete().eq("id", id);
-              if (error) throw error;
-              const pool = postId ? (postCommentsByPost[postId] || comments) : comments;
-              const removedCount = 1 + pool.filter((c) => c.parent_id === id).length;
-              setComments(comments.filter(c => c.id !== id && c.parent_id !== id));
-
-              if (postId) {
-                  setPostCommentsByPost((prev) => ({
-                      ...prev,
-                      [postId]: (prev[postId] || []).filter((c) => c.id !== id && c.parent_id !== id),
-                  }));
-              }
-
-              setPosts(posts.map(p => {
-                  const shouldUpdate = postId ? p.id === postId : p.id === selectedPost?.id;
-                  if (shouldUpdate) {
-                      const currCount = p.forum_comments?.[0]?.count || removedCount;
-                      return { ...p, forum_comments: [{ count: Math.max(0, currCount - removedCount) }] };
-                  }
-                  return p;
+      if (type === 'post') {
+          setPosts((prev) => prev.filter((p) => p.id !== id));
+          if (selectedPost?.id === id) setSelectedPost(null);
+          setPostCommentsByPost((prev) => {
+              const next = { ...prev };
+              delete next[id];
+              return next;
+          });
+          postsAApagar.add(id);
+          toastDesfazer("Publicação apagada.", {
+              executar: () => supabase.from("forum_posts").delete().eq("id", id),
+              desfazer: () => { postsAApagar.delete(id); repor(); },
+          }).then((r) => { if (r !== "executado") postsAApagar.delete(id); });
+      } else if (type === 'comment') {
+          const pool = postId ? (postCommentsByPost[postId] || comments) : comments;
+          const removedCount = 1 + pool.filter((c) => c.parent_id === id).length;
+          setComments((prev) => prev.filter((c) => c.id !== id && c.parent_id !== id));
+          if (postId) {
+              setPostCommentsByPost((prev) => ({
+                  ...prev,
+                  [postId]: (prev[postId] || []).filter((c) => c.id !== id && c.parent_id !== id),
               }));
-              
-              showToast("Comentário removido.", "success");
           }
-      } catch (err) {
-          showToast("Erro ao apagar: " + err.message, "error");
-      } finally {
-          setConfirmModal({ show: false, id: null, type: null, postId: null }); 
+          setPosts((prev) => prev.map((p) => {
+              const shouldUpdate = postId ? p.id === postId : p.id === selectedPost?.id;
+              if (!shouldUpdate) return p;
+              const currCount = p.forum_comments?.[0]?.count || removedCount;
+              return { ...p, forum_comments: [{ count: Math.max(0, currCount - removedCount) }] };
+          }));
+          toastDesfazer("Comentário apagado.", {
+              executar: () => supabase.from("forum_comments").delete().eq("id", id),
+              desfazer: repor,
+          });
       }
   }
 
@@ -2813,11 +2814,13 @@ async function sendChatMessage(rawContent) {
                 <div className="fx-post-bar">
                     <div
                         className={`fx-like-wrap ${feedReactPicker === post.id ? 'is-open' : ''}`}
+                        data-triangulo
                         onMouseLeave={() => { if (feedReactPicker === post.id) setFeedReactPicker(null); }}
                     >
                         <button
                             type="button"
                             className={`fx-bar-btn fx-like-btn ${myReaction ? 'is-on' : ''}`}
+                            data-triangulo-gatilho
                             style={myReaction ? { '--react-color': REACTION_COLORS[myReaction] } : undefined}
                             onPointerDown={(e) => startReactPress(e, post.id)}
                             onPointerUp={cancelReactPress}
@@ -2834,7 +2837,7 @@ async function sendChatMessage(rawContent) {
                                 : <Icons.Heart size={19} />}
                             <span>{myReaction ? (REACTION_LABELS[myReaction] || 'Reagiste') : 'Gostar'}</span>
                         </button>
-                        <div className="fx-react-dock" role="menu" aria-label="Escolher reação">
+                        <div className="fx-react-dock" role="menu" aria-label="Escolher reação" data-triangulo-painel>
                             {FEED_REACTIONS.map((emoji, i) => (
                                 <button
                                     key={emoji}
@@ -3533,28 +3536,6 @@ async function sendChatMessage(rawContent) {
                   </div>
               </div>
           </ModalPortal>
-      )}
-
-      {/* --- MODAL DE CONFIRMAÇÃO --- */}
-      {confirmModal.show && (
-        <ModalPortal>
-            <div className="fx-overlay" style={{ zIndex: "calc(var(--z-modal-max) + 1)" }} onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })}>
-            <div className="fx-dialog" role="alertdialog" onClick={(e) => e.stopPropagation()}>
-                <span className="fx-dialog-icon is-danger"><Icons.Trash size={26} /></span>
-                <h3>Tem a certeza?</h3>
-                <p>
-                    {confirmModal.type === 'post'
-                        ? 'Quer mesmo apagar este post e todos os comentários associados?'
-                        : 'Quer apagar este comentário?'}
-                    <br/>Esta ação não pode ser desfeita.
-                </p>
-                <div className="fx-dialog-actions">
-                    <button type="button" onClick={() => setConfirmModal({ show: false, id: null, type: null, postId: null })} className="fx-btn fx-btn-ghost">Cancelar</button>
-                    <button type="button" onClick={confirmDelete} className="fx-btn fx-btn-danger">Sim, apagar</button>
-                </div>
-            </div>
-            </div>
-        </ModalPortal>
       )}
 
       {chatNotice.show && (

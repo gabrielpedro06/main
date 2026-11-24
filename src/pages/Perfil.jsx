@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
+import { codigoPlaceholder } from "../utils/placeholderImagem";
 import TwoFactorSetup from "../components/TwoFactorSetup";
 import { useAuth } from "../context/AuthContext";
 import "./../styles/dashboard.css";
@@ -307,7 +308,9 @@ export default function Perfil() {
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
       setCropModal({ show: false, src: null });
 
-      const fileName = `${user.id}-${Date.now()}.jpg`;
+      // Cores da foto em 4×4 no nome do ficheiro: placeholder desfocado enquanto carrega (utils/placeholderImagem.js)
+      const ph = codigoPlaceholder(canvas);
+      const fileName = ph ? `${user.id}-${Date.now()}-ph${ph}.jpg` : `${user.id}-${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) throw uploadError;
 

@@ -210,8 +210,8 @@ clientes ── projetos ── atividades ── tarefas ── subtarefas     
   `tarefas` tem ainda `investimento`, `financiamento`, `incentivo`, `data_prevista_aprovacao` (008),
   `template_tarefa_id` (009), `numero_seq bigint` único (020, sequência `tarefas_numero_seq_seq`),
   `data_conclusao`.
-* `task_logs`: registos de tempo (`user_id`, tarefa/atividade, `start_time`, `end_time`,
-  `duration_minutes`…). Cronómetro ativo = linha sem `end_time` (ver `utils/taskTimerLifecycle.js`,
+* `task_logs`: registos de tempo (`user_id`, tarefa/atividade, `conteudo_id` (082, peça de Marketing),
+  `start_time`, `end_time`, `duration_minutes`…). Cronómetro ativo = linha sem `end_time` (ver `utils/taskTimerLifecycle.js`,
   `utils/activeTimerResolver.js`). RLS (070): todos leem; cada um escreve os seus; staff tudo.
 * Quem usa: `Projetos.jsx`, `ProjetoDetalhe.jsx`, `Tarefas.jsx`, `MinhasTarefas.jsx`, `Atividades.jsx`,
   `DashboardHome.jsx`, `AdminDashboard.jsx`, `StopTimerNoteModal.jsx`, `WidgetAssiduidade.jsx`,
@@ -360,6 +360,7 @@ de leitura volumosa.
   * Ficheiros novos no balde privado `chat_ficheiros/<room_id>/…`; os antigos estavam em
     `documents/chat-files/` (script `scripts/migrar-ficheiros-chat.mjs` move-os).
 * Quem usa: `Forum.jsx` (página com o chat em modal), `Sidebar.jsx` (contadores de não lidas).
+* **`pedidos_idempotentes`** (081): uma linha por pedido "único" ao servidor (`chave` = utilizador + tipo + Idempotency-Key, `estado` `em_curso`/`feito`, `resposta` jsonb). Só o servidor lê/escreve. Linhas com mais de 24 h são apagadas pelo próprio servidor.
 * **`chamadas_convites`** (079): convites de videochamada que "tocam". Cada convite é uma linha com `sala` (chat_rooms), `de`, `para` e `estado` (`a_tocar`/`aceite`/`recusada`/`perdida`/`cancelada`).
   * RLS: só quem liga e quem é chamado veem a linha. Para criar um convite, `de` tem de ser o próprio, que tem de participar na conversa.
   * O trigger `chamadas_convites_proteger` só deixa mudar o estado. Está na publicação Realtime.
@@ -497,7 +498,7 @@ Respostas HTTP do pg_net: `select status_code, content, created from net._http_r
 | `rh_anexos` | **privado** (069) | 15 MB; PDF, imagens, Word | ler: staff, ou nome começa por `<auth.uid>_`, ou dono; carregar: staff ou prefixo próprio; alterar/apagar: staff ou dono | `Ausencias.jsx`, `RecursosHumanos.jsx` |
 | `documentos` | **privado** (069) | 50 MB | ler/carregar: autenticados; apagar: staff ou dono | `Tarefas.jsx`, `MinhasTarefas.jsx`, `ProjetoDetalhe.jsx` |
 | `chat_ficheiros` | **privado** (069) | 25 MB | pasta `<room_id>/`: só participantes (`chat_ficheiro_permitido`); apagar: dono | `Forum.jsx` |
-| `avatars` | público | 5 MB; png/jpeg/webp/gif | (políticas manuais) | `Perfil.jsx`, `Clientes.jsx`, logos de marcas em `marcas/` |
+| `avatars` | público | 5 MB; png/jpeg/webp/gif | (políticas manuais) | `Perfil.jsx` (nome `<user>-<data>[-ph<código>].jpg`; o código é o placeholder desfocado, ver `utils/placeholderImagem.js`), `Clientes.jsx`, logos de marcas em `marcas/` |
 | `forum_media` | público | 10 MB; imagens | (políticas manuais) | `Forum.jsx` |
 | `medalhas` | público (067) | 2 MB; png/webp/jpeg | ler: todos; escrever: `pode_gerir_medalhas()` | `MedalhasRH.jsx` |
 | `documents` | **público** (013) | — | (políticas manuais) | anexos e guia de marca do Marketing (`marketing/Anexos.jsx`, `MarcaGuia.jsx`); ficheiros antigos do chat |
@@ -609,13 +610,15 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 | 078 | catalogo_programas_bizincontrol | `bizin_programas_financiamento()` para anon | |
 | 079 | chamadas_convites | Convites de videochamada (toque, atender/recusar) + Realtime | |
 | 080 | chat_remover_membros | `chat_pode_gerir()`, política DELETE em `chat_participants` (criador/staff removem, cada um sai); fim do auto-adicionar a grupos | |
+| 081 | pedidos_idempotentes | Chaves de idempotência (envios de campanhas/pedidos não se repetem). Só service role; RLS sem políticas | |
+| 082 | task_logs_marketing | `task_logs.conteudo_id` → `marketing_conteudos` (on delete set null) + índice parcial: cronómetro nas peças de Marketing | |
 | — | modulo_ativos_ti.sql | Rascunho de modelo de Ativos TI | **não aplicado, não correr** |
 
 ---
 
 ## 18. Como criar uma nova migração
 
-1. **Nome**: `NNN_descricao_em_snake_case.sql`, com `NNN` = próximo número livre (hoje: `079`).
+1. **Nome**: `NNN_descricao_em_snake_case.sql`, com `NNN` = próximo número livre (hoje: `083`).
    Para passos do mesmo tema use sufixos `b`, `c` (ex.: `075b_…`). Evite números repetidos (já há
    vários duplicados — não repita o erro). Para consultas de verificação/pré-visualização use um ficheiro
    próprio terminado em `_ver` que **não altera nada** (padrão 077 → 077b).

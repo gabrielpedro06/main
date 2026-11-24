@@ -26,6 +26,12 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { toastDesfazer } from "../utils/toast";
+
+// Projetos apagados com "Desfazer" ainda à espera (não reaparecem se a lista recarregar)
+const projetosAApagar = new Set();
+import { lerCache, guardarCache } from "../utils/cachePaginas";
+import PaginaSkeleton from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
@@ -186,11 +192,11 @@ export default function Projetos() {
   const [currentStep, setCurrentStep] = useState(1);
   const TOTAL_STEPS = 5;
 
-  const [projetos, setProjetos] = useState([]);
-  const [pedidosReembolso, setPedidosReembolso] = useState([]);
-  const [loading, setLoading] = useState(true);
-    const [programas, setProgramas] = useState([]);
-    const [avisos, setAvisos] = useState([]);
+  const [projetos, setProjetos] = useState(() => lerCache("projetos")?.projetos || []);
+  const [pedidosReembolso, setPedidosReembolso] = useState(() => lerCache("projetos")?.pedidosReembolso || []);
+  const [loading, setLoading] = useState(() => !lerCache("projetos")); // com cache: mostra já e atualiza por trás
+    const [programas, setProgramas] = useState(() => lerCache("projetos")?.programas || []);
+    const [avisos, setAvisos] = useState(() => lerCache("projetos")?.avisos || []);
   
   const [activeLog, setActiveLog] = useState(null); 
     const [activeLogTitle, setActiveLogTitle] = useState("");
@@ -234,7 +240,7 @@ export default function Projetos() {
   const [overviewPage, setOverviewPage] = useState(1);
   const [overviewItemsPerPage, setOverviewItemsPerPage] = useState(10);
   const [orcamentos, setOrcamentos] = useState({}); // { [entidadeId]: { investimento, incentivo } }
-  const [projetoEntidades, setProjetoEntidades] = useState([]);
+  const [projetoEntidades, setProjetoEntidades] = useState(() => lerCache("projetos")?.projetoEntidades || []);
   const [hideEmptyProjects, setHideEmptyProjects] = useState(false);
 
   useEffect(() => {
@@ -244,9 +250,9 @@ export default function Projetos() {
   const [selectedCategoria, setSelectedCategoria] = useState(null); 
   const [selectedEstado, setSelectedEstado] = useState(null); 
   const [selectedProgramaNav, setSelectedProgramaNav] = useState(null);
-  const [clientes, setClientes] = useState([]);
-  const [tipos, setTipos] = useState([]);
-  const [staff, setStaff] = useState([]); 
+  const [clientes, setClientes] = useState(() => lerCache("projetos")?.clientes || []);
+  const [tipos, setTipos] = useState(() => lerCache("projetos")?.tipos || []);
+  const [staff, setStaff] = useState(() => lerCache("projetos")?.staff || []); 
     const [entidadePessoas, setEntidadePessoas] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
@@ -666,7 +672,8 @@ export default function Projetos() {
    * avisos, clientes, tipos e equipa). Chamado no arranque e depois de gravar.
    */
   async function fetchData() {
-    setLoading(true);
+    // Stale-while-revalidate: se já há dados em cache, ficam no ecrã enquanto se atualiza
+    if (!lerCache("projetos")) setLoading(true);
     const { data: projData, error } = await supabase
       .from("projetos")
       .select(`
@@ -685,7 +692,7 @@ export default function Projetos() {
       .order("created_at", { ascending: false });
 
     if (error) console.error("Erro no fetch:", error);
-    else setProjetos(projData || []);
+    else setProjetos((projData || []).filter((p) => !projetosAApagar.has(p.id)));
 
     const { data: pedidosReembolsoData, error: pedidosReembolsoError } = await supabase
         .from("pedidos_reembolso")
@@ -742,6 +749,18 @@ export default function Projetos() {
     const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo").order("nome");
     setStaff(staffData || []);
 
+    if (!error) {
+        guardarCache("projetos", {
+            projetos: projData || [],
+            pedidosReembolso: pedidosReembolsoError ? [] : (pedidosReembolsoData || []),
+            projetoEntidades: peData || [],
+            programas: programasData || [],
+            avisos: avisosData || [],
+            clientes: cliData || [],
+            tipos: tipoData || [],
+            staff: staffData || [],
+        });
+    }
     setLoading(false);
   }
 
@@ -1152,21 +1171,21 @@ export default function Projetos() {
       e.stopPropagation();
       setConfirmDialog({
           show: true,
-          message: `Tens a certeza que queres apagar o projeto "${titulo}"?\nEsta ação apagará todas as atividades e tempos associados de forma irreversível.`,
+          message: `Tens a certeza que queres apagar o projeto "${titulo}"?\nApaga também as atividades e os tempos associados. Depois de confirmares, tens uns segundos para carregar em Desfazer.`,
           confirmText: "Sim, Apagar",
           isDanger: true,
           onConfirm: async () => {
               setConfirmDialog({ show: false, message: '', confirmText: '', isDanger: true, onConfirm: null });
-              
-              try {
-                  const { error } = await supabase.from("projetos").delete().eq("id", id);
-                  if (error) throw error;
-                  showToast("Projeto apagado com sucesso!");
-                  setShowModal(false); 
-                  fetchData();
-              } catch (err) { 
-                  showToast("Erro ao apagar. O projeto tem atividades ativas.", "error"); 
-              }
+              setShowModal(false);
+              // Undo toast: sai logo da lista; só é apagado da BD se ninguém carregar em Desfazer
+              projetosAApagar.add(id);
+              setProjetos((prev) => prev.filter((p) => p.id !== id));
+              const r = await toastDesfazer(`Projeto "${titulo}" apagado.`, {
+                  executar: () => supabase.from("projetos").delete().eq("id", id),
+                  desfazer: () => { projetosAApagar.delete(id); fetchData(); },
+              });
+              projetosAApagar.delete(id);
+              if (r === "executado") fetchData();
           }
       });
   }
@@ -2470,7 +2489,7 @@ export default function Projetos() {
                   ? 'Escolhe agora o tipo de projeto dentro deste estado.'
                   : 'Escolhe por onde queres começar a navegar.';
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
+  if (loading) return <div className="page-container"><PaginaSkeleton /></div>;
 
   let vistaGeralView = null;
   if (isVistaGeral) {

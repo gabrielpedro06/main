@@ -12,12 +12,20 @@ export default {
       texto: "À esquerda tens o menu com todas as áreas da app: **Início**, **Comunicação Interna** e os grupos **PLANEAMENTO**, **PRODUÇÃO**, **COMERCIAL** e **GESTÃO**. Carrega no nome de um grupo para o abrir ou fechar. Carrega no logótipo, no topo, para encolher ou alargar o menu. Só vês as áreas a que tens acesso.",
     },
     {
+      titulo: "Pesquisar em toda a app (Ctrl+K)",
+      texto: "Carrega em **Ctrl+K** (no Mac, **⌘K**) em qualquer página, ou em **Pesquisar** no topo da barra lateral. No telemóvel, carrega na **lupa** da barra de cima. Escreve parte do nome de uma página, projeto, entidade, colega ou tema da Ajuda, mesmo sem acentos. Usa as setas **↑ ↓** para escolher e **Enter** para abrir, ou carrega no resultado. **Esc** fecha. Ao escolher um colega abre o cartão com os contactos dele. Sem nada escrito, vês os últimos sítios que abriste e as ações rápidas, como **Pedir férias** ou **Pedir quilómetros**.",
+    },
+    {
+      titulo: "Atalhos de teclado (?)",
+      texto: "No computador, carrega em **?** (fora de um campo de texto) para ver todos os atalhos. Para saltar entre páginas, carrega em **G** e logo a seguir numa letra: **G A** Agenda, **G T** Tarefas, **G P** Projetos, **G E** Entidades, **G C** Comunicação, **G F** Ausências, **G I** Início, **G H** Ajuda. **Ctrl+Z** (no Mac, **⌘Z**) desfaz a última ação enquanto o aviso com **Desfazer** está visível. Também encontras a lista no **Ctrl+K**, em **Atalhos de teclado**.",
+    },
+    {
       titulo: "Cartão com o teu nome",
       texto: "No fundo da barra lateral está o cartão com a tua foto, o teu nome e o teu papel. Carrega nele para abrir o menu da conta: **O meu perfil**, **Férias & ausências**, **Pedido de deslocação**, **Ajuda**, **Tema**, **Som das notificações** e **Terminar sessão**.",
     },
     {
       titulo: "No telemóvel",
-      texto: "Em ecrãs pequenos o menu fica escondido. No fundo do ecrã aparece uma barra com **Início**, **Agenda**, **Tarefas**, **Projetos** e **Menu**. Carrega em **Menu** (ou no ícone de três riscos, no topo) para abrir o menu completo.",
+      texto: "Em ecrãs pequenos o menu fica escondido. No fundo do ecrã aparece uma barra com **Início**, **Agenda**, **Tarefas**, **Projetos** e **Menu**. Carrega em **Menu** (ou no ícone de três riscos, no topo) para abrir o menu completo. Para o fechar, arrasta-o para a esquerda. As janelas fecham com o botão/gesto **voltar** do telemóvel ou arrastando-as para baixo, e os avisos em baixo saem arrastando-os para o lado.",
     },
     {
       titulo: "Cabeçalho",

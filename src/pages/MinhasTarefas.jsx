@@ -14,6 +14,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { toastDesfazer } from "../utils/toast";
+import { lerCache, guardarCache } from "../utils/cachePaginas";
+import PaginaSkeleton from "../components/Skeleton";
+
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import FancySelect from "../components/FancySelect";
@@ -27,6 +31,9 @@ import "../styles/agenda.css";
 import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
+
+/** Stale-while-revalidate da Agenda: junta uma parte aos dados guardados. */
+const guardarAgenda = (parte) => guardarCache("agenda", { ...(lerCache("agenda") || {}), ...parte });
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Kanban: ({ size = 24, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>,
@@ -62,20 +69,20 @@ export default function MinhasTarefas() {
   const { user } = useAuth();
     const navigate = useNavigate();
   
-  const [tasks, setTasks] = useState({ atrasadas: [], hoje: [], amanha: [], depois: [], semData: [] });
-  const [logs, setLogs] = useState([]);
+  const [tasks, setTasks] = useState(() => lerCache("agenda")?.tasks || { atrasadas: [], hoje: [], amanha: [], depois: [], semData: [] });
+  const [logs, setLogs] = useState(() => lerCache("agenda")?.logs || []);
   const [activeLog, setActiveLog] = useState(null);
     const [activeTimerTitle, setActiveTimerTitle] = useState("");
         const [activeTimerLocation, setActiveTimerLocation] = useState("");
         const [activeTimerRoute, setActiveTimerRoute] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !lerCache("agenda")?.tasks); // com cache: mostra já e atualiza por trás
   const [notification, setNotification] = useState(null);
-  const [staff, setStaff] = useState([]); 
+  const [staff, setStaff] = useState(() => lerCache("agenda")?.staff || []); 
   
   // FILTROS E ESTADOS DE UI
   const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState("avulsas"); 
-  const [availableProjects, setAvailableProjects] = useState([]);
+  const [availableProjects, setAvailableProjects] = useState(() => lerCache("agenda")?.availableProjects || []);
   
   const [newTasks, setNewTasks] = useState({ atrasadas: '', hoje: '', amanha: '', depois: '', semData: '' });
   const [novaTarefaNome, setNovaTarefaNome] = useState("");
@@ -155,11 +162,12 @@ export default function MinhasTarefas() {
   };
 
   async function carregarTudo() {
-      setLoading(true);
+      if (!lerCache("agenda")?.tasks) setLoading(true);
       await Promise.all([
           (async () => {
               const { data: staffData } = await supabase.from("profiles").select("id, nome, email, ativo, avatar_url").order("nome");
               setStaff(staffData || []);
+              guardarAgenda({ staff: staffData || [] });
           })(),
           checkActiveLog(),
           fetchMyTasks()
@@ -216,8 +224,10 @@ export default function MinhasTarefas() {
                   .in("task_id", taskIds)
                   .not("duration_minutes", "is", null);
               setLogs(logsData || []);
+              guardarAgenda({ logs: logsData || [] });
           } else {
               setLogs([]);
+              guardarAgenda({ logs: [] });
           }
 
           if (tData) {
@@ -226,7 +236,9 @@ export default function MinhasTarefas() {
                   const proj = task.atividades?.projetos;
                   if (proj) pMap.set(proj.id, proj.codigo_projeto ? `[${proj.codigo_projeto}] ${proj.titulo}` : proj.titulo);
               });
-              setAvailableProjects(Array.from(pMap.entries()).map(([id, name]) => ({ id, name })));
+              const projetosFiltro = Array.from(pMap.entries()).map(([id, name]) => ({ id, name }));
+              setAvailableProjects(projetosFiltro);
+              guardarAgenda({ availableProjects: projetosFiltro });
           }
 
           let dataToProcess = tData || [];
@@ -252,6 +264,7 @@ export default function MinhasTarefas() {
           });
 
           setTasks(agrupado);
+          guardarAgenda({ tasks: agrupado });
       } catch (err) { console.error(err); }
       setLoading(false);
   }
@@ -318,32 +331,24 @@ export default function MinhasTarefas() {
       showToast("Tarefa restaurada para o quadro!"); fetchMyTasks(); openCompletedHistory(); 
   }
 
-  async function handlePermanentDelete(taskId) {
-      openDeleteTaskConfirm({
-          title: "Apagar tarefa permanentemente",
-          message: "Tens a certeza que queres apagar esta tarefa permanentemente? Esta ação não pode ser desfeita.",
-          onConfirm: async () => {
-              await supabase.from("tarefas").delete().eq("id", taskId);
-              showToast("Tarefa eliminada do arquivo.");
-              closeConfirmDialog();
-              openCompletedHistory();
-          }
+  // Apagar com Desfazer: a tarefa sai logo do ecrã e só é apagada na base de dados
+  // passados uns segundos (utils/toast.js). Desfazer repõe-na.
+  function handlePermanentDelete(taskId) {
+      const antes = completedTasksGroups;
+      setCompletedTasksGroups((g) => Object.fromEntries(Object.entries(g).map(([k, l]) => [k, l.filter((t) => t.id !== taskId)])));
+      toastDesfazer("Tarefa apagada do arquivo.", {
+          executar: () => supabase.from("tarefas").delete().eq("id", taskId),
+          desfazer: () => setCompletedTasksGroups(antes),
       });
   }
   
-  // Função auxiliar de delete do Modal
-  async function handleDeleteTaskFromKanban(taskId) {
-      openDeleteTaskConfirm({
-          title: "Apagar tarefa do quadro",
-          message: "Tens a certeza que queres apagar esta tarefa do quadro? Esta ação não pode ser desfeita.",
-          onConfirm: async () => {
-              await supabase.from("tarefas").delete().eq("id", taskId);
-              showToast("Tarefa apagada.");
-              setEditModal({show: false, data: null});
-              closeConfirmDialog();
-              fetchMyTasks();
-          }
-      });
+  function handleDeleteTaskFromKanban(taskId) {
+      setTasks((prev) => Object.fromEntries(Object.entries(prev).map(([k, l]) => [k, (l || []).filter((t) => t.id !== taskId)])));
+      setEditModal({ show: false, data: null });
+      toastDesfazer("Tarefa apagada.", {
+          executar: () => supabase.from("tarefas").delete().eq("id", taskId),
+          desfazer: () => fetchMyTasks(),
+      }).then((r) => { if (r === "executado") fetchMyTasks(); });
   }
 
   const getTaskTime = (taskId) => logs.filter(l => l.task_id === taskId).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
@@ -439,23 +444,12 @@ export default function MinhasTarefas() {
       }
   };
 
-  const handleDeleteTimeLog = async (logId) => {
-      setConfirmDialog({
-          show: true,
-          title: "Apagar registo de tempo",
-          message: "Tens a certeza que queres apagar este registo de tempo? Esta ação não pode ser desfeita.",
-          confirmText: "Sim, apagar",
-          isDanger: true,
-          onConfirm: async () => {
-              const { error } = await supabase.from("task_logs").delete().eq("id", logId);
-              if (error) {
-                  showToast("Erro ao apagar registo.", "error");
-                  return;
-              }
-              setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
-              showToast("Registo de tempo apagado.");
-              setConfirmDialog((prev) => ({ ...prev, show: false, onConfirm: null }));
-          }
+  const handleDeleteTimeLog = (logId) => {
+      const antes = logs;
+      setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
+      toastDesfazer("Registo de tempo apagado.", {
+          executar: () => supabase.from("task_logs").delete().eq("id", logId),
+          desfazer: () => setLogs(antes),
       });
   };
 
@@ -467,17 +461,6 @@ export default function MinhasTarefas() {
           confirmText: "Confirmar",
           isDanger: true,
           onConfirm: null
-      });
-  };
-
-  const openDeleteTaskConfirm = ({ title, message, onConfirm }) => {
-      setConfirmDialog({
-          show: true,
-          title,
-          message,
-          confirmText: "Sim, apagar",
-          isDanger: true,
-          onConfirm
       });
   };
 
@@ -660,17 +643,51 @@ export default function MinhasTarefas() {
       const dataConclusao = novoEstado === 'concluido' ? new Date().toISOString() : null;
       const celebrate = novoEstado === 'concluido';
 
-      // Animação de "concluído" corre enquanto a BD é atualizada
+      // Optimistic update: a interface muda já; a BD é gravada em paralelo.
+      // Se a gravação falhar, a tarefa volta ao estado anterior.
+      const antes = tasks;
+      const semCompleting = () => setCompletingIds((prev) => { const next = new Set(prev); next.delete(task.id); return next; });
+      const aplicarLocal = () => setTasks((prev) => {
+          const novo = {};
+          for (const [col, lista] of Object.entries(prev)) {
+              novo[col] = mostrarConcluidos || !celebrate
+                  ? lista.map((t) => (t.id === task.id ? { ...t, estado: novoEstado, data_conclusao: dataConclusao } : t))
+                  : lista.filter((t) => t.id !== task.id);
+          }
+          return novo;
+      });
+
       if (celebrate) setCompletingIds((prev) => new Set(prev).add(task.id));
+      else aplicarLocal();
+
       const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      const [{ error }] = await Promise.all([
-          supabase.from("tarefas").update({ estado: novoEstado, data_conclusao: dataConclusao }).eq("id", task.id),
-          celebrate && !reduceMotion ? new Promise((r) => setTimeout(r, 1050)) : null,
-      ]);
-      if (error) showToast("Erro: " + error.message, "error");
-      else showToast(celebrate ? "Boa! Tarefa concluída." : "Tarefa reaberta.");
-      await fetchMyTasks();
-      if (celebrate) setCompletingIds((prev) => { const next = new Set(prev); next.delete(task.id); return next; });
+      const gravar = supabase.from("tarefas").update({ estado: novoEstado, data_conclusao: dataConclusao }).eq("id", task.id);
+
+      if (celebrate) {
+          // A animação de "concluído" corre enquanto a BD grava; no fim, o cartão sai
+          await new Promise((r) => setTimeout(r, reduceMotion ? 0 : 1050));
+          aplicarLocal();
+          semCompleting();
+      }
+
+      const { error } = await gravar;
+      if (error) {
+          setTasks(antes);
+          semCompleting();
+          showToast("Erro: " + error.message, "error");
+          return;
+      }
+
+      if (!celebrate) { showToast("Tarefa reaberta."); return; }
+
+      // Desfazer: reabre a tarefa (o trabalho já está gravado)
+      toastDesfazer(`Boa! "${task.titulo}" concluída.`, {
+          desfazer: async () => {
+              const r = await supabase.from("tarefas").update({ estado: task.estado || "pendente", data_conclusao: task.data_conclusao || null }).eq("id", task.id);
+              if (!r.error) await fetchMyTasks();
+              return r;
+          },
+      });
   }
 
   async function handleCreatePessoal(e) {
@@ -1069,7 +1086,7 @@ export default function MinhasTarefas() {
   if (loading) {
       return (
           <div className="page-container ag-page">
-              <div className="ag-loading"><span /><span /><span /></div>
+              <PaginaSkeleton />
           </div>
       );
   }

@@ -9,6 +9,7 @@ import GuiaPeek from "./GuiaPeek";
 import { I } from "./mkIcons";
 import { AutoText, Field, Chips, TagInput, Avatar, PersonaFace, PessoasPicker } from "./mkFields";
 import Anexos from "./Anexos";
+import { CronoPainel } from "./Cronometro";
 import {
   ETAPAS, ETAPA_INICIAL, estadoInfo, CANAIS, FORMATOS, OBJETIVOS, ESTRATEGIAS, EDITORIAS,
   PRIORIDADES, METRICAS, AVALIACOES,
@@ -40,7 +41,7 @@ const CAMPOS_EDITAVEIS = ["titulo", "campanha", "variacoes", "cta_2", "notas", "
  * @param onAplicado só atualiza o estado local (a aprovação já gravou na BD)
  * @param secaoInicial secção para onde fazer scroll ao abrir (ex.: "aprovacao")
  */
-export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, secaoInicial, onAplicado, sugestoesPilar = [], personas = [], frentes = [], campanhas = [], ofertas = [], turmas = [], regras = [], avisar, onPatch, onClose, onArquivar, onRestaurar, onEliminar }) {
+export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, secaoInicial, onAplicado, sugestoesPilar = [], personas = [], frentes = [], campanhas = [], ofertas = [], turmas = [], regras = [], avisar, onPatch, onClose, onArquivar, onRestaurar, onEliminar, crono }) {
   const [draft, setD] = useState(item);
   // Estado, aprovação e datas podem mudar fora do painel (arrastar no quadro/calendário): vêm sempre do item
   const d = {
@@ -270,6 +271,7 @@ export default function ConteudoDrawer({ item, marca, perfis, userId, userNome, 
               ))}
             </div>
           )}
+          {crono && !arquivado && <CronoPainel {...crono} perfis={perfis} userId={userId} />}
         </header>
 
         {/* Índice */}

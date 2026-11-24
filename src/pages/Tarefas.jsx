@@ -19,6 +19,9 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
+import { toastDesfazer } from "../utils/toast";
+import { lerCache, guardarCache } from "../utils/cachePaginas";
+import PaginaSkeleton from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
@@ -29,10 +32,20 @@ import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import FancySelect from "../components/FancySelect";
 import "./../styles/dashboard.css";
 import "../styles/tarefas.css";
-import { confirmar } from "../utils/dialogo";
 import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
+// Itens apagados com "Desfazer" ainda à espera (não voltam a aparecer se a lista recarregar entretanto)
+const itensAApagar = new Set();
+/** Tira atividades/tarefas/passos que estão à espera de ser apagados. */
+const semItensAApagar = (lista) => (itensAApagar.size === 0 ? lista : lista
+    .filter((a) => !itensAApagar.has(`atividades:${a.id}`))
+    .map((a) => ({
+        ...a,
+        tarefas: (a.tarefas || [])
+            .filter((t) => !itensAApagar.has(`tarefas:${t.id}`))
+            .map((t) => ({ ...t, subtarefas: (t.subtarefas || []).filter((st) => !itensAApagar.has(`subtarefas:${st.id}`)) })),
+    })));
 const ModalPortal = ({ children }) => {
   return createPortal(children, document.body);
 };
@@ -121,10 +134,10 @@ export default function Tarefas() {
     const navigate = useNavigate();
     const location = useLocation();
   
-  const [atividadesAgrupadas, setAtividadesAgrupadas] = useState([]); 
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false); 
+  const [atividadesAgrupadas, setAtividadesAgrupadas] = useState(() => lerCache("tarefas")?.atividadesAgrupadas || []); 
+  const [logs, setLogs] = useState(() => lerCache("tarefas")?.logs || []);
+  const [loading, setLoading] = useState(() => !lerCache("tarefas")); // com cache: mostra já e atualiza por trás
+  const [isAdmin, setIsAdmin] = useState(() => !!lerCache("tarefas")?.adminStatus); 
   const [activeTask, setActiveTask] = useState(null); 
     const [activeTaskTitle, setActiveTaskTitle] = useState("");
     const [activeTaskRoute, setActiveTaskRoute] = useState("/dashboard/tarefas");
@@ -132,11 +145,11 @@ export default function Tarefas() {
     const [transitionPromptOpen, setTransitionPromptOpen] = useState(false);
     const [transitionPrefillData, setTransitionPrefillData] = useState(null);
 
-  const [atividadesBase, setAtividadesBase] = useState([]);
-  const [staff, setStaff] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [projetosList, setProjetosList] = useState([]); 
-    const [entidadePessoas, setEntidadePessoas] = useState([]);
+  const [atividadesBase, setAtividadesBase] = useState(() => lerCache("tarefas")?.atividadesBase || []);
+  const [staff, setStaff] = useState(() => lerCache("tarefas")?.staff || []);
+  const [clientes, setClientes] = useState(() => lerCache("tarefas")?.clientes || []);
+  const [projetosList, setProjetosList] = useState(() => lerCache("tarefas")?.projetosList || []); 
+    const [entidadePessoas, setEntidadePessoas] = useState(() => lerCache("tarefas")?.entidadePessoas || []);
 
   const [busca, setBusca] = useState("");
   const [filtroCliente, setFiltroCliente] = useState("");
@@ -257,7 +270,7 @@ export default function Tarefas() {
   };
 
   async function carregarTudo() {
-      setLoading(true);
+      if (!lerCache("tarefas")) setLoading(true);
       await checkActiveTask();
       await fetchUserRoleAndData();
   }
@@ -471,6 +484,7 @@ export default function Tarefas() {
    * (responsável + colaboradores_extra) juntas sem duplicados.
    */
   async function fetchData(adminStatus) {
+    let logsFinal = [];
     try {
         let querySubtarefas = supabase.from("subtarefas").select(`*, tarefas!inner(*, atividades!inner(*, projetos!inner(id, titulo, clientes!cliente_id(id, marca, sigla))))`);
         if (!adminStatus) querySubtarefas = querySubtarefas.eq("responsavel_id", user.id);
@@ -644,18 +658,31 @@ export default function Tarefas() {
                 console.error("Erro ao carregar logs de tarefa:", logsError);
                 setLogs([]);
             } else {
-                setLogs(logsData || []);
+                logsFinal = logsData || [];
+                setLogs(logsFinal);
             }
         } else {
             setLogs([]);
         }
 
-        setAtividadesAgrupadas(listaAtividades);
+        setAtividadesAgrupadas(semItensAApagar(listaAtividades));
         setAtividadesBase(comboAtiv || []);
         setStaff(staffData || []);
         setClientes(cliData || []);
         setProjetosList(projData || []);
         setEntidadePessoas(entidadesData || []);
+
+        // Stale-while-revalidate: guarda para a próxima visita (mostra já, atualiza por trás)
+        guardarCache("tarefas", {
+            adminStatus,
+            atividadesAgrupadas: listaAtividades,
+            logs: logsFinal,
+            atividadesBase: comboAtiv || [],
+            staff: staffData || [],
+            clientes: cliData || [],
+            projetosList: projData || [],
+            entidadePessoas: entidadesData || [],
+        });
 
     } catch (e) { console.error("ERRO FATAL:", e); }
     
@@ -832,15 +859,14 @@ export default function Tarefas() {
       }
   };
 
-  const handleDeleteTimeLog = async (logId) => {
-      if (!(await confirmar("Apagar este registo de tempo?", { perigoso: true, botao: "Apagar" }))) return;
-      const { error } = await supabase.from("task_logs").delete().eq("id", logId);
-      if (error) {
-          showToast("Erro ao apagar registo.", "error");
-          return;
-      }
+  const handleDeleteTimeLog = (logId) => {
+      // Undo toast: some já; só é apagado da BD se ninguém carregar em Desfazer
+      const antes = logs;
       setLogs((prev) => prev.filter((l) => String(l.id) !== String(logId)));
-      showToast("Registo de tempo apagado.");
+      toastDesfazer("Registo de tempo apagado.", {
+          executar: () => supabase.from("task_logs").delete().eq("id", logId),
+          desfazer: () => setLogs(antes),
+      });
   };
 
   const getDeadlineTone = (dateString, isCompleted) => {
@@ -1346,22 +1372,51 @@ export default function Tarefas() {
       }
 
       fetchData(isAdmin);
-      showToast(novoEstado === 'concluido' ? "Feito! 🎉" : "Reaberto.");
+      if (novoEstado === 'concluido' && tabela !== 'atividades') {
+          // Undo toast: reabre o item (o trabalho já está gravado)
+          const antes = { estado: estadoAtual || 'pendente' };
+          if (tabela === 'tarefas') antes.data_conclusao = null;
+          toastDesfazer(tabela === 'subtarefas' ? "Passo concluído. 🎉" : "Feito! 🎉", {
+              desfazer: async () => {
+                  const r = await supabase.from(tabela).update(antes).eq("id", id);
+                  if (!r.error) fetchData(isAdmin);
+                  return r;
+              },
+          });
+      } else {
+          showToast(novoEstado === 'concluido' ? "Feito! 🎉" : "Reaberto.");
+      }
       if (tabela === 'atividades' && novoEstado === 'concluido' && projectIdFromItem) {
           await maybeConcludeProjectAndPrompt(projectIdFromItem);
       }
   }
 
+  /** Apagar: atividades pedem confirmação (levam as tarefas com elas); tarefas e passos apagam logo, com Desfazer. */
   function openDeleteConfirm(tabela, id, titulo) {
-      setDeleteConfirm({ show: true, tabela, id, titulo });
+      if (tabela === 'atividades') setDeleteConfirm({ show: true, tabela, id, titulo });
+      else apagarComDesfazer(tabela, id, titulo);
   }
 
   async function executeDelete() {
-      const { tabela, id } = deleteConfirm;
-      const { error } = await supabase.from(tabela).delete().eq("id", id);
+      const { tabela, id, titulo } = deleteConfirm;
       setDeleteConfirm({ show: false, tabela: '', id: null, titulo: '' });
-      if(!error) { showToast("Apagado com sucesso."); setShowModal(false); fetchData(isAdmin); }
-      else { showToast("Erro ao apagar.", "error"); }
+      apagarComDesfazer(tabela, id, titulo);
+  }
+
+  /** Undo toast: o item sai logo da lista; a BD só é apagada passados uns segundos. */
+  function apagarComDesfazer(tabela, id, titulo) {
+      const chave = `${tabela}:${id}`;
+      setShowModal(false);
+      itensAApagar.add(chave);
+      setAtividadesAgrupadas((prev) => semItensAApagar(prev));
+      const nome = tabela === 'atividades' ? 'Atividade' : tabela === 'tarefas' ? 'Tarefa' : 'Passo';
+      toastDesfazer(`${nome} "${titulo || ''}" apagad${tabela === 'subtarefas' ? 'o' : 'a'}.`, {
+          executar: () => supabase.from(tabela).delete().eq("id", id),
+          desfazer: () => { itensAApagar.delete(chave); fetchData(isAdmin); },
+      }).then((r) => {
+          itensAApagar.delete(chave);
+          if (r !== "desfeito") fetchData(isAdmin);
+      });
   }
 
   const toggleExpand = (taskId) => setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
@@ -1883,7 +1938,7 @@ export default function Tarefas() {
 
   if (loading) return (
       <div className="page-container tk-page">
-          <div className="tk-loading"><span /><span /><span /></div>
+          <PaginaSkeleton />
       </div>
   );
 
@@ -2168,7 +2223,7 @@ export default function Tarefas() {
                   <div className="tk-dialog" onClick={e => e.stopPropagation()}>
                       <span className="tk-dialog-icon is-danger"><Icons.Trash size={24} /></span>
                       <h3>Apagar item?</h3>
-                      <p>Tens a certeza que queres apagar <strong>"{deleteConfirm.titulo}"</strong>? Esta ação não pode ser desfeita.</p>
+                      <p>Apagar <strong>"{deleteConfirm.titulo}"</strong> apaga também as tarefas e os passos dela. Tens uns segundos para carregar em <strong>Desfazer</strong>.</p>
                       <div className="tk-dialog-actions">
                           <button type="button" className="tk-btn" onClick={() => setDeleteConfirm({show:false, tabela:'', id:null, titulo:''})}>Cancelar</button>
                           <button type="button" className="tk-btn is-danger" onClick={executeDelete}>Sim, apagar</button>

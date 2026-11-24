@@ -98,6 +98,12 @@ Legenda de autenticação: **Pública** (sem token), **Sessão** (Bearer válido
 - Envio sempre por `sendTransactionalCampaign` (Brevo). Erros do Brevo → status 400–502 com
   mensagem curta.
 - `maxDuration` 60 s.
+- **Idempotência** (`marketing`, `transfergest`, `pedido-ausencia`): o browser manda o cabeçalho
+  `Idempotency-Key` (impressão digital SHA-256 do conteúdo, `src/utils/idempotencia.js`). O servidor
+  (`api/_lib/idempotencia.js`, tabela `pedidos_idempotentes`, migração 081) faz o envio uma só vez:
+  um pedido igual nos 15 minutos seguintes devolve a resposta guardada com `repetido: true` (sem
+  reenviar emails); um igual enquanto o primeiro decorre recebe 409. Se o envio falhar, a chave é
+  apagada e pode tentar-se de novo. Sem cabeçalho, sem service role ou sem a tabela, funciona como antes.
 
 | `tipo` | Autorização | Corpo | Ação / tabelas | Saída |
 |---|---|---|---|---|
