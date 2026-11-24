@@ -4,14 +4,13 @@
 // acessos a plataformas (acessos; palavra-passe no cofre — utils/cofre.js).
 // Separadores: painel, equip_ativos, equip_inativos, software, acessos.
 // Inativar = mudar estado (abatido / arquivado / inativo), nada é apagado.
-// Exporta PDF (jsPDF) e Excel (xlsx) com o material por colaborador e em stock.
+// Exporta PDF (components/pdfAtivosTI.js, termo de entrega com assinatura) e Excel (xlsx) com o material por colaborador e em stock.
 // Documentação: docs/modulos/ferramentas.md
 // =====================================================================
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { gerarPdfAtivosTI } from "../components/pdfAtivosTI";
 import * as XLSX from "xlsx";
 import FancySelect from "../components/FancySelect";
 import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../utils/cofre";
@@ -928,87 +927,19 @@ export default function AtivosTIDashboard() {
     return Object.values(grupos).sort((a, b) => b.itens.length - a.itens.length);
   }, [equipamentos, colaboradoresMap]);
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const emStock = equipamentos.filter((e) => e.estado === "em_stock");
+    if (atribuidosPorPessoa.length === 0 && emStock.length === 0) {
+      notify("Não existem equipamentos no sistema para exportar.", "error");
+      return;
+    }
     try {
-      // Filtrar os equipamentos que estão em stock
-      const equipamentosEmStock = equipamentos.filter((e) => e.estado === "em_stock");
-
-      // Verificar se há de facto alguma coisa para exportar (atribuídos OU em stock)
-      if (atribuidosPorPessoa.length === 0 && equipamentosEmStock.length === 0) {
-        notify("Não existem equipamentos no sistema para exportar.", "error");
-        return;
-      }
-
-      const doc = new jsPDF();
-      const dataHora = new Date().toLocaleString("pt-PT");
-      let adicionouPagina = false;
-
-      // 1. GERAR PÁGINAS POR COLABORADOR
-      atribuidosPorPessoa.forEach((pessoa, index) => {
-        if (index > 0) doc.addPage();
-        adicionouPagina = true;
-
-        doc.setFontSize(16);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`Ativos TI Atribuídos: ${pessoa.nome}`, 14, 22);
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Gerado a: ${dataHora} | Total de equipamentos: ${pessoa.itens.length}`, 14, 28);
-
-        const tableData = pessoa.itens.map((item) => [
-          item.num_inventario || "-",
-          item.tipo || "-",
-          item.modelo || "-",
-          item.nome_pc || "-",
-          ESTADO_MAP_EQUIP[item.estado]?.txt || item.estado
-        ]);
-
-        autoTable(doc, {
-          startY: 35,
-          head: [["Nº Inv.", "Tipo", "Modelo", "Descrição", "Estado"]],
-          body: tableData,
-          headStyles: { fillColor: [59, 130, 246] },
-          styles: { fontSize: 10, cellPadding: 4 },
-          alternateRowStyles: { fillColor: [248, 250, 252] }
-        });
+      await gerarPdfAtivosTI({
+        porPessoa: atribuidosPorPessoa,
+        emStock,
+        estadoTxt: (estado) => ESTADO_MAP_EQUIP[estado]?.txt || estado,
       });
-
-      // 2. GERAR PÁGINA DE STOCK (se existirem equipamentos em stock)
-      if (equipamentosEmStock.length > 0) {
-        if (adicionouPagina) {
-          doc.addPage();
-        }
-
-        doc.setFontSize(16);
-        doc.setTextColor(15, 23, 42);
-        doc.text("Ativos TI: Em Stock (Disponíveis)", 14, 22);
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Gerado a: ${dataHora} | Total em stock: ${equipamentosEmStock.length}`, 14, 28);
-
-        const tableDataStock = equipamentosEmStock.map((item) => [
-          item.num_inventario || "-",
-          item.tipo || "-",
-          item.modelo || "-",
-          item.nome_pc || "-",
-          ESTADO_MAP_EQUIP[item.estado]?.txt || item.estado
-        ]);
-
-        autoTable(doc, {
-          startY: 35,
-          head: [["Nº Inv.", "Tipo", "Modelo", "Descrição", "Estado"]],
-          body: tableDataStock,
-          headStyles: { fillColor: [100, 116, 139] },
-          styles: { fontSize: 10, cellPadding: 4 },
-          alternateRowStyles: { fillColor: [248, 250, 252] }
-        });
-      }
-
-      doc.save("inventario_ativos_ti.pdf");
       notify("PDF gerado e transferido com sucesso!");
-
     } catch (error) {
       console.error("Erro ao gerar o PDF:", error);
       notify("Erro ao gerar PDF. Verifica a consola.", "error");

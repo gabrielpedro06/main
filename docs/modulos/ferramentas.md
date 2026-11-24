@@ -115,7 +115,7 @@ Inventário de material informático, software/licenças e acessos a plataformas
 - Inativar/reativar só muda o estado (equipamento ↔ `abatido`/`em_stock`; software ↔ `arquivado`/`ativo`; acesso ↔ `inativo`/`ativo`).
 - Garantia: expirada, a acabar (≤90 dias), ok ou sem garantia; barra com a percentagem de tempo decorrido.
 - Acessos: a lista nunca traz a palavra-passe (`semPalavraPasse`); mostrar/copiar pede-a ao cofre e guarda-a em memória enquanto a página está aberta. Ao editar, palavra-passe em branco = manter.
-- Exportações: PDF (`jsPDF` + `autotable`, uma página por colaborador + material em stock) e Excel (`xlsx`, folhas "Atribuídos" e "Em Stock").
+- Exportações: PDF (`src/components/pdfAtivosTI.js`, `jsPDF` + `autotable`: um termo de entrega por colaborador, com declaração de receção e linha de assinatura/data fixa no fim da folha, que passa para uma folha nova se a tabela não deixar espaço; no fim, o material em stock, sem assinatura) e Excel (`xlsx`, folhas "Atribuídos" e "Em Stock").
 
 ## Riscos e pontos a rever
 

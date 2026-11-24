@@ -130,7 +130,7 @@ export default {
       titulo: "Como exportar a lista de equipamentos",
       passos: [
         "Carrega em **Excel** para descarregar uma folha com o material atribuído e o material em stock.",
-        "Carrega em **PDF** para descarregar uma página por colaborador e uma página com o material em stock.",
+        "Carrega em **PDF** para descarregar um **termo de entrega** por colaborador (lista do material, declaração de receção e linha para o colaborador **assinar e datar** no fim da folha) e uma página com o material em stock.",
       ],
     },
   ],
