@@ -36,6 +36,7 @@ const normalize = (v) => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, ""
  * @param {number} [props.menuWidth=320] largura mínima do menu (px)
  * @param {string} [props.searchPlaceholder="Procurar…"]
  * @param {string} [props.ariaLabel] obrigatório se não houver <label> visível
+ * @param {boolean} [props.disabled] bloqueado (não abre)
  */
 export default function FancySelect({
   value,
@@ -47,6 +48,7 @@ export default function FancySelect({
   menuWidth = 320,
   searchPlaceholder = "Procurar…",
   ariaLabel,
+  disabled = false,
 }) {
   const triggerRef = useRef(null);
   const listRef = useRef(null);
@@ -124,8 +126,9 @@ export default function FancySelect({
         ref={triggerRef}
         type="button"
         className={`fs-trigger ${open ? "is-open" : ""} ${className}`}
-        onClick={() => (open ? close() : openMenu())}
-        onKeyDown={(e) => { if (!open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); openMenu(); } }}
+        onClick={() => { if (disabled) return; if (open) close(); else openMenu(); }}
+        onKeyDown={(e) => { if (!disabled && !open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); openMenu(); } }}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}

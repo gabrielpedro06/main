@@ -668,3 +668,33 @@ th.is-num .po-vg-sort { justify-content: flex-end; }
 .po-card-exec-bar { display: block; height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--x) 14%, #eef2f6); overflow: hidden; }
 .po-card-exec-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--x) 70%, #fff), var(--x)); transition: width 0.6s var(--po-ease); }
 .po-card.is-closed .po-card-exec { opacity: 0.7; }
+
+/* ---------- Wizard de projeto: dropdowns (FancySelect) com o aspeto dos outros campos ---------- */
+.fs-trigger.pj-fs {
+  width: 100%; min-width: 0; height: 42px; padding: 0 12px; border-radius: 8px;
+  border: 1px solid #cbd5e1; font-size: 0.95rem; font-weight: 600; color: #1e293b;
+}
+.fs-trigger.pj-fs.is-destaque { border-color: var(--color-btnPrimary); background: var(--color-bgSecondary, #f8fafc); }
+.fs-trigger.pj-fs:disabled { background: #f8fafc; }
+
+/* ---------- Modais rápidos do wizard (Novo programa / Novo aviso) ---------- */
+.pj-quick { width: 100%; max-width: 540px; max-height: 90vh; display: flex; flex-direction: column; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); animation: fadeIn 0.2s ease-out; }
+.pj-quick-head { display: flex; align-items: center; gap: 12px; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+.pj-quick-head > div { flex: 1; min-width: 0; }
+.pj-quick-head h3 { margin: 0; font-size: 1.1rem; font-weight: 800; color: #1e293b; }
+.pj-quick-head p { margin: 2px 0 0; font-size: 0.8rem; line-height: 1.45; color: #64748b; }
+.pj-quick-ico { display: flex; padding: 8px; border-radius: 10px; color: var(--color-btnPrimary); background: var(--color-bgSecondary, #f1f5f9); }
+.pj-quick-x { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: #64748b; cursor: pointer; }
+.pj-quick-body { display: grid; gap: 14px; padding: 20px 22px; overflow-y: auto; }
+.pj-quick-hint { margin-top: 5px; font-size: 0.76rem; color: #64748b; }
+.pj-quick-fases { display: grid; gap: 8px; }
+.pj-quick-fase { display: grid; grid-template-columns: 1fr 160px 34px; gap: 8px; align-items: center; }
+.pj-quick-add { justify-self: start; padding: 8px 12px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #fff; color: var(--color-btnPrimary); font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+.pj-quick-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.pj-quick-cancel { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #475569; font-weight: 700; cursor: pointer; }
+.pj-quick-ok { padding: 10px 18px; border: 0; border-radius: 8px; background: var(--color-btnPrimary); color: #fff; font-weight: 800; cursor: pointer; }
+.pj-quick-ok:disabled { opacity: 0.7; cursor: progress; }
+@media (max-width: 560px) {
+  .pj-quick-fase { grid-template-columns: 1fr 34px; }
+  .pj-quick-fase input[type="date"] { grid-column: 1; }
+}

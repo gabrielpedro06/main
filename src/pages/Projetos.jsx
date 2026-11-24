@@ -42,6 +42,7 @@ import { consultarNif } from "../utils/apiAutenticada";
 import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
+import FancySelect from "../components/FancySelect";
 import { Lock, TriangleAlert } from "lucide-react";
 import { registarEvento } from "../utils/registarEvento";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
@@ -254,6 +255,11 @@ export default function Projetos() {
   const [activeTab, setActiveTab] = useState("geral");
     const [parceiroSelecionado, setParceiroSelecionado] = useState("");
     const [quickOrganismoModal, setQuickOrganismoModal] = useState({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
+    // Para onde vai a entidade criada no modal rápido: "lider" (passo 1), "parceiro" (passo 1) ou "organismo" (passo 2)
+    const [quickPapel, setQuickPapel] = useState("organismo");
+    // Modais rápidos do passo 3 (criar programa / aviso sem sair do wizard)
+    const [quickPrograma, setQuickPrograma] = useState(null); // { codigo, nome, avisoCodigo, isSubmitting }
+    const [quickAviso, setQuickAviso] = useState(null);       // { codigo, fases: [{ nome, prazo }], isSubmitting }
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -406,6 +412,7 @@ export default function Projetos() {
       if (!showModal && quickOrganismoModal.show) {
           closeQuickOrganismoModal();
       }
+      if (!showModal) { setQuickPrograma(null); setQuickAviso(null); }
   }, [showModal]);
 
   useEffect(() => {
@@ -2146,24 +2153,121 @@ export default function Projetos() {
       return data?.records?.[nifSanitizado] || data?.[nifSanitizado] || null;
   }
 
-  const openQuickOrganismoModal = () => {
-      const organismoAtual = form.organismo_id ? clientes.find(c => String(c.id) === String(form.organismo_id)) : null;
-      setQuickOrganismoModal({
-          show: true,
-          marca: organismoAtual?.marca || "",
-          sigla: organismoAtual?.sigla || "",
-          nif: organismoAtual?.nif || "",
-          entidade: organismoAtual?.entidade || "",
-          website: organismoAtual?.website || "",
-          isSubmitting: false
+  /** Abre o modal "Nova entidade" sem sair do wizard; `papel` diz onde a entidade fica selecionada. */
+  const openQuickEntidade = (papel) => {
+      setQuickPapel(papel);
+      setQuickOrganismoModal({ show: true, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
+  };
+  const openQuickOrganismoModal = () => openQuickEntidade("organismo");
+
+  /**
+   * Seleciona no formulário a entidade criada/encontrada no modal rápido, conforme o papel:
+   * líder → cliente_id; parceiro → parceiros_ids; organismo → organismo_id (marca eh_organismo se faltar).
+   */
+  const selecionarEntidadeRapida = async (ent) => {
+      if (!ent?.id) return;
+      let registo = { ...ent };
+      if (quickPapel === "organismo" && !ent.eh_organismo) {
+          // Já existia mas não estava marcada como organismo: marca-a (senão não aparece na lista de organismos).
+          const { error } = await supabase.from("clientes").update({ eh_organismo: true }).eq("id", ent.id);
+          if (!error) registo = { ...registo, eh_organismo: true };
+      }
+      setClientes(prev => [registo, ...prev.filter(c => String(c.id) !== String(ent.id))]);
+      setForm(prev => {
+          if (quickPapel === "lider") {
+              return { ...prev, cliente_id: ent.id, parceiros_ids: (prev.parceiros_ids || []).filter(pid => String(pid) !== String(ent.id)) };
+          }
+          if (quickPapel === "parceiro") {
+              if (String(ent.id) === String(prev.cliente_id) || (prev.parceiros_ids || []).some(pid => String(pid) === String(ent.id))) return prev;
+              return { ...prev, is_parceria: true, parceiros_ids: [...(prev.parceiros_ids || []), ent.id] };
+          }
+          return { ...prev, has_organismo: true, organismo_id: ent.id, organismo_contacto_id: "" };
       });
+  };
+
+  const PAPEL_TXT = { lider: "entidade líder", parceiro: "entidade parceira", organismo: "organismo" };
+
+  /**
+   * Cria um programa de financiamento (e, opcionalmente, o seu primeiro aviso) a partir do
+   * passo 3 e seleciona-o no projeto. Mesmo formato que pages/GestaoAvisos.jsx
+   * (programas_financiamento.avisos_ids = array de ids de avisos).
+   */
+  const createQuickPrograma = async (e) => {
+      e.preventDefault();
+      const q = quickPrograma;
+      if (!q || q.isSubmitting) return;
+      const codigo = q.codigo.trim();
+      const nome = q.nome.trim();
+      if (!codigo || !nome) { showToast("Indica a sigla e o nome do programa.", "warning"); return; }
+      setQuickPrograma((prev) => ({ ...prev, isSubmitting: true }));
+      try {
+          let aviso = null;
+          if (q.avisoCodigo.trim()) {
+              const { data, error } = await supabase.from("avisos")
+                  .insert([{ codigo: q.avisoCodigo.trim(), fases: [], ativo: true }]).select("*").single();
+              if (error) throw error;
+              aviso = data;
+          }
+          const { data: programa, error } = await supabase.from("programas_financiamento")
+              .insert([{ codigo, nome, avisos_ids: aviso ? [aviso.id] : [], ativo: true }])
+              .select("id, codigo, nome, aviso, avisos_ids, ativo").single();
+          if (error) throw error;
+          if (aviso) setAvisos((prev) => [...prev, aviso]);
+          setProgramas((prev) => [...prev, programa]);
+          setForm((prev) => ({
+              ...prev,
+              programa_id: programa.id,
+              programa: `${programa.codigo} - ${programa.nome}`,
+              avisos_ids: aviso?.id || "",
+              aviso: aviso?.codigo || "",
+              prazos_fases: [],
+          }));
+          setQuickPrograma(null);
+          showToast(aviso ? "Programa e aviso criados e selecionados." : "Programa criado e selecionado. Podes criar já o aviso.", "success");
+      } catch (err) {
+          setQuickPrograma((prev) => (prev ? { ...prev, isSubmitting: false } : prev));
+          showToast(`Erro ao criar o programa: ${err.message}`, "error");
+      }
+  };
+
+  /** Cria um aviso (com as fases/prazos) para o programa escolhido no passo 3 e seleciona-o. */
+  const createQuickAviso = async (e) => {
+      e.preventDefault();
+      const q = quickAviso;
+      const programa = getProgramaById(form.programa_id);
+      if (!q || q.isSubmitting || !programa) return;
+      const codigo = q.codigo.trim();
+      if (!codigo) { showToast("Indica o código do aviso.", "warning"); return; }
+      const fases = (q.fases || [])
+          .map((f, i) => ({ nome: String(f.nome || "").trim() || `Fase ${i + 1}`, prazo: f.prazo || "" }))
+          .filter((f) => f.prazo || f.nome);
+      setQuickAviso((prev) => ({ ...prev, isSubmitting: true }));
+      try {
+          const { data: aviso, error } = await supabase.from("avisos")
+              .insert([{ codigo, fases, ativo: true }]).select("*").single();
+          if (error) throw error;
+          const atuais = Array.isArray(programa.avisos_ids) ? programa.avisos_ids : (programa.avisos_ids ? [programa.avisos_ids] : []);
+          const novosIds = [...atuais, aviso.id];
+          const { error: e2 } = await supabase.from("programas_financiamento")
+              .update({ avisos_ids: novosIds, updated_at: new Date().toISOString() }).eq("id", programa.id);
+          if (e2) throw e2;
+          setAvisos((prev) => [...prev, aviso]);
+          setProgramas((prev) => prev.map((p) => (String(p.id) === String(programa.id) ? { ...p, avisos_ids: novosIds } : p)));
+          // Selecionar o aviso: o useEffect de avisos_ids importa as fases para o projeto
+          setForm((prev) => ({ ...prev, avisos_ids: aviso.id, aviso: aviso.codigo }));
+          setQuickAviso(null);
+          showToast("Aviso criado, ligado ao programa e selecionado.", "success");
+      } catch (err) {
+          setQuickAviso((prev) => (prev ? { ...prev, isSubmitting: false } : prev));
+          showToast(`Erro ao criar o aviso: ${err.message}`, "error");
+      }
   };
 
   const closeQuickOrganismoModal = () => {
       setQuickOrganismoModal({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
   };
 
-  /** Cria rapidamente um organismo (cliente com eh_organismo = true) sem sair do modal. */
+  /** Cria rapidamente uma entidade (líder, parceira ou organismo) sem sair do wizard do projeto. */
   const createQuickOrganismo = async (e) => {
       e.preventDefault();
       if (quickOrganismoModal.isSubmitting) return;
@@ -2171,7 +2275,7 @@ export default function Projetos() {
       const marca = quickOrganismoModal.marca.trim();
       const nif = String(quickOrganismoModal.nif || "").replace(/\D/g, "").slice(0, 9);
       if (!marca) {
-          showToast("Indica o nome do organismo.", "warning");
+          showToast("Indica o nome da entidade.", "warning");
           return;
       }
 
@@ -2192,18 +2296,9 @@ export default function Projetos() {
               if (nifError) throw nifError;
 
               if (existente?.id) {
-                  setClientes(prev => {
-                      const restantes = prev.filter(c => String(c.id) !== String(existente.id));
-                      return [{ ...existente }, ...restantes];
-                  });
-                  setForm(prev => ({
-                      ...prev,
-                      has_organismo: true,
-                      organismo_id: existente.id,
-                      organismo_contacto_id: ""
-                  }));
+                  await selecionarEntidadeRapida(existente);
                   setQuickOrganismoModal({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
-                  showToast("Organismo já existia e foi selecionado.", "success");
+                  showToast(`Esta entidade já existia e foi selecionada como ${PAPEL_TXT[quickPapel]}.`, "success");
                   return;
               }
           }
@@ -2215,7 +2310,7 @@ export default function Projetos() {
               entidade: quickOrganismoModal.entidade.trim() || marca,
               website: quickOrganismoModal.website.trim() || null,
               ativo: true,
-              eh_organismo: true,
+              eh_organismo: quickPapel === "organismo",
               eh_empresa_consultora: false,
               plano: "Standard",
               tem_cursos: false
@@ -2224,18 +2319,12 @@ export default function Projetos() {
           const { data, error } = await supabase.from("clientes").insert([payload]).select("id, marca, sigla, nif, entidade, website, eh_organismo").single();
           if (error) throw error;
 
-          setClientes(prev => [{ ...data }, ...prev]);
-          setForm(prev => ({
-              ...prev,
-              has_organismo: true,
-              organismo_id: data.id,
-              organismo_contacto_id: ""
-          }));
+          await selecionarEntidadeRapida(data);
           setQuickOrganismoModal({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
-          showToast("Organismo criado e selecionado no projeto.", "success");
+          showToast(`Entidade criada e selecionada como ${PAPEL_TXT[quickPapel]}. Os restantes dados completam-se em Entidades.`, "success");
       } catch (err) {
           setQuickOrganismoModal(prev => ({ ...prev, isSubmitting: false }));
-          showToast(`Erro ao criar organismo: ${err.message}`, "error");
+          showToast(`Erro ao criar a entidade: ${err.message}`, "error");
       }
   };
 
@@ -2254,17 +2343,8 @@ export default function Projetos() {
               .maybeSingle();
 
           if (clienteExistente?.data?.id) {
-              setClientes(prev => {
-                  const restantes = prev.filter(c => String(c.id) !== String(clienteExistente.data.id));
-                  return [{ ...clienteExistente.data }, ...restantes];
-              });
-              setForm(prev => ({
-                  ...prev,
-                  has_organismo: true,
-                  organismo_id: clienteExistente.data.id,
-                  organismo_contacto_id: ""
-              }));
-              showToast("Organismo já existe e foi selecionado.", "success");
+              await selecionarEntidadeRapida(clienteExistente.data);
+              showToast(`Esta entidade já existe e foi selecionada como ${PAPEL_TXT[quickPapel]}.`, "success");
               closeQuickOrganismoModal();
               return;
           }
@@ -3369,6 +3449,136 @@ const exportCurrentOverviewPdf = () => {
           );
       })()}
 
+{/* --- MODAL RÁPIDO "NOVA ENTIDADE" (por cima do wizard; líder / parceira / organismo) --- */}
+      {showModal && quickOrganismoModal.show && (
+        <ModalPortal>
+          <div style={{position:'fixed', inset:0, backgroundColor:'rgba(15, 23, 42, 0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 30)", padding: '16px'}} onClick={closeQuickOrganismoModal}>
+            <form onSubmit={createQuickOrganismo} role="dialog" aria-label="Nova entidade" style={{background:'#fff', width:'100%', maxWidth:'520px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.35)', overflow:'hidden', animation:'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+              <div style={{padding:'18px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                  <span style={{background:'var(--color-bgSecondary)', color:'var(--color-btnPrimary)', padding:'8px', borderRadius:'10px', display:'flex'}}><Icons.Building /></span>
+                  <div>
+                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.1rem', fontWeight:'800'}}>{quickPapel === "organismo" ? "Novo organismo" : quickPapel === "parceiro" ? "Nova entidade parceira" : "Nova entidade"}</h3>
+                    <p style={{margin:'2px 0 0', fontSize:'0.8rem', color:'#64748b'}}>Fica logo selecionada no projeto. Os restantes dados completam-se depois em Entidades.</p>
+                  </div>
+                </div>
+                <button type="button" aria-label="Fechar" onClick={closeQuickOrganismoModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b', display:'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
+              </div>
+              <div style={{padding:'20px 22px', display:'grid', gap:'14px'}}>
+                <div>
+                  <label style={labelStyle} htmlFor="qe-nif">NIF</label>
+                  <input id="qe-nif" type="text" inputMode="numeric" value={quickOrganismoModal.nif} onChange={handleQuickOrganismoNifChange} placeholder="9 dígitos — preenche o resto automaticamente" style={inputStyle} className="input-focus" autoFocus />
+                  <div style={{marginTop:'5px', fontSize:'0.76rem', color:'#64748b'}}>Se o NIF já existir no Bizin, a entidade é selecionada em vez de duplicada.</div>
+                </div>
+                <div>
+                  <label style={labelStyle} htmlFor="qe-marca">Nome *</label>
+                  <input id="qe-marca" type="text" value={quickOrganismoModal.marca} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, marca: e.target.value }))} required style={inputStyle} className="input-focus" />
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'12px'}}>
+                  <div>
+                    <label style={labelStyle} htmlFor="qe-sigla">Sigla</label>
+                    <input id="qe-sigla" type="text" value={quickOrganismoModal.sigla} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, sigla: e.target.value }))} style={inputStyle} className="input-focus" />
+                  </div>
+                  <div>
+                    <label style={labelStyle} htmlFor="qe-entidade">Designação legal</label>
+                    <input id="qe-entidade" type="text" value={quickOrganismoModal.entidade} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, entidade: e.target.value }))} placeholder="Igual ao nome, se vazio" style={inputStyle} className="input-focus" />
+                  </div>
+                </div>
+                <div>
+                  <label style={labelStyle} htmlFor="qe-web">Website</label>
+                  <input id="qe-web" type="text" value={quickOrganismoModal.website} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, website: e.target.value }))} placeholder="https://" style={inputStyle} className="input-focus" />
+                </div>
+              </div>
+              <div style={{padding:'14px 22px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'flex-end', gap:'10px', background:'#f8fafc'}}>
+                <button type="button" onClick={closeQuickOrganismoModal} style={{padding:'10px 16px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', color:'#475569', fontWeight:'700', cursor:'pointer'}}>Cancelar</button>
+                <button type="submit" disabled={quickOrganismoModal.isSubmitting} style={{padding:'10px 18px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'#fff', fontWeight:'800', cursor: quickOrganismoModal.isSubmitting ? 'progress' : 'pointer', opacity: quickOrganismoModal.isSubmitting ? 0.7 : 1}}>
+                  {quickOrganismoModal.isSubmitting ? "A criar…" : "Criar e selecionar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
+
+{/* --- MODAIS RÁPIDOS DO PASSO 3: NOVO PROGRAMA / NOVO AVISO --- */}
+      {showModal && quickPrograma && (
+        <ModalPortal>
+          <div style={{position:'fixed', inset:0, backgroundColor:'rgba(15, 23, 42, 0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 30)", padding:'16px'}} onClick={() => setQuickPrograma(null)}>
+            <form onSubmit={createQuickPrograma} role="dialog" aria-label="Novo programa" className="pj-quick" onClick={e => e.stopPropagation()}>
+              <div className="pj-quick-head">
+                <span className="pj-quick-ico"><Icons.Building /></span>
+                <div>
+                  <h3>Novo programa</h3>
+                  <p>Fica logo selecionado no projeto. Os restantes dados (taxa, região, objetivos…) completam-se em Programas/Avisos.</p>
+                </div>
+                <button type="button" aria-label="Fechar" onClick={() => setQuickPrograma(null)} className="pj-quick-x hover-red-text"><Icons.Close size={20} /></button>
+              </div>
+              <div className="pj-quick-body">
+                <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'12px'}}>
+                  <div>
+                    <label style={labelStyle} htmlFor="qp-codigo">Sigla *</label>
+                    <input id="qp-codigo" type="text" value={quickPrograma.codigo} onChange={e => setQuickPrograma(prev => ({ ...prev, codigo: e.target.value }))} placeholder="Ex.: SI2E" required style={inputStyle} className="input-focus" autoFocus />
+                  </div>
+                  <div>
+                    <label style={labelStyle} htmlFor="qp-nome">Nome *</label>
+                    <input id="qp-nome" type="text" value={quickPrograma.nome} onChange={e => setQuickPrograma(prev => ({ ...prev, nome: e.target.value }))} required style={inputStyle} className="input-focus" />
+                  </div>
+                </div>
+                <div>
+                  <label style={labelStyle} htmlFor="qp-aviso">Código do primeiro aviso (opcional)</label>
+                  <input id="qp-aviso" type="text" value={quickPrograma.avisoCodigo} onChange={e => setQuickPrograma(prev => ({ ...prev, avisoCodigo: e.target.value }))} placeholder="Ex.: ALGARVE-2026-01" style={inputStyle} className="input-focus" />
+                  <div className="pj-quick-hint">Para indicar os prazos das fases, cria o aviso depois com <strong>+ Novo aviso</strong>.</div>
+                </div>
+              </div>
+              <div className="pj-quick-foot">
+                <button type="button" onClick={() => setQuickPrograma(null)} className="pj-quick-cancel">Cancelar</button>
+                <button type="submit" disabled={quickPrograma.isSubmitting} className="pj-quick-ok">{quickPrograma.isSubmitting ? "A criar…" : "Criar e selecionar"}</button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
+
+      {showModal && quickAviso && (
+        <ModalPortal>
+          <div style={{position:'fixed', inset:0, backgroundColor:'rgba(15, 23, 42, 0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 30)", padding:'16px'}} onClick={() => setQuickAviso(null)}>
+            <form onSubmit={createQuickAviso} role="dialog" aria-label="Novo aviso" className="pj-quick" onClick={e => e.stopPropagation()}>
+              <div className="pj-quick-head">
+                <span className="pj-quick-ico"><Icons.Calendar /></span>
+                <div>
+                  <h3>Novo aviso</h3>
+                  <p>Fica ligado a <strong>{getProgramaById(form.programa_id)?.nome || "este programa"}</strong> e selecionado no projeto, com as fases abaixo.</p>
+                </div>
+                <button type="button" aria-label="Fechar" onClick={() => setQuickAviso(null)} className="pj-quick-x hover-red-text"><Icons.Close size={20} /></button>
+              </div>
+              <div className="pj-quick-body">
+                <div>
+                  <label style={labelStyle} htmlFor="qa-codigo">Código do aviso *</label>
+                  <input id="qa-codigo" type="text" value={quickAviso.codigo} onChange={e => setQuickAviso(prev => ({ ...prev, codigo: e.target.value }))} placeholder="Ex.: ALGARVE-2026-01" required style={inputStyle} className="input-focus" autoFocus />
+                </div>
+                <div>
+                  <label style={labelStyle}>Fases e prazos</label>
+                  <div className="pj-quick-fases">
+                    {quickAviso.fases.map((f, i) => (
+                      <div key={i} className="pj-quick-fase">
+                        <input type="text" aria-label={`Nome da fase ${i + 1}`} value={f.nome} onChange={e => setQuickAviso(prev => ({ ...prev, fases: prev.fases.map((x, k) => k === i ? { ...x, nome: e.target.value } : x) }))} style={inputStyle} className="input-focus" />
+                        <input type="date" aria-label={`Prazo da fase ${i + 1}`} value={f.prazo} onChange={e => setQuickAviso(prev => ({ ...prev, fases: prev.fases.map((x, k) => k === i ? { ...x, prazo: e.target.value } : x) }))} style={inputStyle} className="input-focus" />
+                        <button type="button" aria-label={`Remover fase ${i + 1}`} onClick={() => setQuickAviso(prev => ({ ...prev, fases: prev.fases.filter((_, k) => k !== i) }))} className="pj-quick-x hover-red-text"><Icons.Close size={16} /></button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setQuickAviso(prev => ({ ...prev, fases: [...prev.fases, { nome: `Fase ${prev.fases.length + 1}`, prazo: "" }] }))} className="pj-quick-add">+ Adicionar fase</button>
+                  </div>
+                </div>
+              </div>
+              <div className="pj-quick-foot">
+                <button type="button" onClick={() => setQuickAviso(null)} className="pj-quick-cancel">Cancelar</button>
+                <button type="submit" disabled={quickAviso.isSubmitting} className="pj-quick-ok">{quickAviso.isSubmitting ? "A criar…" : "Criar e selecionar"}</button>
+              </div>
+            </form>
+          </div>
+        </ModalPortal>
+      )}
+
 {/* --- MODAL CRIAR/EDITAR PROJETO (WIZARD 5 PASSOS) --- */}
       {showModal && (
         <ModalPortal>
@@ -3432,32 +3642,34 @@ const exportCurrentOverviewPdf = () => {
                                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
                                       <div>
                                           <label style={labelStyle}>Tipo de Projeto (Modelo) *</label>
-                                          <select value={form.tipo_projeto_id || ''} onChange={e => setForm({...form, tipo_projeto_id: e.target.value})} style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} disabled={!!editId} className="input-focus" required>
-                                              <option value="">-- Selecione o Modelo --</option>
-                                              {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                                          </select>
+                                          <FancySelect
+                                              className="pj-fs is-destaque"
+                                              ariaLabel="Tipo de Projeto (Modelo)"
+                                              value={form.tipo_projeto_id || ''}
+                                              onChange={(v) => setForm({...form, tipo_projeto_id: v})}
+                                              disabled={!!editId}
+                                              placeholder="Selecione o modelo"
+                                              options={tipos.map(t => ({ value: t.id, label: t.nome, hint: t.eh_formacao ? "Formação" : undefined }))}
+                                          />
                                       </div>
                                       <div>
                                           <label style={labelStyle}>Responsável Global *</label>
-                                          <select 
-                                              value={form.responsavel_id || ''} 
-                                              onChange={e => {
-                                                  const newResp = e.target.value;
+                                          <FancySelect
+                                              className="pj-fs"
+                                              ariaLabel="Responsável Global"
+                                              value={form.responsavel_id || ''}
+                                              onChange={(newResp) => {
                                                   setForm(prev => ({
-                                                      ...prev, 
+                                                      ...prev,
                                                       responsavel_id: newResp,
-                                                      colaboradores: prev.colaboradores.filter(id => id !== newResp) 
+                                                      colaboradores: prev.colaboradores.filter(id => id !== newResp)
                                                   }));
-                                              }} 
-                                              style={{...inputStyle, cursor: 'pointer'}} 
-                                              className="input-focus"
-                                              required
-                                          >
-                                              <option value="">-- Selecione o Responsável --</option>
-                                              {staff
+                                              }}
+                                              placeholder="Selecione o responsável"
+                                              options={staff
                                                   .filter(s => s.ativo !== false || String(s.id) === String(form.responsavel_id))
-                                                  .map(s => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
-                                          </select>
+                                                  .map(s => ({ value: s.id, label: s.nome || s.email, hint: s.ativo === false ? "Inativo" : undefined }))}
+                                          />
                                       </div>
                                     </div>
 
@@ -3471,21 +3683,28 @@ const exportCurrentOverviewPdf = () => {
                                     <div style={{display: 'grid', gridTemplateColumns: form.is_parceria ? '1fr 1fr' : '1fr 1fr', gap: '15px', marginBottom: form.is_parceria ? '10px' : '20px'}}>
                                         <div>
                                             <label style={labelStyle}>Tipologia</label>
-                                            <select value={form.is_parceria ? 'parceria' : 'unico'} onChange={e => {
-                                                const isParc = e.target.value === 'parceria';
-                                                setForm({...form, is_parceria: isParc, parceiros_ids: isParc ? form.parceiros_ids : []});
-                                            }} style={{...inputStyle, cursor: 'pointer'}} className="input-focus">
-                                                <option value="unico">Individual (Apenas Cliente Lider)</option>
-                                                <option value="parceria">Parceria (Vários Clientes/Entidades)</option>
-                                            </select>
+                                            <FancySelect
+                                                className="pj-fs"
+                                                ariaLabel="Tipologia"
+                                                value={form.is_parceria ? 'parceria' : 'unico'}
+                                                onChange={(v) => {
+                                                    const isParc = v === 'parceria';
+                                                    setForm({...form, is_parceria: isParc, parceiros_ids: isParc ? form.parceiros_ids : []});
+                                                }}
+                                                options={[
+                                                    { value: 'unico', label: 'Individual', hint: 'Apenas a entidade líder' },
+                                                    { value: 'parceria', label: 'Parceria', hint: 'Várias entidades' },
+                                                ]}
+                                            />
                                         </div>
 
                                         <div>
                                             <label style={labelStyle}>Entidade Lider *</label>
-                                            <select
+                                            <FancySelect
+                                                className="pj-fs"
+                                                ariaLabel="Entidade Lider"
                                                 value={form.cliente_id || ''}
-                                                onChange={e => {
-                                                    const selectedId = e.target.value;
+                                                onChange={(selectedId) => {
                                                     setForm(prev => ({
                                                         ...prev,
                                                         cliente_id: selectedId,
@@ -3493,13 +3712,14 @@ const exportCurrentOverviewPdf = () => {
                                                     }));
                                                     setParceiroSelecionado("");
                                                 }}
-                                                required
-                                                style={{...inputStyle, cursor: 'pointer'}}
-                                                className="input-focus"
-                                            >
-                                                <option value="">-- Selecione o Cliente --</option>
-                                                {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                                            </select>
+                                                placeholder="Selecione a entidade"
+                                                searchPlaceholder="Procurar entidade…"
+                                                menuWidth={360}
+                                                options={clientes.map(c => ({ value: c.id, label: getClientDisplayName(c) || c.marca, hint: c.eh_organismo ? "Entidade financiadora" : undefined }))}
+                                            />
+                                            <button type="button" onClick={() => openQuickEntidade("lider")} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
+                                                + Nova entidade
+                                            </button>
                                         </div>
                                     </div>
 
@@ -3507,11 +3727,11 @@ const exportCurrentOverviewPdf = () => {
                                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
                                             <div>
                                                 <label style={labelStyle}>Entidades Parceiras</label>
-                                                <select
+                                                <FancySelect
+                                                    className="pj-fs"
+                                                    ariaLabel="Adicionar entidade parceira"
                                                     value={parceiroSelecionado}
-                                                    onChange={e => {
-                                                        const selected = e.target.value;
-                                                        setParceiroSelecionado(selected);
+                                                    onChange={(selected) => {
                                                         if (!selected) return;
                                                         setForm(prev => {
                                                             if (String(selected) === String(prev.cliente_id)) return prev;
@@ -3520,15 +3740,17 @@ const exportCurrentOverviewPdf = () => {
                                                         });
                                                         setParceiroSelecionado("");
                                                     }}
-                                                    style={{...inputStyle, cursor: 'pointer'}}
-                                                    className="input-focus"
-                                                >
-                                                    <option value="">-- Adicionar entidade parceira --</option>
-                                                    {clientes
+                                                    placeholder="Adicionar entidade parceira"
+                                                    searchPlaceholder="Procurar entidade…"
+                                                    menuWidth={360}
+                                                    options={clientes
                                                         .filter(c => String(c.id) !== String(form.cliente_id || ''))
                                                         .filter(c => !(form.parceiros_ids || []).includes(c.id))
-                                                        .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                                                </select>
+                                                        .map(c => ({ value: c.id, label: getClientDisplayName(c) || c.marca }))}
+                                                />
+                                                <button type="button" onClick={() => openQuickEntidade("parceiro")} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
+                                                    + Nova entidade parceira
+                                                </button>
                                             </div>
                                             
                                             <div>
@@ -3568,44 +3790,40 @@ const exportCurrentOverviewPdf = () => {
                                             <div style={{display: 'grid', gridTemplateColumns: form.has_organismo ? '1fr 1fr' : '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
                                                 <div>
                                                     <label style={labelStyle}>Envolve Entidade Financiadora?</label>
-                                                    <select
+                                                    <FancySelect
+                                                        className="pj-fs"
+                                                        ariaLabel="Envolve Entidade Financiadora?"
                                                         value={form.has_organismo ? 'sim' : 'nao'}
-                                                        onChange={e => {
-                                                            const hasOrg = e.target.value === 'sim';
+                                                        onChange={(v) => {
+                                                            const hasOrg = v === 'sim';
                                                             setForm({...form, has_organismo: hasOrg, organismo_id: hasOrg ? form.organismo_id : "", organismo_contacto_id: hasOrg ? form.organismo_contacto_id : ""});
                                                         }}
-                                                        style={{...inputStyle, cursor: 'pointer'}}
-                                                        className="input-focus"
                                                         disabled={isViewOnly}
-                                                    >
-                                                        <option value="nao">Não</option>
-                                                        <option value="sim">Sim</option>
-                                                    </select>
+                                                        options={[{ value: 'nao', label: 'Não' }, { value: 'sim', label: 'Sim' }]}
+                                                    />
                                                 </div>
 
                                                 {form.has_organismo && (
                                                     <div>
                                                         <label style={labelStyle}>Organismo Lider / Principal *</label>
-                                                        <select
+                                                        <FancySelect
+                                                            className="pj-fs is-destaque"
+                                                            ariaLabel="Organismo Lider / Principal"
                                                             value={form.organismo_id || ""}
-                                                            onChange={e => setForm({...form, organismo_id: e.target.value, organismo_contacto_id: ""})}
-                                                            style={{...inputStyle, cursor: 'pointer', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}}
-                                                            className="input-focus"
+                                                            onChange={(v) => setForm({...form, organismo_id: v, organismo_contacto_id: ""})}
                                                             disabled={isViewOnly}
-                                                            required={form.has_organismo}
-                                                        >
-                                                            <option value="">-- Selecione o Organismo --</option>
-                                                            {clientes.filter(c => c.eh_organismo).map(c => (
-                                                                <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
-                                                            ))}
-                                                        </select>
+                                                            placeholder="Selecione o organismo"
+                                                            searchPlaceholder="Procurar organismo…"
+                                                            menuWidth={360}
+                                                            options={clientes.filter(c => c.eh_organismo).map(c => ({ value: c.id, label: getClientDisplayName(c) || c.marca }))}
+                                                        />
                                                         <button
                                                             type="button"
                                                             onClick={openQuickOrganismoModal}
                                                             disabled={isViewOnly}
                                                             style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}
                                                         >
-                                                            + Criar organismo sem sair daqui
+                                                            + Novo organismo
                                                         </button>
                                                     </div>
                                                 )}
@@ -3614,20 +3832,18 @@ const exportCurrentOverviewPdf = () => {
                                             {form.has_organismo && form.organismo_id && (
                                                 <div style={{marginBottom: '30px', maxWidth: '50%', paddingRight: '7.5px'}}>
                                                     <label style={labelStyle}>Pessoa do Organismo</label>
-                                                    <select
+                                                    <FancySelect
+                                                        className="pj-fs"
+                                                        ariaLabel="Pessoa do Organismo"
                                                         value={form.organismo_contacto_id || ""}
-                                                        onChange={e => setForm({...form, organismo_contacto_id: e.target.value})}
-                                                        style={{...inputStyle, cursor: 'pointer'}}
-                                                        className="input-focus"
+                                                        onChange={(v) => setForm({...form, organismo_contacto_id: v})}
                                                         disabled={isViewOnly}
-                                                    >
-                                                        <option value="">-- Sem pessoa definida --</option>
-                                                        {organismoPessoas.map(p => {
-                                                            const nome = p.nome_contacto || p.email || "Contacto";
-                                                            const cargo = p.cargo ? ` (${p.cargo})` : "";
-                                                            return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
-                                                        })}
-                                                    </select>
+                                                        placeholder="Sem pessoa definida"
+                                                        options={[
+                                                            { value: "", label: "Sem pessoa definida" },
+                                                            ...organismoPessoas.map(p => ({ value: p.id, label: p.nome_contacto || p.email || "Contacto", hint: p.cargo || undefined })),
+                                                        ]}
+                                                    />
                                                     {organismoPessoas.length === 0 && (
                                                         <div style={{marginTop: '6px', color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
                                                     )}
@@ -3703,19 +3919,27 @@ const exportCurrentOverviewPdf = () => {
                                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '18px'}}>
                                                 <div>   
                                                     <label style={labelStyle}>Programa</label>
-                                                    <select
+                                                    <FancySelect
+                                                        className="pj-fs"
+                                                        ariaLabel="Programa"
                                                         value={form.programa_id || ''}
-                                                        onChange={(e) => handleProgramaChange(e.target.value)}
-                                                        style={{...inputStyle, cursor: 'pointer'}}
-                                                        className="input-focus"
-                                                    >
-                                                        <option value="">-- Sem programa associado --</option>
-                                                        {programas.filter((programa) => programa.ativo !== false).map((programa) => (
-                                                            <option key={programa.id} value={programa.id}>
-                                                                {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                        onChange={(v) => handleProgramaChange(v)}
+                                                        disabled={isViewOnly}
+                                                        placeholder="Sem programa associado"
+                                                        searchPlaceholder="Procurar programa…"
+                                                        menuWidth={380}
+                                                        options={[
+                                                            { value: '', label: 'Sem programa associado' },
+                                                            ...programas.filter((programa) => programa.ativo !== false).map((programa) => ({
+                                                                value: programa.id,
+                                                                label: programa.nome || 'Programa',
+                                                                hint: programa.codigo || undefined,
+                                                            })),
+                                                        ]}
+                                                    />
+                                                    <button type="button" onClick={() => setQuickPrograma({ codigo: "", nome: "", avisoCodigo: "", isSubmitting: false })} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
+                                                        + Novo programa
+                                                    </button>
                                                 </div>
                                                 {(() => {
                                                     const avisosDoPrograma = selectedPrograma ? getAvisosForPrograma(selectedPrograma) : [];
@@ -3723,30 +3947,24 @@ const exportCurrentOverviewPdf = () => {
                                                     return (
                                                         <div>
                                                             <label style={labelStyle}>Aviso</label>
-                                                            <select
+                                                            <FancySelect
+                                                                className="pj-fs"
+                                                                ariaLabel="Aviso"
                                                                 value={form.avisos_ids || ''}
-                                                                onChange={(e) => {
-                                                                    const avId = e.target.value;
+                                                                onChange={(avId) => {
                                                                     const av = getAvisoById(avId);
-                                                                    setForm({
-                                                                        ...form, 
-                                                                        avisos_ids: avId, 
-                                                                        aviso: av?.codigo || "", 
-                                                                    });
+                                                                    setForm({ ...form, avisos_ids: avId, aviso: av?.codigo || "" });
                                                                 }}
-                                                                style={{
-                                                                    ...inputStyle, 
-                                                                    background: avisosDoPrograma.length ? '#fff' : '#f8fafc', 
-                                                                    cursor: avisosDoPrograma.length ? 'pointer' : 'not-allowed'
-                                                                }}
-                                                                className="input-focus"
                                                                 disabled={isViewOnly || avisosDoPrograma.length === 0}
-                                                            >
-                                                                <option value="">{avisosDoPrograma.length > 0 ? "-- Escolhe o Aviso --" : "Sem avisos associados"}</option>
-                                                                {avisosDoPrograma.map(av => (
-                                                                    <option key={av.id} value={av.id}>{av.codigo}</option>
-                                                                ))}
-                                                            </select>
+                                                                placeholder={!selectedPrograma ? "Escolhe primeiro o programa" : avisosDoPrograma.length > 0 ? "Escolhe o aviso" : "Sem avisos associados"}
+                                                                options={avisosDoPrograma.map(av => {
+                                                                    const nf = Array.isArray(av.fases) ? av.fases.length : 0;
+                                                                    return { value: av.id, label: av.codigo, hint: nf ? `${nf} ${nf === 1 ? "fase" : "fases"}` : undefined };
+                                                                })}
+                                                            />
+                                                            <button type="button" onClick={() => setQuickAviso({ codigo: "", fases: [{ nome: "Fase 1", prazo: "" }], isSubmitting: false })} disabled={isViewOnly || !selectedPrograma} title={!selectedPrograma ? "Escolhe primeiro o programa" : undefined} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: (isViewOnly || !selectedPrograma) ? 'not-allowed' : 'pointer', opacity: selectedPrograma ? 1 : 0.55, fontWeight: '700', fontSize: '0.85rem'}}>
+                                                                + Novo aviso
+                                                            </button>
                                                         </div>
                                                     );
                                                 })()}
@@ -4159,6 +4377,10 @@ const exportCurrentOverviewPdf = () => {
                                   title: "Atenção",
                                   message: "Por favor preenche o Modelo, Responsável Global, Título e Entidade Líder antes de avançar."
                               });
+                              return;
+                          }
+                          if (currentStep === 2 && !(tipos.find(t => String(t.id) === String(form.tipo_projeto_id))?.eh_formacao === true) && form.has_organismo && !form.organismo_id) {
+                              setAlertDialog({ show: true, title: "Atenção", message: "Escolhe o Organismo Lider / Principal (ou indica que não envolve entidade financiadora)." });
                               return;
                           }
                           setCurrentStep(prev => prev + 1);

@@ -41,10 +41,10 @@ export default {
       titulo: "Como criar um projeto",
       passos: [
         "Abre **Projetos** na barra lateral (grupo **PRODUÇÃO**) e carrega em **Novo projeto**.",
-        "Passo **Base & Entidade**: escolhe o **Tipo de Projeto (Modelo)**, o **Responsável Global**, escreve o **Título do Projeto** e escolhe a **Entidade Lider**. Se o projeto tiver várias entidades, escolhe **Parceria (Vários Clientes/Entidades)** e acrescenta as **Entidades Parceiras**.",
+        "Passo **Base & Entidade**: escolhe o **Tipo de Projeto (Modelo)**, o **Responsável Global**, escreve o **Título do Projeto** e escolhe a **Entidade Lider**. Se o projeto tiver várias entidades, escolhe **Parceria (Vários Clientes/Entidades)** e acrescenta as **Entidades Parceiras**. Se a entidade ainda não existir, carrega em **+ Nova entidade** (ou **+ Nova entidade parceira**): escreve o NIF, que preenche o resto, e carrega em **Criar e selecionar**.",
         "Carrega em **Seguinte**.",
-        "Passo **Organismo & Equipa**: em **Envolve Entidade Financiadora?** escolhe **Sim** se houver organismo, e escolhe o **Organismo Lider / Principal** e a **Pessoa do Organismo**. Marca os **Colaboradores Internos** que vão trabalhar no projeto.",
-        "Passo **Planeamento**: escolhe o **Programa** e o **Aviso**, preenche o **Código de Projeto**, o **Número do Projeto**, a **Data Início Base** e a **Data Fim**. As **Fases do Projeto** vêm do aviso.",
+        "Passo **Organismo & Equipa**: em **Envolve Entidade Financiadora?** escolhe **Sim** se houver organismo, e escolhe o **Organismo Lider / Principal** (se não existir, carrega em **+ Novo organismo**) e a **Pessoa do Organismo**. Marca os **Colaboradores Internos** que vão trabalhar no projeto.",
+        "Passo **Planeamento**: escolhe o **Programa** e o **Aviso** (se ainda não existirem, usa **+ Novo programa** e **+ Novo aviso**, onde indicas logo as fases e os prazos), preenche o **Código de Projeto**, o **Número do Projeto**, a **Data Início Base** e a **Data Fim**. As **Fases do Projeto** vêm do aviso.",
         "Passo **Atividades**: revê a estrutura que vem do modelo e desmarca o que não se aplica a este projeto.",
         "Passo **Finanças & Notas**: preenche o **Investimento elegível (€)** e o **Incentivo (€)** (por entidade, se for parceria), a **Descrição Geral**, as **Observações Internas** e o **Estado do Projeto**.",
         "Carrega em **Concluir e Criar**. O projeto abre logo no detalhe.",
@@ -232,7 +232,7 @@ export default {
     },
     {
       pergunta: "O organismo que procuro não aparece na lista. Porquê?",
-      resposta: "Só aparecem as entidades marcadas como entidade financiadora. Em **Entidades**, abre a ficha do organismo, vai ao separador **Funções**, liga **É Entidade Financiadora?** e carrega em **Guardar Funções**.",
+      resposta: "Só aparecem as entidades marcadas como entidade financiadora. O mais rápido é carregar em **+ Novo organismo** e escrever o NIF: se a entidade já existir, fica marcada como organismo e selecionada. Também podes ir a **Entidades**, abrir a ficha, ir ao separador **Funções**, ligar **É Entidade Financiadora?** e carregar em **Guardar Funções**.",
     },
     {
       pergunta: "Não encontro um projeto na lista. O que faço?",
