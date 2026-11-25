@@ -7,11 +7,19 @@
 import { useState } from "react"
 import { supabase } from "../services/supabase"
 import AuthLayout, { AuthField, AuthAlert, AuthSubmit, AuthDone } from "../components/AuthLayout"
+import { lerErroRecuperacao } from "../utils/recuperacao"
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("")
   const [enviado, setEnviado] = useState(false)
-  const [error, setError] = useState("")
+  // Veio de um link de recuperação que já não serve (expirado ou já usado)
+  const [error, setError] = useState(() => {
+    const e = lerErroRecuperacao()
+    if (!e) return ""
+    return e === "otp_expired"
+      ? "O link do email expirou ou já foi usado. Peça um novo aqui em baixo e abra-o logo, no mesmo browser."
+      : "O link do email não é válido. Peça um novo aqui em baixo."
+  })
   const [loading, setLoading] = useState(false)
 
   async function handleReset(e) {
@@ -25,7 +33,11 @@ export default function ForgotPassword() {
 
     setLoading(false)
     if (error) {
-      setError("Erro ao enviar email")
+      // Limite de emails do Supabase (o serviço de email incluído envia poucos por hora)
+      const limite = error.status === 429 || /rate limit|over_email_send_rate_limit|security purposes/i.test(`${error.code || ""} ${error.message || ""}`)
+      setError(limite
+        ? "Foram pedidos demasiados emails de recuperação em pouco tempo. Espere um pouco (até 1 hora) e tente de novo, ou peça ajuda ao administrador."
+        : "Erro ao enviar email: " + (error.message || "tente de novo."))
     } else {
       setEnviado(true)
     }

@@ -11,6 +11,7 @@ import { supabase } from "../services/supabase"
 import { closeAllActiveTaskLogsForUser } from "../utils/taskTimerLifecycle"
 import { registarEvento } from "../utils/registarEvento"
 import { AVISO_LOGIN_KEY, CONTA_DESATIVADA } from "../utils/contaDesativada"
+import { emRecuperacao } from "../utils/recuperacao"
 
 const AuthContext = createContext()
 
@@ -94,7 +95,9 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // 1. Vai buscar o utilizador atual (Sessão)
     supabase.auth.getUser().then(async ({ data }) => {
-      if (data?.user && !mfaAindaValido()) {
+      // (exceto quem veio do link de recuperação de password: essa sessão é nova e
+      // ainda não passou pelo 2FA; a página de nova password pede o código)
+      if (data?.user && !mfaAindaValido() && !emRecuperacao()) {
         // Ex.: PC desligado / browser fechado, ou passaram mais de 12 h
         await terminarSessaoExpirada()
         return

@@ -9,7 +9,8 @@
 //      página pedida antes do login (só caminhos /dashboard…) ou /dashboard.
 // A validade da verificação 2FA (12 h / cookie de sessão) é gerida no AuthContext.
 // =====================================================================
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { consumirIrParaReset, terminarRecuperacao } from "../utils/recuperacao"
 import { supabase } from "../services/supabase"
 import { useNavigate, useLocation, Link } from "react-router-dom"
 import { resetBrandIntro } from "../utils/brandIntro"
@@ -52,6 +53,12 @@ export default function Login() {
   // Sessão aberta mas à espera do código (ex.: recarregou a página ou veio de uma rota protegida)
   const passo = mfaStep || (user && mfaPending ? (mfaSetup ? "setup" : "code") : null)
 
+  // Veio do link "recuperar password" do email: vai para a página da nova password
+  // (o Supabase apaga o #... do URL e o HashRouter cai aqui, no login)
+  useEffect(() => {
+    if (consumirIrParaReset()) navigate("/reset-password", { replace: true })
+  }, [navigate])
+
   async function entrar() {
     resetBrandIntro()
     await checkMfa?.()
@@ -61,6 +68,7 @@ export default function Login() {
 
   async function handleLogin(e) {
     e.preventDefault()
+    terminarRecuperacao() // entrou com a password: já não está a recuperar a conta
     setError(null)
     setLoading(true)
 

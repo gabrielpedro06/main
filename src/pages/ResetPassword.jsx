@@ -8,8 +8,9 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../services/supabase"
 import { useNavigate } from "react-router-dom"
-import AuthLayout, { AuthField, AuthAlert, AuthSubmit } from "../components/AuthLayout"
+import AuthLayout, { AuthField, AuthAlert, AuthSubmit, AuthDone } from "../components/AuthLayout"
 import OtpInput from "../components/OtpInput"
+import { terminarRecuperacao } from "../utils/recuperacao"
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("")
@@ -23,10 +24,38 @@ export default function ResetPassword() {
   // Contas com 2FA: o Supabase só deixa mudar a password depois do código da app
   const [precisa2fa, setPrecisa2fa] = useState(false)
   const [code, setCode] = useState("")
+  // Sessão do link de recuperação: "a_verificar" | "ok" | "sem_sessao" (link expirado/já usado)
+  const [sessao, setSessao] = useState("a_verificar")
+
+  async function verificarSessao() {
+    const { data } = await supabase.auth.getSession()
+    if (!data?.session) return false
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    setPrecisa2fa(aal?.nextLevel === "aal2" && aal?.currentLevel !== "aal2")
+    setSessao("ok")
+    return true
+  }
+
   useEffect(() => {
-    supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
-      setPrecisa2fa(data?.nextLevel === "aal2" && data?.currentLevel !== "aal2")
-    }).catch(() => {})
+    let vivo = true
+    // A sessão do link pode chegar um pouco depois de a página abrir (PASSWORD_RECOVERY)
+    const { data: escuta } = supabase.auth.onAuthStateChange((evento) => {
+      if (!vivo) return
+      if (evento === "PASSWORD_RECOVERY" || evento === "SIGNED_IN" || evento === "TOKEN_REFRESHED") {
+        setTimeout(() => { if (vivo) verificarSessao() }, 0)
+      }
+    })
+    const primeira = setTimeout(() => {
+      verificarSessao().then((ok) => {
+        if (!ok) {
+          // dá uns segundos ao cliente para ler o link antes de desistir
+          setTimeout(async () => {
+            if (vivo && !(await verificarSessao())) setSessao("sem_sessao")
+          }, 2500)
+        }
+      }).catch(() => { if (vivo) setSessao("sem_sessao") })
+    }, 0)
+    return () => { vivo = false; clearTimeout(primeira); escuta?.subscription?.unsubscribe() }
   }, [])
 
   const reqs = [
@@ -66,6 +95,12 @@ export default function ResetPassword() {
     }
 
     setLoading(true)
+    // Confirma de novo (a sessão pode ter mudado entretanto)
+    if (!(await verificarSessao())) {
+      setSessao("sem_sessao")
+      setLoading(false)
+      return
+    }
     if (precisa2fa) {
       const { data: factors } = await supabase.auth.mfa.listFactors()
       const totp = (factors?.totp || []).find((f) => f.status === "verified")
@@ -86,12 +121,45 @@ export default function ResetPassword() {
     })
 
     if (error) {
-      setError("Erro ao atualizar password.")
+      const msg = String(error.message || "")
+      if (error.code === "same_password" || /different from the old/i.test(msg)) {
+        setError("A password nova tem de ser diferente da antiga.")
+      } else if (/aal2|mfa|assurance/i.test(msg)) {
+        setPrecisa2fa(true)
+        setError("Introduza o código de 6 dígitos da app autenticadora e tente de novo.")
+      } else if (error.code === "weak_password" || /weak|pwned/i.test(msg)) {
+        setError("Essa password é demasiado fraca ou já apareceu em fugas de dados. Escolha outra.")
+      } else if (/session|jwt|expired/i.test(msg)) {
+        setSessao("sem_sessao")
+      } else {
+        setError("Erro ao atualizar password: " + msg)
+      }
       setLoading(false)
     } else {
-      setMessage("Password atualizada com sucesso! A redirecionar…")
-      setTimeout(() => navigate("/"), 2000)
+      terminarRecuperacao()
+      setMessage("Password atualizada com sucesso! A entrar…")
+      setTimeout(() => navigate("/", { replace: true }), 1500)
     }
+  }
+
+  // Link expirado, já usado, ou aberto noutro browser/dispositivo
+  if (sessao === "sem_sessao") {
+    return (
+      <AuthLayout
+        hello="Ups."
+        tagline="Este link já não serve."
+        eyebrow="Link inválido"
+        title="O link de recuperação expirou"
+        subtitle="Os links só funcionam uma vez e durante pouco tempo. Peça um novo e abra-o logo, no mesmo browser."
+      >
+        <AuthDone
+          icon="Alert"
+          text="Se já mudou a password com este link, entre normalmente. Se não, peça um link novo."
+          action={{ to: "/", label: "Voltar ao login" }}
+          secondary={{ label: "Pedir novo link", onClick: () => { terminarRecuperacao(); navigate("/forgot-password", { replace: true }) } }}
+        />
+      </AuthLayout>
+    )
   }
 
   return (

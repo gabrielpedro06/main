@@ -24,9 +24,10 @@ Esta lista foi feita a 20/11/2026, ao documentar o código. São achados de leit
 
 ### Funcionalidade
 7. **Notificações de decisão de férias nunca aparecem.** O tipo `absence_status_changed` não está no filtro `.in("tipo", …)` de `DashboardHome.jsx` nem no mapa `TIPO` do `NotificationsPanel`.
-8. **Recuperação de password provavelmente partida** *(a confirmar)*:
-   - o `redirectTo` aponta para `/reset-password` (caminho real) mas a app usa HashRouter;
-   - o `AuthContext` termina sessões sem o cookie `bz_mfa`.
+8. ~~**Recuperação de password partida**~~ **corrigido (25/11/2026)**, confirmado por um colaborador: o ecrã de 2FA aparecia e desaparecia.
+   - Causa: o HashRouter + o `AuthContext` terminavam a sessão de recuperação, que não tinha o cookie `bz_mfa`.
+   - Ver `utils/recuperacao.js` e a secção "Recuperação de palavra-passe" em `01-arquitetura.md`.
+   - Pendente: o serviço de email incluído no Supabase envia poucos emails por hora. Configurar um SMTP próprio em Authentication → Emails → SMTP Settings.
 9. **Possível bug nas férias em SQL** *(a confirmar com `select distinct tipo from ferias`)*:
    - as funções reconhecem férias com `lower(tipo) like '%fer%'`, mas a app grava "Férias" com acento;
    - SQL e JS calculam os dias gozados de maneiras diferentes (o SQL não desconta feriados nem tolerâncias);

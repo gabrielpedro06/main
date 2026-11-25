@@ -492,8 +492,13 @@ Vite a encaminhar `/api/*` para o Express.
 - `fetchProfile` faz `window.location.replace("/")` só se `pathname !== "/"`; com `HashRouter` o
   `pathname` é quase sempre `/`, por isso esse redirecionamento raramente acontece (a sessão é
   terminada na mesma e o `ProtectedRoute` manda para o login).
-- `ForgotPassword.jsx` pede ao Supabase `redirectTo: <origem>/reset-password` (caminho real, não
-  `/#/reset-password`). Com `HashRouter` este URL não abre a rota `ResetPassword` diretamente;
-  confirmar o fluxo de recuperação de palavra-passe antes de mexer em Site URL/Redirect URLs.
+- Recuperação de palavra-passe: `ForgotPassword.jsx` pede `redirectTo: <origem>/reset-password`
+  (caminho real). O link volta com `#access_token=…&type=recovery`, que o cliente Supabase lê e
+  apaga, e o `HashRouter` cairia no login. `utils/recuperacao.js` é importado **primeiro** em
+  `main.jsx`: marca "recuperação em curso" (sessionStorage, 30 min). Com isso o `Login` reencaminha
+  uma vez para `/#/reset-password` (`consumirIrParaReset`) e o `AuthContext` não termina a sessão por
+  falta do cookie `bz_mfa`. `ResetPassword` pede o código 2FA, trata link expirado ("sem sessão")
+  e chama `terminarRecuperacao()` no fim. Links com `#error=…` (ex.: `otp_expired`) vão para
+  `/#/forgot-password` com a mensagem. Limite de emails do Supabase (429) tem mensagem própria.
 - A verificação de papéis do `Sidebar.jsx` e a de `App.jsx` não são idênticas (ex.: `administrador`
   passa em `App.jsx` mas não em alguns `includes(userProfile?.role)` do menu).
