@@ -102,7 +102,7 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, labelOn = "Sim", la
       disabled={disabled}
       style={{
         width: '100%',
-        border: '1px solid #cbd5e1',
+        border: '1px solid var(--n-300)',
         borderRadius: '12px',
         background: checked ? 'var(--color-bgSecondary)' : '#fff',
         padding: '10px 12px',
@@ -138,7 +138,7 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, labelOn = "Sim", la
             width: '20px',
             height: '20px',
             borderRadius: '50%',
-            background: '#fff',
+            background: 'var(--sup-1)',
             boxShadow: '0 1px 4px rgba(15, 23, 42, 0.2)',
             transition: 'left 0.18s ease',
           }}
@@ -2469,16 +2469,16 @@ export default function Clientes() {
 
               <div className="jn-corpo" style={{display:'grid', gap:'14px'}}>
                 {projectTimerModal.loading ? (
-                  <div style={{padding:'32px', textAlign:'center', color:'#64748b', fontWeight:'600'}}>A carregar atividades e tarefas…</div>
+                  <div style={{padding:'32px', textAlign:'center', color:'var(--n-500)', fontWeight:'600'}}>A carregar atividades e tarefas…</div>
                 ) : projectTimerModal.atividades.length === 0 ? (
-                  <div style={{padding:'36px', textAlign:'center', border:'1px dashed #cbd5e1', borderRadius:'14px', background:'#f8fafc'}}>
-                    <h4 style={{margin:'0 0 6px 0', color:'#1e293b'}}>Sem atividades neste projeto</h4>
-                    <p style={{margin:0, color:'#64748b'}}>Cria uma atividade no projeto para iniciar o cronómetro a partir desta vista.</p>
+                  <div style={{padding:'36px', textAlign:'center', border:'1px dashed var(--n-300)', borderRadius:'14px', background:'var(--n-50)'}}>
+                    <h4 style={{margin:'0 0 6px 0', color:'var(--n-900)'}}>Sem atividades neste projeto</h4>
+                    <p style={{margin:0, color:'var(--n-500)'}}>Cria uma atividade no projeto para iniciar o cronómetro a partir desta vista.</p>
                   </div>
                 ) : (
                   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
-                    <div style={{border:'1px solid #e2e8f0', borderRadius:'14px', padding:'12px', background:'#f8fafc'}}>
-                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'#64748b', textTransform:'uppercase'}}>Atividades</p>
+                    <div style={{border:'1px solid var(--n-200)', borderRadius:'14px', padding:'12px', background:'var(--n-50)'}}>
+                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'var(--n-500)', textTransform:'uppercase'}}>Atividades</p>
                       <div style={{display:'grid', gap:'8px'}}>
                         {projectTimerModal.atividades.map((atividade) => {
                           const isSelected = String(atividade.id) === String(projectTimerModal.selectedAtividadeId);
@@ -2496,15 +2496,15 @@ export default function Clientes() {
                                 <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{atividade.titulo || 'Sem título'}</span>
                                 <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : 'var(--color-borderColorLight)', color:isDone ? '#64748b' : 'var(--color-btnPrimaryDark)', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
                               </div>
-                              <p style={{margin:'6px 0 0 0', fontSize:'0.75rem', color:'#64748b'}}>{(atividade.tarefas || []).length} tarefa(s)</p>
+                              <p style={{margin:'6px 0 0 0', fontSize:'0.75rem', color:'var(--n-500)'}}>{(atividade.tarefas || []).length} tarefa(s)</p>
                             </button>
                           );
                         })}
                       </div>
                     </div>
 
-                    <div style={{border:'1px solid #e2e8f0', borderRadius:'14px', padding:'12px', background:'#f8fafc'}}>
-                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'#64748b', textTransform:'uppercase'}}>Tarefas</p>
+                    <div style={{border:'1px solid var(--n-200)', borderRadius:'14px', padding:'12px', background:'var(--n-50)'}}>
+                      <p style={{margin:'0 0 10px 0', fontSize:'0.8rem', fontWeight:'800', color:'var(--n-500)', textTransform:'uppercase'}}>Tarefas</p>
                       <div style={{display:'grid', gap:'8px'}}>
                         <button
                           type="button"
@@ -2537,7 +2537,7 @@ export default function Clientes() {
                             );
                           })
                         ) : (
-                          <p style={{margin:0, color:'#64748b', fontSize:'0.85rem'}}>Esta atividade não tem tarefas registadas.</p>
+                          <p style={{margin:0, color:'var(--n-500)', fontSize:'0.85rem'}}>Esta atividade não tem tarefas registadas.</p>
                         )}
                       </div>
                     </div>

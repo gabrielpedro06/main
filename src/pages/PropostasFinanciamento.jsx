@@ -2536,14 +2536,14 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
                   {selectedPrograma && (
                     <div className="propostas-custom-details" style={{ marginTop: '16px' }}>
-                      <div className="card-inner" style={{ borderLeft: '4px solid #6366f1', background: '#f8fafc' }}>
+                      <div className="card-inner" style={{ borderLeft: '4px solid #6366f1', background: 'var(--n-50)' }}>
                         <div className="section-heading">Configuração Detalhada: {selectedPrograma.nome}</div>
                         
                         {/* GRELHA PRINCIPAL: AVISO E TOTAIS */}
                         <div className="field-grid">
                           <div className="field">
                             <label>Referência do Aviso</label>
-                            <div className="summary-value" style={{ color: '#1e40af', fontWeight: 'bold' }}>
+                            <div className="summary-value" style={{ color: 'var(--cx-1e40af, #1e40af)', fontWeight: 'bold' }}>
                               {selectedAviso?.codigo || selectedPrograma.aviso || "Aviso não vinculado"}
                             </div>
                           </div>
@@ -2563,18 +2563,18 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           </div>
                         </div>
 
-                        <hr style={{ margin: '20px 0', borderColor: '#e2e8f0' }} />
+                        <hr style={{ margin: '20px 0', borderColor: 'var(--n-200)' }} />
 
                         {/* TIMELINE DE FASES DO AVISO */}
                         {selectedAviso?.fases && (
                           <div className="fases-timeline" style={{ marginBottom: '25px' }}>
-                            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#475569' }}>
+                            <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: 'var(--n-700)' }}>
                               Prazos de Candidatura (Fases do Aviso)
                             </label>
                             <div style={{ display: 'flex', gap: '15px' }}>
                               {selectedAviso.fases.map((fase, idx) => (
                                 <div key={idx} className="fase-item" style={{
-                                  flex: 1, padding: '10px', borderRadius: '8px', background: '#fff', border: '1px solid #cbd5e1'
+                                  flex: 1, padding: '10px', borderRadius: '8px', background: 'var(--sup-1)', border: '1px solid var(--n-300)'
                                 }}>
                                   <strong style={{ fontSize: '0.8rem', color: '#6366f1' }}>{fase.nome}</strong>
                                   <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{formatDatePt(fase.prazo)}</div>
@@ -2588,21 +2588,21 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                         <div className="info-blocks-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                           
                           <div className="info-block">
-                            <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Objetivos do Programa</label>
-                            <div className="text-content-box" style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginTop: '4px', minHeight: '60px' }}>
+                            <label style={{ fontWeight: 'bold', color: 'var(--n-900)' }}> Objetivos do Programa</label>
+                            <div className="text-content-box" style={{ background: 'var(--sup-1)', padding: '10px', borderRadius: '6px', border: '1px solid var(--n-200)', marginTop: '4px', minHeight: '60px' }}>
                               {selectedPrograma.objetivos || selectedPrograma.descricao}
                             </div>
                           </div>
 
                           <div className="info-block">
-                            <label style={{ fontWeight: 'bold', color: '#0f172a' }}> Ações Elegíveis</label>
-                            <div className="text-content-box" style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', marginTop: '4px', minHeight: '60px' }}>
+                            <label style={{ fontWeight: 'bold', color: 'var(--n-900)' }}> Ações Elegíveis</label>
+                            <div className="text-content-box" style={{ background: 'var(--sup-1)', padding: '10px', borderRadius: '6px', border: '1px solid var(--n-200)', marginTop: '4px', minHeight: '60px' }}>
                               {selectedPrograma.acoes_elegiveis || "Consultar regulamento do aviso."}
                             </div>
                           </div>
 
                           <div className="info-block span-2" style={{ gridColumn: 'span 2' }}>
-                            <label style={{ fontWeight: 'bold', color: '#b45309' }}> Condições Específicas / Critérios de Elegibilidade</label>
+                            <label style={{ fontWeight: 'bold', color: 'var(--cx-b45309, #b45309)' }}> Condições Específicas / Critérios de Elegibilidade</label>
                             <div className="text-content-box" style={{ background: '#fffcf5', border: '1px solid #fef3c7', padding: '10px', borderRadius: '6px', marginTop: '4px' }}>
                               {selectedPrograma.condicoes_especificas}
                             </div>
@@ -2635,7 +2635,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                     <article
                       key={atividade.id}
                       className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
-                      style={{ borderBottom: '1px solid #e2e8f0', borderTop: atividadeIndex === 0 ? 'none' : '1px solid #e2e8f0' }}
+                      style={{ borderBottom: '1px solid var(--n-200)', borderTop: atividadeIndex === 0 ? 'none' : '1px solid #e2e8f0' }}
                     >
                       <div style={{ display: "flex", alignItems: "stretch" }}>
                         <button
@@ -2726,22 +2726,22 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                       <div key={`revisao-grupo-${grupo.tipo.id}`} style={{ marginBottom: 32 }}>
                         <div 
                           className="section-subtitle" 
-                          style={{ color: '#1e40af', borderBottom: '2px solid #e2e8f0', paddingBottom: 8, marginBottom: 16, fontSize: '1.1rem' }}
+                          style={{ color: 'var(--cx-1e40af, #1e40af)', borderBottom: '2px solid var(--n-200)', paddingBottom: 8, marginBottom: 16, fontSize: '1.1rem' }}
                         >
                           {grupo.tipo.nome}
                         </div>
                         
                         {atividadesAtivas.map((atividade, idx) => (
-                           <div key={atividade.id} className="field" style={{ marginBottom: 16, background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                           <div key={atividade.id} className="field" style={{ marginBottom: 16, background: 'var(--n-50)', padding: 16, borderRadius: 8, border: '1px solid var(--n-200)' }}>
                              <label style={{ marginBottom: 8 }}>
-                               Atividade {idx + 1}: <strong style={{ color: '#0f172a' }}>{atividade.nome}</strong>
+                               Atividade {idx + 1}: <strong style={{ color: 'var(--n-900)' }}>{atividade.nome}</strong>
                              </label>
                              <textarea aria-label="Atividade :"
                                rows={3}
                                value={atividade.descricao || ""}
                                onChange={(e) => updateAtividadeModelo(atividade.id, "descricao", e.target.value)}
                                placeholder="Descrição desta atividade na proposta…"
-                               style={{ background: '#fff' }}
+                               style={{ background: 'var(--sup-1)' }}
                              />
                            </div>
                         ))}
@@ -2775,9 +2775,9 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                     const mostrarVariavel = modoHonorario !== "fixo";
 
                     return (
-                    <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                    <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px", border: "1px solid var(--n-200)" }}>
                       <div style={{ marginBottom: "10px" }}>
-                        <strong style={{ fontSize: '1.1rem', color: '#1e293b' }}>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
+                        <strong style={{ fontSize: '1.1rem', color: 'var(--n-900)' }}>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
                       </div>
 
                       <div className="field" style={{ marginBottom: "12px", maxWidth: 260 }}>
@@ -2842,19 +2842,19 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           <div className="section-subtitle" style={{ marginTop: "10px" }}>Plano de Pagamentos</div>
                           
                           <div style={{ overflowX: "auto", marginBottom: 12 }}>
-                            <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "#fff" }}>
+                            <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "var(--sup-1)" }}>
                               <thead>
                                 <tr style={{ background: "#e7f0fa" }}>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Nº Parcela</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>%</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Descrição</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Dias após aceite</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Data Emissão</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>Trimestre</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>s/IVA (€)</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>IVA {proposta.iva || 23}% (€)</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}>c/IVA (€)</th>
-                                  <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0" }}></th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>Nº Parcela</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>%</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>Descrição</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>Dias após aceite</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>Data Emissão</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>Trimestre</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>s/IVA (€)</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>IVA {proposta.iva || 23}% (€)</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>c/IVA (€)</th>
+                                  <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2883,7 +2883,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                                   const trimestre = `Q${Math.floor(mes / 3) + 1}-${dataEmissao.getFullYear()}`;
 
                                   return (
-                                    <tr key={`${item.tipo_projeto_id}-pag-${index}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                    <tr key={`${item.tipo_projeto_id}-pag-${index}`} style={{ borderBottom: "1px solid var(--n-200)" }}>
                                       <td style={{ textAlign: "center", padding: "6px 8px" }}>{index + 1}/{item.plano_pagamentos.length}</td>
                                       <td style={{ textAlign: "center", padding: "6px 8px", minWidth: 70 }}>
                                         <input
@@ -2893,7 +2893,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                                           value={Number(pag.percentagem || 0)}
                                           onChange={(e) => updatePagamentoTipoProjeto(item.tipo_projeto_id, index, "percentagem", e.target.value)}
                                           placeholder="0"
-                                          style={{ width: 60, minWidth: 60, textAlign: "center", padding: "6px 8px", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                                          style={{ width: 60, minWidth: 60, textAlign: "center", padding: "6px 8px", borderRadius: 6, border: "1px solid var(--n-200)" }}
                                         />
                                       </td>
                                       <td style={{ padding: "6px 8px", minWidth: 120 }}>
@@ -2976,22 +2976,22 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           <div className="section-subtitle" style={{ marginTop: "10px", marginBottom: 8 }}>Valores Variáveis</div>
                           {(item.valores_variaveis || []).length > 0 && (
                             <div style={{ overflowX: "auto", marginBottom: 12 }}>
-                              <table className="propostas-pagamentos-tabela" style={{ width: "100%", minWidth: "1180px", borderCollapse: "collapse", fontSize: 13, background: "#fff", tableLayout: "fixed" }}>
+                              <table className="propostas-pagamentos-tabela" style={{ width: "100%", minWidth: "1180px", borderCollapse: "collapse", fontSize: 13, background: "var(--sup-1)", tableLayout: "fixed" }}>
                                 <thead>
-                                  <tr style={{ background: "#f1f5f9" }}>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "20%" }}>Serviço</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "8%" }}>Valor Base</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "18%" }}>Base de Cálculo do Variável</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "6%" }}>%</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "22%" }}>Condições de Pagamento</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "10%" }}>Num. Parcelas</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "10%" }}>Frequência (dias)</th>
-                                    <th style={{ padding: "6px 8px", border: "1px solid #e2e8f0", width: "4%" }}></th>
+                                  <tr style={{ background: "var(--n-100)" }}>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "20%" }}>Serviço</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "8%" }}>Valor Base</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "18%" }}>Base de Cálculo do Variável</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "6%" }}>%</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "22%" }}>Condições de Pagamento</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "10%" }}>Num. Parcelas</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "10%" }}>Frequência (dias)</th>
+                                    <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)", width: "4%" }}></th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {(item.valores_variaveis || []).map((v, vi) => (
-                                    <tr key={`${item.tipo_projeto_id}-var-${vi}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                    <tr key={`${item.tipo_projeto_id}-var-${vi}`} style={{ borderBottom: "1px solid var(--n-200)" }}>
                                       <td style={{ padding: "6px 8px" }}>
                                         <input type="text" value={v.servico || item.nome || ""} onChange={(e) => updateVariavelTipoProjeto(item.tipo_projeto_id, vi, "servico", e.target.value)} placeholder={item.nome || "Serviço"} style={{ width: "100%", minWidth: 180 }} />
                                       </td>
@@ -3139,7 +3139,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="section-heading">Resumo Financeiro</div>
                 <div style={{ marginBottom: "16px" }}>
                   {orcamentoLinhas.map((l) => (
-                    <div key={l.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, paddingBottom: 8, borderBottom: '1px solid #f1f5f9' }}>
+                    <div key={l.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, paddingBottom: 8, borderBottom: '1px solid var(--n-100)' }}>
                       <div>
                         <strong>Módulo {l.codigo}</strong><br />
                         <span className="muted">{l.nome}</span>

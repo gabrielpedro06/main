@@ -93,7 +93,7 @@
   .tk-btn.is-primary, .btn-primary, .btn-cta
 ):not(#bt) {
   border: 1px solid color-mix(in srgb, var(--cor-acento) 70%, #000);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-acento) 88%, #fff), var(--cor-acento));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-acento) 88%, var(--sup-1)), var(--cor-acento));
   color: #fff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 20px -12px color-mix(in srgb, var(--cor-acento) 80%, transparent);
 }
@@ -103,14 +103,14 @@
   .gm-btn.is-danger, .mk-btn.is-danger, .pa-btn.is-danger, .pd-btn.is-danger, .po-btn.is-danger, .rh-btn.is-bad,
   .sgm-btn.is-danger, .ti-btn.is-danger, .tk-btn.is-danger, .apv-btn.is-no
 ):not(#bt) {
-  border: 1px solid #b91c1c;
+  border: 1px solid var(--cx-b91c1c, #b91c1c);
   background: linear-gradient(180deg, #ef4444, var(--cor-perigo));
   color: #fff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 20px -12px rgba(220, 38, 38, 0.8);
 }
 /* aprovar / iniciar */
 :is(.bz-btn.is-ok, .apv-btn.is-ok, .cc-btn.is-green-solid, .mk-btn.is-ok, .rh-btn.is-ok):not(#bt) {
-  border: 1px solid #15803d;
+  border: 1px solid var(--cx-15803d, #15803d);
   background: linear-gradient(180deg, #22c55e, var(--cor-sucesso));
   color: #fff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 20px -12px rgba(22, 163, 74, 0.8);
@@ -160,7 +160,7 @@ html :is(input, select, textarea):where(:not([type="checkbox"]):not([type="radio
 html :is(input, select, textarea):where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"])):focus {
   outline: none;
   border-color: var(--cor-acento);
-  background-color: #fff;
+  background-color: var(--sup-1);
   box-shadow: var(--sombra-foco);
   transform: none; /* o "zoom" antigo ao focar fazia o formulário saltar */
 }
@@ -209,7 +209,7 @@ html .fs-trigger {
   transform: none;
   transition: border-color var(--rapido) ease, box-shadow var(--rapido) ease, background-color var(--rapido) ease;
 }
-.bz-campo:not(#bt):focus { border-color: var(--cor-acento); background-color: #fff; box-shadow: var(--sombra-foco); }
+.bz-campo:not(#bt):focus { border-color: var(--cor-acento); background-color: var(--sup-1); box-shadow: var(--sombra-foco); }
 .bz-campo:not(#bt)::placeholder { color: var(--cor-tenue); }
 textarea.bz-campo:not(#bt) { min-height: 84px; line-height: 1.5; resize: vertical; }
 .bz-campo.is-espaco:not(#bt) { margin-bottom: 15px; }
@@ -217,7 +217,7 @@ textarea.bz-campo:not(#bt) { min-height: 84px; line-height: 1.5; resize: vertica
 .bz-campo.is-forte:not(#bt) { font-weight: var(--peso-forte); }
 .bz-campo.is-titulo:not(#bt) { min-height: 48px; padding: 12px 14px; font-size: 1.08rem; font-weight: 800; }
 .bz-campo.is-leitura:not(#bt), .bz-campo:not(#bt):disabled { background-color: var(--cor-suave-fundo); color: var(--cor-suave); cursor: not-allowed; }
-.bz-campo.is-nota:not(#bt) { background-color: #fffbeb; border-color: #fcd34d; }
+.bz-campo.is-nota:not(#bt) { background-color: var(--cx-fffbeb, #fffbeb); border-color: var(--cx-fcd34d, #fcd34d); }
 .bz-campo.is-nota:not(#bt):focus { border-color: var(--cor-aviso); box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.15); }
 textarea.bz-campo.is-fixo:not(#bt) { resize: none; }
 .bz-campo.is-cortado:not(#bt) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -250,5 +250,56 @@ textarea.bz-campo.is-fixo:not(#bt) { resize: none; }
   background: var(--cor-suave-fundo);
   text-align: center;
   font-size: 0.88rem;
+  color: var(--cor-suave);
+}
+
+/* ---------------------------------------------------------------------
+   5. CAMPOS e RÓTULOS das páginas (rh-input, en-input, af-input…):
+      o mesmo aspeto que .bz-campo / .bz-rotulo.
+      Prioridade calculada (html + classe = 0,1,1): ganha à regra base de
+      cada página (mesmo com !important), mas PERDE para as regras mais
+      específicas que têm de continuar a mandar — modo de leitura
+      (.is-reading), só leitura (.is-readonly), título grande (.is-big,
+      .is-title), notas (.is-note)…
+      O Marketing mantém o realce na cor da marca (sem :focus aqui).
+   --------------------------------------------------------------------- */
+html :is(.rh-input, .en-input, .pa-input, .af-input, .gm-input, .mk-input, .tk-input, .ti-input, .pd-input, .pf-input, .cc-input) {
+  min-height: 42px;
+  border: 1px solid var(--cor-linha-forte) !important;
+  border-radius: var(--raio-sm);
+  background-color: var(--cor-campo) !important;
+  color: var(--cor-tinta);
+  font-size: 0.92rem;
+  font-weight: 500;
+  transition: border-color var(--rapido) ease, box-shadow var(--rapido) ease, background-color var(--rapido) ease;
+}
+html :is(.pa-textarea, .en-textarea) {
+  border: 1px solid var(--cor-linha-forte) !important;
+  border-radius: var(--raio-sm);
+  background-color: var(--cor-campo) !important;
+  color: var(--cor-tinta);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+html :is(.rh-input, .en-input, .pa-input, .af-input, .gm-input, .tk-input, .ti-input, .pd-input, .pf-input, .cc-input, .pa-textarea, .en-textarea):focus {
+  outline: none;
+  border-color: var(--cor-acento) !important;
+  background-color: var(--sup-1) !important;
+  box-shadow: var(--sombra-foco) !important;
+}
+html :is(.rh-input, .en-input, .pa-input, .af-input, .gm-input, .mk-input, .tk-input, .ti-input, .pd-input, .pf-input, .cc-input, .pa-textarea, .en-textarea)::placeholder {
+  color: var(--cor-tenue);
+}
+html :is(.rh-input, .en-input, .pa-input, .af-input, .gm-input, .mk-input, .tk-input, .ti-input, .pd-input, .pf-input, .cc-input):disabled {
+  background-color: var(--cor-suave-fundo) !important;
+  color: var(--cor-suave);
+}
+
+/* rótulos dos formulários das páginas → o mesmo do .bz-rotulo */
+html :is(.rh-field > label, .en-field > label, .af-field > label, .gm-field > label, .pa-field > label, .pd-field > label, .ab-label, .pf-label, .mk-field-label) {
+  font-size: var(--texto-2xs);
+  font-weight: var(--peso-forte);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--cor-suave);
 }

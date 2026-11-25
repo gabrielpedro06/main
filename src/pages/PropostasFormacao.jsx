@@ -1172,21 +1172,21 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                   <div className="muted">Seleciona pelo menos um curso para continuar.</div>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
-                    <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "#fff" }}>
+                    <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "var(--sup-1)" }}>
                       <thead>
                         <tr style={{ background: "#e7f0fa" }}>
-                          <th style={{ padding: "8px", border: "1px solid #e2e8f0" }}>Curso</th>
-                          <th style={{ padding: "8px", border: "1px solid #e2e8f0" }}>Horas</th>
-                          <th style={{ padding: "8px", border: "1px solid #e2e8f0" }}>Valor</th>
-                          <th style={{ padding: "8px", border: "1px solid #e2e8f0" }}></th>
+                          <th style={{ padding: "8px", border: "1px solid var(--n-200)" }}>Curso</th>
+                          <th style={{ padding: "8px", border: "1px solid var(--n-200)" }}>Horas</th>
+                          <th style={{ padding: "8px", border: "1px solid var(--n-200)" }}>Valor</th>
+                          <th style={{ padding: "8px", border: "1px solid var(--n-200)" }}></th>
                         </tr>
                       </thead>
                       <tbody>
                         {cursosSelecionados.map((curso) => (
                           <tr key={curso.id}>
-                            <td style={{ padding: "8px", border: "1px solid #e2e8f0" }}>{curso.nome}</td>
-                                <td style={{ padding: "8px", border: "1px solid #e2e8f0", width: 120 }}>{getCursoHoras(curso)}h</td>
-                            <td style={{ padding: "8px", border: "1px solid #e2e8f0", width: 140 }}>
+                            <td style={{ padding: "8px", border: "1px solid var(--n-200)" }}>{curso.nome}</td>
+                                <td style={{ padding: "8px", border: "1px solid var(--n-200)", width: 120 }}>{getCursoHoras(curso)}h</td>
+                            <td style={{ padding: "8px", border: "1px solid var(--n-200)", width: 140 }}>
                               <input
                                 type="number"
                                 min="0"
@@ -1195,7 +1195,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                 onChange={(event) => updateCursoSelecionado(curso.id, "valor", event.target.value)}
                               />
                             </td>
-                            <td style={{ padding: "8px", border: "1px solid #e2e8f0", textAlign: "center", width: 90 }}>
+                            <td style={{ padding: "8px", border: "1px solid var(--n-200)", textAlign: "center", width: 90 }}>
                               <button type="button" className="btn-small" onClick={() => removeCurso(curso.id)}>
                                 Remover
                               </button>
@@ -1216,23 +1216,23 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                     const isEditingAnyModuleOfThisCurso = editingModulo?.cursoId === curso.id;
 
                     return (
-                      <div key={`${curso.id}-conteudos`} style={{ marginBottom: 18, paddingBottom: 16, borderBottom: "1px solid #e2e8f0" }}>
+                      <div key={`${curso.id}-conteudos`} style={{ marginBottom: 18, paddingBottom: 16, borderBottom: "1px solid var(--n-200)" }}>
                         <div className="section-subtitle" style={{ marginBottom: 12 }}>{curso.nome}</div>
 
                         {modulos.length > 0 && !isEditingAnyModuleOfThisCurso && (
                           <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
                             {modulos.map((modulo, index) => (
-                              <div key={`${curso.id}-mod-${index}`} style={{ border: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "12px", padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                              <div key={`${curso.id}-mod-${index}`} style={{ border: "1px solid var(--n-200)", background: "var(--n-50)", borderRadius: "12px", padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
                                 <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "0.92rem" }}>{modulo.nome || "Sem nome"}</div>
-                                  <div style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 4, fontWeight: 700 }}>{Number(modulo.duracao_horas || 0)}h</div>
-                                  {modulo.conteudo && <div style={{ color: "#64748b", fontSize: "0.84rem", marginTop: 4, lineHeight: 1.4 }}>{modulo.conteudo}</div>}
+                                  <div style={{ fontWeight: 800, color: "var(--n-900)", fontSize: "0.92rem" }}>{modulo.nome || "Sem nome"}</div>
+                                  <div style={{ color: "var(--n-500)", fontSize: "0.78rem", marginTop: 4, fontWeight: 700 }}>{Number(modulo.duracao_horas || 0)}h</div>
+                                  {modulo.conteudo && <div style={{ color: "var(--n-500)", fontSize: "0.84rem", marginTop: 4, lineHeight: 1.4 }}>{modulo.conteudo}</div>}
                                 </div>
                                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                                   <button aria-label="Editar módulo"
                                     type="button"
                                     onClick={() => setEditingModulo({ cursoId: curso.id, index })}
-                                    style={{ border: "1px solid #dbeafe", background: "#eff6ff", color: "#0284c7", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
+                                    style={{ border: "1px solid #dbeafe", background: "var(--cx-eff6ff, #eff6ff)", color: "#0284c7", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
                                     title="Editar módulo"
                                   >
                                     <Pencil size={15} aria-hidden="true" />
@@ -1258,12 +1258,12 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                         )}
 
                         {isEditingAnyModuleOfThisCurso && (
-                          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                          <div style={{ background: "var(--n-50)", border: "1px solid var(--n-200)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
                             <div style={{ display: "grid", gap: 10 }}>
                               {modulos[editingModulo.index] && (
                                 <>
                                   <div>
-                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "#475569", marginBottom: 6 }}>Nome do módulo</label>
+                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "var(--n-700)", marginBottom: 6 }}>Nome do módulo</label>
                                     <input
                                       type="text"
                                       value={modulos[editingModulo.index].nome || ""}
@@ -1276,7 +1276,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                     />
                                   </div>
                                   <div>
-                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "#475569", marginBottom: 6 }}>Duração (horas)</label>
+                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "var(--n-700)", marginBottom: 6 }}>Duração (horas)</label>
                                     <input
                                       type="number"
                                       min="0"
@@ -1291,7 +1291,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                     />
                                   </div>
                                   <div>
-                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "#475569", marginBottom: 6 }}>Conteúdo</label>
+                                    <label style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: "var(--n-700)", marginBottom: 6 }}>Conteúdo</label>
                                     <textarea
                                       value={modulos[editingModulo.index].conteudo || ""}
                                       onChange={(e) => {
@@ -1314,7 +1314,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                     <button
                                       type="button"
                                       onClick={() => setEditingModulo(null)}
-                                      style={{ flex: 1, border: "1px solid #cbd5e1", borderRadius: 10, padding: "10px 14px", background: "#fff", color: "#0f172a", fontWeight: 800, cursor: "pointer" }}
+                                      style={{ flex: 1, border: "1px solid var(--n-300)", borderRadius: 10, padding: "10px 14px", background: "var(--sup-1)", color: "var(--n-900)", fontWeight: 800, cursor: "pointer" }}
                                     >
                                       Cancelar
                                     </button>
@@ -1329,7 +1329,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                           <div style={{ marginBottom: 6, fontWeight: 600 }}>Considerações</div>
                           <textarea
                             rows={3}
-                            style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #e2e8f0" }}
+                            style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--n-200)" }}
                             value={curso.consideracoes || ""}
                             onChange={(event) => updateCursoSelecionado(curso.id, "consideracoes", event.target.value)}
                           />

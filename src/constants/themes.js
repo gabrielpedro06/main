@@ -70,6 +70,7 @@ const createTheme = (name, description, bgBase, darkBase) => {
   return {
     name,
     description,
+    base: { bgBase, darkBase }, // usado para gerar a variante escura (coresEscuras)
     bgGradient: `linear-gradient(135deg, ${bgBase} 0%, ${bgSecondary} 100%)`,
     sidebarBgSecondary: darker,
     accentColor: darkBase,
@@ -92,9 +93,10 @@ const createTheme = (name, description, bgBase, darkBase) => {
       btnPrimaryShadow: alpha(darkBase, 0.24),
       btnPrimaryShadowHover: alpha(darkBase, 0.34),
 
-      textPrimary: darkBase,
-      textSecondary: darkenHex(darkBase, 8),
-      textLight: darkenHex(darkBase, 2),
+      // Texto neutro (quase preto) com um toque do tema; a cor do tema fica para os destaques
+      textPrimary: mixHex("#10141b", darkBase, 0.12),
+      textSecondary: mixHex("#262c36", darkBase, 0.12),
+      textLight: mixHex("#3b4350", darkBase, 0.12),
       textWhite: "#ffffff",
 
       borderColor: darkenHex(bgBase, 8),
@@ -171,6 +173,47 @@ const FESTIVE_CATALOG = [
 ];
 
 /** Todos os temas por chave (a chave é o que fica em localStorage "app-theme"). */
+/**
+ * MODO ESCURO: variante escura de qualquer tema, gerada a partir das MESMAS duas cores.
+ * Fundos quase pretos com um toque da cor do tema; texto claro e neutro; a cor do tema
+ * fica nos destaques (sidebar, botões, ícones), um pouco mais clara para ter contraste.
+ * @param {{ base: { bgBase: string, darkBase: string } }} theme
+ * @returns {{ bgGradient: string, sidebarBgSecondary: string, accentColor: string, colors: Record<string,string> }}
+ */
+export const coresEscuras = (theme) => {
+  const darkBase = theme?.base?.darkBase || "#1e293b";
+  const bgPrimary = mixHex("#0e1116", darkBase, 0.1);
+  const bgSecondary = mixHex("#161a21", darkBase, 0.1);
+  const bgTertiary = mixHex("#1d222b", darkBase, 0.1);
+  const sidebar = mixHex(darkBase, "#0e1116", 0.3);
+  const sidebarDark = mixHex(darkBase, "#0e1116", 0.55);
+  const acento = mixHex(darkBase, "#ffffff", 0.28);
+  return {
+    bgGradient: `linear-gradient(135deg, ${bgPrimary} 0%, ${bgSecondary} 100%)`,
+    sidebarBgSecondary: sidebarDark,
+    accentColor: acento,
+    colors: {
+      ...theme.colors,
+      bgPrimary,
+      bgSecondary,
+      bgTertiary,
+      sidebarBg: sidebar,
+      sidebarActive: sidebar,
+      toggleBg: sidebarDark,
+      btnPrimary: acento,
+      btnPrimaryDark: darkBase,
+      btnPrimaryDarker: mixHex(darkBase, "#000000", 0.3),
+      btnPrimaryShadow: alpha("#000000", 0.4),
+      btnPrimaryShadowHover: alpha("#000000", 0.5),
+      textPrimary: mixHex("#e9ecf1", darkBase, 0.06),
+      textSecondary: mixHex("#c3c9d2", darkBase, 0.06),
+      textLight: mixHex("#9aa2ae", darkBase, 0.06),
+      borderColor: mixHex("#2c323c", darkBase, 0.12),
+      borderColorLight: mixHex("#232831", darkBase, 0.12),
+    },
+  };
+};
+
 export const THEMES = Object.fromEntries([
   ...THEME_CATALOG.map(([key, name, description, bgBase, darkBase]) => [
     key,

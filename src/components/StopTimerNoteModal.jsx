@@ -398,8 +398,8 @@ export default function StopTimerNoteModal({
             maxWidth: useSideLayout ? "920px" : "560px",
             borderRadius: "24px",
             padding: "34px 30px 28px",
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
+            background: "var(--sup-1)",
+            border: "1px solid var(--n-200)",
             boxShadow: "0 25px 50px -12px rgba(15,23,42,0.25)",
             display: "flex",
             flexDirection: "column",
@@ -434,8 +434,8 @@ export default function StopTimerNoteModal({
             </svg>
           </div>
 
-          <h3 style={{ margin: 0, color: "#0f172a", fontSize: "1.35rem", fontWeight: 700, letterSpacing: "-0.02em" }}>{title}</h3>
-          <p style={{ margin: 0, color: "#475569", fontSize: "1.02rem", lineHeight: 1.6, maxWidth: "460px" }}>{message}</p>
+          <h3 style={{ margin: 0, color: "var(--n-900)", fontSize: "1.35rem", fontWeight: 700, letterSpacing: "-0.02em" }}>{title}</h3>
+          <p style={{ margin: 0, color: "var(--n-700)", fontSize: "1.02rem", lineHeight: 1.6, maxWidth: "460px" }}>{message}</p>
 
           <div
             className="stop-note-main"
@@ -459,15 +459,15 @@ export default function StopTimerNoteModal({
                 style={{
                   width: "100%",
                   resize: "vertical",
-                  border: "1px solid #cbd5e1",
+                  border: "1px solid var(--n-300)",
                   borderRadius: "16px",
                   padding: "14px 16px",
                   fontSize: "0.98rem",
                   lineHeight: 1.5,
-                  color: "#0f172a",
+                  color: "var(--n-900)",
                   outline: "none",
                   boxSizing: "border-box",
-                  background: "#f8fafc",
+                  background: "var(--n-50)",
                   minHeight: useSideLayout ? "170px" : "78px"
                 }}
               />
@@ -479,12 +479,12 @@ export default function StopTimerNoteModal({
                     gap: "8px",
                     border: "1px solid var(--color-borderColorLight)",
                     borderRadius: "14px",
-                    background: "#f8fafc",
+                    background: "var(--n-50)",
                     padding: "12px 14px",
                     textAlign: "left",
                   }}
                 >
-                  <label style={{ color: "#334155", fontSize: "0.82rem", fontWeight: 700 }}>Estado da tarefa/atividade</label>
+                  <label style={{ color: "var(--n-700)", fontSize: "0.82rem", fontWeight: 700 }}>Estado da tarefa/atividade</label>
                   <div className="stop-status-grid">
                     {statusOptions.map((option) => (
                       <button
@@ -510,7 +510,7 @@ export default function StopTimerNoteModal({
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
-                    color: "#334155",
+                    color: "var(--n-700)",
                     fontSize: "0.98rem",
                     fontWeight: 600,
                     cursor: "pointer",
@@ -559,12 +559,12 @@ export default function StopTimerNoteModal({
                   gap: "8px",
                   border: "1px solid var(--color-borderColorLight)",
                   borderRadius: "14px",
-                  background: "#f8fafc",
+                  background: "var(--n-50)",
                   padding: "12px 14px",
                   textAlign: "left",
                 }}
               >
-                <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Encaminhar para</label>
+                <label style={{ color: "var(--n-700)", fontSize: "0.8rem", fontWeight: 700 }}>Encaminhar para</label>
                 <SelectModerno
                   className="stop-note-select"
                   value={analysisDestination}
@@ -576,12 +576,12 @@ export default function StopTimerNoteModal({
                   }}
                   style={{
                     width: "100%",
-                    border: "1px solid #cbd5e1",
+                    border: "1px solid var(--n-300)",
                     borderRadius: "10px",
                     padding: "9px 10px",
                     fontSize: "0.92rem",
-                    color: "#0f172a",
-                    background: "#fff",
+                    color: "var(--n-900)",
+                    background: "var(--sup-1)",
                     outline: "none",
                   }}
                 >
@@ -594,7 +594,7 @@ export default function StopTimerNoteModal({
 
                 {isColleagueDestination && (
                   <>
-                    <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Selecionar colega</label>
+                    <label style={{ color: "var(--n-700)", fontSize: "0.8rem", fontWeight: 700 }}>Selecionar colega</label>
                     <SelectModerno
                       className="stop-note-select"
                       value={analysisDestinationUserId}
@@ -604,12 +604,12 @@ export default function StopTimerNoteModal({
                       }}
                       style={{
                         width: "100%",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid var(--n-300)",
                         borderRadius: "10px",
                         padding: "9px 10px",
                         fontSize: "0.92rem",
-                        color: "#0f172a",
-                        background: "#fff",
+                        color: "var(--n-900)",
+                        background: "var(--sup-1)",
                         outline: "none",
                       }}
                       disabled={analysisUsersLoading}
@@ -630,7 +630,7 @@ export default function StopTimerNoteModal({
 
                 {isClientDestination && (
                   <>
-                    <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Pessoa do cliente</label>
+                    <label style={{ color: "var(--n-700)", fontSize: "0.8rem", fontWeight: 700 }}>Pessoa do cliente</label>
                     <SelectModerno
                       className="stop-note-select"
                       value={analysisDestinationContactId}
@@ -640,12 +640,12 @@ export default function StopTimerNoteModal({
                       }}
                       style={{
                         width: "100%",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid var(--n-300)",
                         borderRadius: "10px",
                         padding: "9px 10px",
                         fontSize: "0.92rem",
-                        color: "#0f172a",
-                        background: "#fff",
+                        color: "var(--n-900)",
+                        background: "var(--sup-1)",
                         outline: "none",
                       }}
                       disabled={analysisContactsLoading}
@@ -671,7 +671,7 @@ export default function StopTimerNoteModal({
                   </>
                 )}
 
-                <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Data expectavel de resposta</label>
+                <label style={{ color: "var(--n-700)", fontSize: "0.8rem", fontWeight: 700 }}>Data expectavel de resposta</label>
                 <input
                   type="date"
                   className="stop-note-date"
@@ -682,12 +682,12 @@ export default function StopTimerNoteModal({
                   }}
                   style={{
                     width: "100%",
-                    border: "1px solid #cbd5e1",
+                    border: "1px solid var(--n-300)",
                     borderRadius: "10px",
                     padding: "9px 10px",
                     fontSize: "0.92rem",
-                    color: "#0f172a",
-                    background: "#fff",
+                    color: "var(--n-900)",
+                    background: "var(--sup-1)",
                     outline: "none",
                     boxSizing: "border-box",
                   }}
@@ -699,8 +699,8 @@ export default function StopTimerNoteModal({
               <div
                 style={{
                   gridColumn: useSideLayout ? "1 / -1" : "auto",
-                  color: "#b91c1c",
-                  background: "#fee2e2",
+                  color: "var(--cx-b91c1c, #b91c1c)",
+                  background: "var(--cx-fee2e2, #fee2e2)",
                   border: "1px solid #fecaca",
                   borderRadius: "10px",
                   padding: "8px 10px",
@@ -723,9 +723,9 @@ export default function StopTimerNoteModal({
                 flex: "1 1 42%",
                 height: "50px",
                 borderRadius: "14px",
-                border: "1px solid #cbd5e1",
-                background: "white",
-                color: "#475569",
+                border: "1px solid var(--n-300)",
+                background: "var(--sup-1)",
+                color: "var(--n-700)",
                 fontWeight: 600,
                 fontSize: "1rem",
                 cursor: "pointer"

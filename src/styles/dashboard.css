@@ -253,7 +253,7 @@ body, html {
   padding: 8px 12px;
   border: 1px solid var(--color-borderColor);
   border-radius: 6px;
-  background: white;
+  background: var(--sup-1);
   color: var(--color-textSecondary);
   cursor: pointer;
   font-weight: 500;
@@ -302,7 +302,7 @@ body, html {
 
 /* Cards */
 .card {
-  background: white;
+  background: var(--sup-1);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
@@ -343,7 +343,7 @@ body, html {
 .table-responsive {
   width: 100%;
   overflow-x: auto;
-  background: white;
+  background: var(--sup-1);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   border: 1px solid var(--color-borderColorLight);
@@ -353,12 +353,12 @@ body, html {
   width: 100%;
   border-collapse: collapse;
   min-width: 700px;
-  background: #fff;
+  background: var(--sup-1);
 }
 
 .data-table th {
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-  color: #334155;
+  background: linear-gradient(180deg, var(--n-50) 0%, #eef2ff 100%);
+  color: var(--n-700);
   font-weight: 700;
   text-transform: uppercase;
   font-size: 0.75rem;
@@ -371,19 +371,19 @@ body, html {
 
 .data-table td {
   padding: 14px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  color: #334155;
+  border-bottom: 1px solid var(--n-200);
+  color: var(--n-700);
   font-size: 0.95rem;
   vertical-align: middle;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .data-table tr:hover {
-  background-color: #f8fafc;
+  background-color: var(--n-50);
 }
 
 .data-table tr:nth-child(even) {
-  background-color: #fcfcfd;
+  background-color: var(--n-50);
 }
 
 .data-table td input,
@@ -393,8 +393,8 @@ body, html {
 }
 
 .data-table td:focus-within {
-  background-color: #eff6ff;
-  box-shadow: inset 0 0 0 1px #93c5fd;
+  background-color: var(--cx-eff6ff, #eff6ff);
+  box-shadow: inset 0 0 0 1px var(--cx-93c5fd, #93c5fd);
 }
 
 /* =========================================
@@ -409,7 +409,7 @@ body, html {
 }
 
 .modal-content {
-  background: white;
+  background: var(--sup-1);
   padding: 0; /* Padding gerido internamente */
   border-radius: 16px;
   width: 90%; max-width: 500px;
@@ -462,7 +462,7 @@ label {
 
 /* Filtros */
 .filters-container {
-  display: flex; gap: 15px; background: white; padding: 15px;
+  display: flex; gap: 15px; background: var(--sup-1); padding: 15px;
   border-radius: 12px; border: 1px solid var(--color-borderColorLight); margin-bottom: 20px;
   flex-wrap: wrap; align-items: center;
 }
@@ -481,15 +481,15 @@ label {
   padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
   text-transform: uppercase;
 }
-.badge-success { background: #dcfce7; color: #166534; } /* Verde */
-.badge-warning { background: #fef9c3; color: #854d0e; } /* Amarelo */
-.badge-danger  { background: #fee2e2; color: #991b1b; } /* Vermelho */
+.badge-success { background: var(--cx-dcfce7, #dcfce7); color: var(--cx-166534, #166534); } /* Verde */
+.badge-warning { background: var(--cx-fef9c3, #fef9c3); color: var(--cx-854d0e, #854d0e); } /* Amarelo */
+.badge-danger  { background: var(--cx-fee2e2, #fee2e2); color: var(--cx-991b1b, #991b1b); } /* Vermelho */
 
 /* Scrollbar Bonita */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: var(--n-300); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--n-400); }
 
 /* =========================================
    CORREÇÃO DO MODAL DE CLIENTES 
@@ -499,7 +499,7 @@ label {
 .large-modal {
   width: 95%;
   max-width: 800px; /* Mais largo para respirar */
-  background: white;
+  background: var(--sup-1);
   border-radius: 12px;
   overflow: hidden;
   display: flex;
@@ -519,7 +519,7 @@ label {
 
 .modal-header h3 {
   margin: 0;
-  color: #1e293b;
+  color: var(--n-900);
   font-size: 1.2rem;
 }
 
@@ -564,7 +564,7 @@ label {
 .tabs button.active {
   color: var(--color-btnPrimary);
   border-bottom: 3px solid var(--color-btnPrimary);
-  background: white;
+  background: var(--sup-1);
   border-radius: 6px 6px 0 0;
 }
 
@@ -572,7 +572,7 @@ label {
 .modal-body {
   padding: 25px;
   overflow-y: auto; /* Scroll se for muito grande */
-  background: #fff;
+  background: var(--sup-1);
 }
 
 /* Grelha de Formulário (Para Moradas/Pessoas ficarem lado a lado) */
@@ -608,9 +608,9 @@ label {
 
 /* Botão de Cancelar/Apagar (Vermelho) */
 .btn-delete-small {
-  background: #fee2e2;
+  background: var(--cx-fee2e2, #fee2e2);
   color: #dc2626;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--cx-fecaca, #fecaca);
   padding: 5px 10px;
   border-radius: 4px;
   cursor: pointer;
@@ -625,7 +625,7 @@ label {
 }
 
 .list-items li {
-  background: white;
+  background: var(--sup-1);
   border: 1px solid var(--color-borderColorLight);
   padding: 10px;
   margin-bottom: 8px;
@@ -646,7 +646,7 @@ label {
   margin-top: 20px;     /* Espaço em cima */
   align-items: center;  /* Alinha verticalmente */
   width: 100%;
-  border-top: 1px solid #f1f5f9; /* Uma linha subtil para separar */
+  border-top: 1px solid var(--n-100); /* Uma linha subtil para separar */
   padding-top: 15px;
 }
 
@@ -664,7 +664,7 @@ label {
 
 .forum-reply-area input:focus,
 .forum-reply-area textarea:focus {
-  background: white;
+  background: var(--sup-1);
   border-color: var(--color-btnPrimary);
   outline: none;
 }
@@ -692,7 +692,7 @@ label {
 
 /* 1. Efeito de Elevação Suave nos Cards */
 .card {
-    background: white;
+    background: var(--sup-1);
     border-radius: 16px;
     padding: 24px;
     /* Sombra mais suave e multicamada */
@@ -789,7 +789,7 @@ input:focus {
 
 /* --- MODAL DE CONFIRMAÇÃO (Pequeno) --- */
 .confirm-modal-box {
-  background: white;
+  background: var(--sup-1);
   padding: 25px;
   border-radius: 12px;
   width: 90%;
@@ -856,7 +856,7 @@ input:focus {
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--sup-1);
   -webkit-transition: .4s;
   transition: .4s;
   border-radius: 50%;
@@ -882,7 +882,7 @@ input:checked + .slider:before {
   width: auto;
   max-width: min(90vw, 460px);
   min-height: 40px;
-  background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%);
+  background: linear-gradient(135deg, var(--n-900) 0%, #1f2937 100%);
   color: var(--color-textWhite);
   padding: 9px 14px;
   border-radius: 12px;
@@ -1017,7 +1017,7 @@ html, body {
 }
 
 .btn-small {
-  background: #fff;
+  background: var(--sup-1);
   border: 1px solid #ddd8cf;
   color: #4b5563;
   border-radius: 999px;
@@ -1051,7 +1051,7 @@ html, body {
 }
 
 input, select, textarea {
-  background: #fff;
+  background: var(--sup-1);
   border: 1px solid #ddd8cf;
   border-radius: 10px;
 }
@@ -1110,7 +1110,7 @@ input:focus, select:focus, textarea:focus {
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
-  background: linear-gradient(135deg, #ffffff 0%, #fbf7ef 100%);
+  background: linear-gradient(135deg, var(--sup-1) 0%, #fbf7ef 100%);
 }
 
 .propostas-hero > div:first-child {
@@ -1159,7 +1159,7 @@ input:focus, select:focus, textarea:focus {
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
-  background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+  background: linear-gradient(135deg, var(--sup-1) 0%, #f7fafc 100%);
 }
 
 .propostas-list-hero h1 {
@@ -1202,8 +1202,8 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 18px;
   border: 1px solid var(--color-borderColorLight);
   border-radius: 12px 12px 0 0;
-  background: #e2e8f0;
-  color: #64748b;
+  background: var(--n-200);
+  color: var(--n-500);
   font-weight: 700;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
@@ -1220,9 +1220,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 .propostas-status-tab.active {
-  background: white;
+  background: var(--sup-1);
   color: var(--color-btnPrimaryDark);
-  border-bottom-color: white;
+  border-bottom-color: var(--sup-1);
 }
 
 .propostas-toolbar {
@@ -1230,7 +1230,7 @@ input:focus, select:focus, textarea:focus {
   gap: 15px;
   align-items: center;
   flex-wrap: wrap;
-  background: white;
+  background: var(--sup-1);
   padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid var(--color-borderColorLight);
@@ -1247,7 +1247,7 @@ input:focus, select:focus, textarea:focus {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--n-400);
   font-size: 1rem;
   pointer-events: none;
 }
@@ -1264,8 +1264,8 @@ input:focus, select:focus, textarea:focus {
 .propostas-view-toggle {
   display: inline-flex;
   align-items: center;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--n-100);
+  border: 1px solid var(--n-200);
   border-radius: 10px;
   padding: 4px;
   margin-left: auto;
@@ -1276,14 +1276,14 @@ input:focus, select:focus, textarea:focus {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #64748b;
+  color: var(--n-500);
   font-weight: 700;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
 }
 
 .propostas-view-toggle button.active {
-  background: white;
+  background: var(--sup-1);
   color: var(--color-btnPrimaryDark);
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
 }
@@ -1298,7 +1298,7 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: white;
+  background: var(--sup-1);
   border: 1px solid var(--color-borderColorLight);
   border-top: 5px solid var(--color-btnPrimary);
   border-radius: 16px;
@@ -1324,8 +1324,8 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--n-100);
+  color: var(--n-700);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -1360,7 +1360,7 @@ input:focus, select:focus, textarea:focus {
 .propostas-card-meta span {
   display: block;
   margin-bottom: 3px;
-  color: #64748b;
+  color: var(--n-500);
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -1458,7 +1458,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid transparent;
   border-radius: 14px;
   padding: 12px 14px;
-  background: #f8fafc;
+  background: var(--n-50);
   color: var(--color-textSecondary);
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
@@ -1477,9 +1477,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 .propostas-stepper-item.done {
-  background: #ecfdf5;
-  color: #166534;
-  border-color: #bbf7d0;
+  background: var(--cx-ecfdf5, #ecfdf5);
+  color: var(--cx-166534, #166534);
+  border-color: var(--cx-bbf7d0, #bbf7d0);
 }
 
 .propostas-stepper-index {
@@ -1574,7 +1574,7 @@ input:focus, select:focus, textarea:focus {
 .propostas-programa-card {
   border: 1px solid var(--color-borderColorLight);
   border-radius: 16px;
-  background: white;
+  background: var(--sup-1);
   padding: 16px;
   text-align: left;
   cursor: pointer;
@@ -1640,7 +1640,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--color-borderColorLight);
   border-radius: 16px;
   overflow: hidden;
-  background: white;
+  background: var(--sup-1);
 }
 
 .propostas-service-card.selected {
@@ -1655,7 +1655,7 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   padding: 16px 18px;
   border: 0;
-  background: white;
+  background: var(--sup-1);
   text-align: left;
   cursor: pointer;
 }
@@ -1669,7 +1669,7 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   justify-content: center;
   color: white;
-  background: white;
+  background: var(--sup-1);
 }
 
 .propostas-service-card.selected .propostas-service-check {
@@ -1684,9 +1684,9 @@ input:focus, select:focus, textarea:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e2e8f0;
+  background: var(--n-200);
   font-weight: 800;
-  color: #475569;
+  color: var(--n-700);
 }
 
 .propostas-service-main {
@@ -1750,7 +1750,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--color-borderColorLight);
   border-radius: 16px;
   padding: 14px 16px;
-  background: white;
+  background: var(--sup-1);
 }
 
 .total-card span {
@@ -1770,8 +1770,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .total-card-accent {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border-color: #bfdbfe;
+  background: linear-gradient(135deg, var(--cx-eff6ff, #eff6ff) 0%, var(--cx-dbeafe, #dbeafe) 100%);
+  border-color: var(--cx-bfdbfe, #bfdbfe);
 }
 
 .propostas-review-banner {
@@ -1797,7 +1797,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .summary-card {
-  background: white;
+  background: var(--sup-1);
 }
 
 .propostas-summary-grid {
@@ -1833,7 +1833,7 @@ input:focus, select:focus, textarea:focus {
   padding: 10px 12px;
   border: 1px solid var(--color-borderColorLight);
   border-radius: 14px;
-  background: white;
+  background: var(--sup-1);
 }
 
 .propostas-checkmark {
@@ -1849,13 +1849,13 @@ input:focus, select:focus, textarea:focus {
 }
 
 .propostas-checkmark.ok {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--cx-dcfce7, #dcfce7);
+  color: var(--cx-166534, #166534);
 }
 
 .propostas-checkmark.warning {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--cx-fee2e2, #fee2e2);
+  color: var(--cx-b91c1c, #b91c1c);
 }
 
 .propostas-nav {

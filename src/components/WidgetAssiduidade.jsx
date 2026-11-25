@@ -994,7 +994,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                           onChange={(e) => setAnalysisFollowUpDates((prev) => ({ ...prev, [key]: e.target.value }))}
                           style={{...inputFieldStyle, width: 'auto', padding: '8px 10px', fontSize: '0.88rem'}}
                         />
-                        <button type="button" onClick={() => handleUpdateOverdueExpectedDate(item)} style={{border:'1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 13%, transparent)', background:'#fff', color:'var(--color-textPrimary)', borderRadius:'10px', padding:'8px 12px', fontWeight:'700', cursor:'pointer'}}>
+                        <button type="button" onClick={() => handleUpdateOverdueExpectedDate(item)} style={{border:'1px solid color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 13%, transparent)', background:'var(--sup-1)', color:'var(--color-textPrimary)', borderRadius:'10px', padding:'8px 12px', fontWeight:'700', cursor:'pointer'}}>
                           Atualizar data
                         </button>
                         <button type="button" onClick={() => handleConcludeOverdueItem(item)} style={{border:'none', background:'var(--color-btnPrimary)', color:'#fff', borderRadius:'10px', padding:'8px 12px', fontWeight:'700', cursor:'pointer'}}>
@@ -1217,13 +1217,13 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                       <form onSubmit={confirmStart} style={{display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, maxHeight: 'calc(80 * var(--bz-vh, 1vh))'}}>
                           <div className="jn-corpo custom-scrollbar">
                                 {analysisDueToday.length > 0 && (
-                                  <div style={{marginBottom: '15px', textAlign: 'left', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '14px', padding: '12px 14px'}}>
-                                    <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#9a3412', marginBottom: '8px'}}>
+                                  <div style={{marginBottom: '15px', textAlign: 'left', background: 'var(--cx-fff7ed, #fff7ed)', border: '1px solid #fed7aa', borderRadius: '14px', padding: '12px 14px'}}>
+                                    <div style={{fontSize: '0.82rem', fontWeight: 800, color: 'var(--cx-9a3412, #9a3412)', marginBottom: '8px'}}>
                                       Hoje há receção de análise expectável:
                                     </div>
                                     <div style={{display: 'grid', gap: '6px'}}>
                                       {analysisDueToday.slice(0, 6).map((item) => (
-                                        <div key={`${item.tipo}-${item.id}`} style={{fontSize: '0.82rem', color: '#7c2d12', background: '#ffedd5', border: '1px solid #fdba74', borderRadius: '10px', padding: '7px 9px'}}>
+                                        <div key={`${item.tipo}-${item.id}`} style={{fontSize: '0.82rem', color: 'var(--cx-7c2d12, #7c2d12)', background: 'var(--cx-ffedd5, #ffedd5)', border: '1px solid #fdba74', borderRadius: '10px', padding: '7px 9px'}}>
                                           [{item.tipo}] {item.titulo} - {item.destino}
                                         </div>
                                       ))}
@@ -1231,7 +1231,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                   </div>
                                 )}
 
-                              <div style={{textAlign: 'center', padding: '28px', background: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 8%, transparent)', borderRadius: '16px', color: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent)', fontSize: '0.9rem'}}>
+                              <div style={{textAlign: 'center', padding: '28px', background: 'color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 8%, transparent)', borderRadius: '16px', color: 'color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 62%, transparent)', fontSize: '0.9rem'}}>
                                   <Icons.Check size={30} />
                                   <p style={{marginTop: '10px', marginBottom: 0}}>
                                       Clica em Iniciar dia para começar. No fim, vais rever apenas o trabalho realizado.
@@ -1273,9 +1273,9 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                       <label style={{...inputLabelStyle, marginBottom: '4px'}}>
                                           Tarefas planeadas / trabalhadas hoje
                                       </label>
-                                      <p style={{color: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent)', fontSize: '0.85rem', marginTop: 0, marginBottom: '12px'}}>Desmarca o que não conseguiste terminar para não ir para o histórico.</p>
+                                      <p style={{color: 'color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 62%, transparent)', fontSize: '0.85rem', marginTop: 0, marginBottom: '12px'}}>Desmarca o que não conseguiste terminar para não ir para o histórico.</p>
 
-                                      <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 4%, transparent)', padding: '12px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 8%, transparent)'}}>
+                                      <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: 'color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 4%, transparent)', padding: '12px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 8%, transparent)'}}>
                                           {endOfDayTasks.map((taskObj, idx) => {
                                               const isChecked = selectedEndOfDayTasks.some(t => t.titulo === taskObj.titulo);
                                               return (
@@ -1295,7 +1295,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                                       </div>
                                                       <div style={{flex: 1, textDecoration: isChecked ? 'none' : 'line-through'}}>
                                                           <div style={{fontSize: '0.95rem', fontWeight: isChecked ? '600' : '400'}}>{taskObj.titulo}</div>
-                                                          <div style={{fontSize: '0.7rem', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                                          <div style={{fontSize: '0.7rem', color: 'var(--n-500)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px'}}>
                                                               <Icons.Folder size={10} /> 
                                                               {taskObj.contexto?.length > 40 ? taskObj.contexto.slice(0, 40) + '...' : taskObj.contexto}
                                                           </div>

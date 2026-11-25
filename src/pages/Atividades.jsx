@@ -518,12 +518,12 @@ export default function Atividades() {
     <div className="page-container">
       
       {/* HEADER */}
-      <div className="card" style={{ marginBottom: 20, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="card" style={{ marginBottom: 20, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'var(--sup-1)', border: '1px solid var(--n-200)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
         <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
             <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.ClipboardList /></div>
             <div>
-                <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Atividades</h1>
-                <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão de blocos de trabalho</p>
+                <h1 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Atividades</h1>
+                <p style={{color: 'var(--n-500)', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão de blocos de trabalho</p>
             </div>
         </div>
         <div style={{display:'flex', gap:'10px', alignItems: 'center'}}>
@@ -534,7 +534,7 @@ export default function Atividades() {
                         {(activeLogTitle || 'Atividade em curso').length > 30 ? `${(activeLogTitle || 'Atividade em curso').slice(0, 30)}...` : (activeLogTitle || 'Atividade em curso')}
                     </div>
                     <div style={{width: '1px', height: '20px', background: 'rgba(255,255,255,0.3)'}}></div>
-                    <button onClick={(e) => { e.stopPropagation(); openStopNoteModal(); }} style={{background: 'white', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}>
+                    <button onClick={(e) => { e.stopPropagation(); openStopNoteModal(); }} style={{background: 'var(--sup-1)', color:'#ef4444', border:'none', borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontWeight:'700', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'}}>
                         <Icons.Stop size={12} /> Parar
                     </button>
                 </div>
@@ -549,12 +549,12 @@ export default function Atividades() {
       <div className="card" style={{ padding: '20px', borderRadius: '12px' }}>
         
         {/* FILTROS */}
-        <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+        <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--n-100)', alignItems: 'center' }}>
             <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-                <span style={{position: 'absolute', left: '12px', top: '12px', color: '#64748b'}}><Icons.Search /></span>
+                <span style={{position: 'absolute', left: '12px', top: '12px', color: 'var(--n-500)'}}><Icons.Search /></span>
                 <input aria-label="Procurar atividade ou projeto" type="text" placeholder="Procurar atividade ou projeto…" value={busca} onChange={(e) => setBusca(e.target.value)} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
             </div>
-            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+            <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--n-700)', background: 'var(--n-50)', padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--n-200)'}}>
                 <input type="checkbox" checked={mostrarConcluidos} onChange={(e) => setMostrarConcluidos(e.target.checked)} style={{accentColor:'#1e293b', width:'14px', height:'14px'}} /> Mostrar Arquivados
             </label>
         </div>
@@ -563,7 +563,7 @@ export default function Atividades() {
         <div className="table-responsive" style={{overflowX: 'auto'}}>
             <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse', minWidth: '900px' }}>
             <thead>
-                <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid #f1f5f9'}}>
+                <tr style={{color: 'var(--n-500)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid var(--n-100)'}}>
                 <th style={{padding: '15px', width: '90px', textAlign: 'center'}}>Timer</th>
                 <th style={{padding: '15px', textAlign: 'left'}}>Atividade</th>
                 <th style={{padding: '15px', textAlign: 'left', width: '140px'}}>Prazo</th>
@@ -580,11 +580,11 @@ export default function Atividades() {
                         const isExpired = a.data_fim && new Date(a.data_fim) < new Date() && !isCompleted;
 
                         return (
-                            <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc', background: isRunning ? 'var(--color-bgSecondary)' : (isCompleted ? '#f8fafc' : 'white'), opacity: isCompleted ? 0.6 : 1, transition: '0.2s' }} className={!isCompleted && !isRunning ? "table-row-hover" : ""}>
+                            <tr key={a.id} style={{ borderBottom: '1px solid var(--n-50)', background: isRunning ? 'var(--color-bgSecondary)' : (isCompleted ? '#f8fafc' : 'white'), opacity: isCompleted ? 0.6 : 1, transition: '0.2s' }} className={!isCompleted && !isRunning ? "table-row-hover" : ""}>
                                 <td style={{padding: '15px', textAlign: 'center'}}>
                                     <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'12px'}}>
                                         {isRunning ? (
-                                            <button aria-label="Parar Timer" onClick={openStopNoteModal} title="Parar Timer" style={{border:'none', background:'#fee2e2', color:'#ef4444', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'}}>
+                                            <button aria-label="Parar Timer" onClick={openStopNoteModal} title="Parar Timer" style={{border:'none', background:'var(--cx-fee2e2, #fee2e2)', color:'#ef4444', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'}}>
                                                 <Icons.Stop size={14} />
                                             </button>
                                         ) : (
@@ -601,7 +601,7 @@ export default function Atividades() {
                                 
                                 <td style={{padding: '15px', fontWeight: "bold", color: isRunning ? "var(--color-btnPrimary)" : "#1e293b", fontSize: '0.95rem'}}>
                                     <span style={{textDecoration: isCompleted ? 'line-through' : 'none'}}>{a.titulo}</span>
-                                    {a.investimento > 0 && <div style={{fontSize: '0.75rem', fontWeight:'600', color: '#64748b', marginTop: '4px'}}>Orçamento: {a.investimento}€</div>}
+                                    {a.investimento > 0 && <div style={{fontSize: '0.75rem', fontWeight:'600', color: 'var(--n-500)', marginTop: '4px'}}>Orçamento: {a.investimento}€</div>}
                                 </td>
 
                                 <td style={{padding: '15px'}}>
@@ -618,25 +618,25 @@ export default function Atividades() {
                                             <Icons.Calendar /> {new Date(a.data_fim).toLocaleDateString('pt-PT')}
                                         </div>
                                     ) : (
-                                        <span style={{color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 'bold'}}>- - -</span>
+                                        <span style={{color: 'var(--n-300)', fontSize: '0.8rem', fontWeight: 'bold'}}>- - -</span>
                                     )}
                                 </td>
 
                                 <td style={{padding: '15px'}}>
-                                    <div style={{fontWeight: '700', color: '#334155', fontSize: '0.9rem'}}>{a.projetos?.titulo || "Sem Projeto"}</div>
-                                    {a.projetos?.codigo_projeto && <div style={{fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '4px'}}>{a.projetos.codigo_projeto}</div>}
+                                    <div style={{fontWeight: '700', color: 'var(--n-700)', fontSize: '0.9rem'}}>{a.projetos?.titulo || "Sem Projeto"}</div>
+                                    {a.projetos?.codigo_projeto && <div style={{fontSize: '0.7rem', color: 'var(--n-500)', fontFamily: 'monospace', background: 'var(--n-100)', padding: '2px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '4px'}}>{a.projetos.codigo_projeto}</div>}
                                 </td>
                                 
-                                <td style={{padding: '15px', color: '#475569', fontSize: '0.9rem', fontWeight: '500'}}>
-                                    {a.profiles?.nome || a.profiles?.email || <span style={{color: '#cbd5e1'}}>-</span>}
+                                <td style={{padding: '15px', color: 'var(--n-700)', fontSize: '0.9rem', fontWeight: '500'}}>
+                                    {a.profiles?.nome || a.profiles?.email || <span style={{color: 'var(--n-300)'}}>-</span>}
                                 </td>
                                 
                                 <td style={{padding: '15px', textAlign: 'right'}}>
                                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                        <button aria-label="Ver Detalhes" onClick={() => handleView(a)} title="Ver Detalhes" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
+                                        <button aria-label="Ver Detalhes" onClick={() => handleView(a)} title="Ver Detalhes" style={{background: 'var(--sup-1)', border: '1px solid var(--n-300)', color: 'var(--n-700)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
                                             <Icons.Eye />
                                         </button>
-                                        <button aria-label="Editar" onClick={() => handleEdit(a)} title="Editar" className="action-btn hover-orange-text" style={{background: 'transparent', border: 'none', color: '#475569', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', opacity: 0.6}}>
+                                        <button aria-label="Editar" onClick={() => handleEdit(a)} title="Editar" className="action-btn hover-orange-text" style={{background: 'transparent', border: 'none', color: 'var(--n-700)', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', opacity: 0.6}}>
                                             <Icons.Edit />
                                         </button>
                                     </div>
@@ -645,7 +645,7 @@ export default function Atividades() {
                         );
                     })
                 ) : (
-                    <tr><td colSpan="6" style={{textAlign: 'center', padding: '60px', color: '#64748b'}}>
+                    <tr><td colSpan="6" style={{textAlign: 'center', padding: '60px', color: 'var(--n-500)'}}>
                         <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
                         <p style={{margin: 0, fontWeight: '500'}}>Nenhuma atividade encontrada com estes filtros.</p>    
                     </td></tr>
@@ -659,19 +659,19 @@ export default function Atividades() {
       {showModal && (
         <ModalPortal>
           <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 13)"}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'95%', maxWidth:'750px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(92 * var(--bz-vh, 1vh))', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+            <div style={{background:'var(--sup-1)', width:'95%', maxWidth:'750px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(92 * var(--bz-vh, 1vh))', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
               
-              <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
+              <div style={{padding:'20px 25px', borderBottom:'1px solid var(--n-200)', display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--n-50)'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
                     <span style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '8px', borderRadius: '8px', display: 'flex'}}><Icons.ClipboardList /></span>
-                    <h3 style={{margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800'}}>
+                    <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.25rem', fontWeight: '800'}}>
                         {isViewOnly ? "Ver Atividade" : (editId ? "Editar Atividade" : "Nova Atividade")}
                     </h3>
                 </div>
-                <button aria-label="Fechar" onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', color:'#64748b', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close /></button>
+                <button aria-label="Fechar" onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', color:'var(--n-500)', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close /></button>
               </div>
 
-              <div style={{padding: '25px', overflowY: 'auto', background: 'white'}}>
+              <div style={{padding: '25px', overflowY: 'auto', background: 'var(--sup-1)'}}>
                 <form onSubmit={handleSubmit}>
                   <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin:0}}>
                     
@@ -740,14 +740,14 @@ export default function Atividades() {
                         </div>
                         <div>
                             <label style={labelStyle}>Observações</label>
-                            <textarea aria-label="Observações" rows="4" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} placeholder="Notas adicionais…" style={{...inputStyle, resize: 'vertical', background: '#fffbeb', borderColor: '#fde68a'}} className="input-focus" />
+                            <textarea aria-label="Observações" rows="4" value={form.observacoes} onChange={e => setForm({...form, observacoes: e.target.value})} placeholder="Notas adicionais…" style={{...inputStyle, resize: 'vertical', background: 'var(--cx-fffbeb, #fffbeb)', borderColor: 'var(--cx-fde68a, #fde68a)'}} className="input-focus" />
                         </div>
                     </div>
                   </fieldset>
 
                   {!isViewOnly && (
-                      <div style={{display:'flex', gap:'10px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid #f1f5f9', justifyContent: 'flex-end'}}>
-                          <button type="button" onClick={() => setShowModal(false)} style={{padding:'12px 20px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white', color:'#64748b', fontWeight:'700', cursor:'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
+                      <div style={{display:'flex', gap:'10px', marginTop:'30px', paddingTop:'20px', borderTop:'1px solid var(--n-100)', justifyContent: 'flex-end'}}>
+                          <button type="button" onClick={() => setShowModal(false)} style={{padding:'12px 20px', borderRadius:'8px', border:'1px solid var(--n-300)', background:'var(--sup-1)', color:'var(--n-500)', fontWeight:'700', cursor:'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
                           <button type="submit" style={{padding:'12px 30px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}} className="hover-shadow">
                               {editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Plus /> Criar Atividade</>}
                           </button>
@@ -763,12 +763,12 @@ export default function Atividades() {
             {showTimeModal && (
                 <ModalPortal>
                     <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 13)"}} onClick={() => !timeLogSaving && setShowTimeModal(false)}>
-                        <div style={{background:'#fff', width:'92%', maxWidth:'760px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden'}} onClick={e => e.stopPropagation()}>
-                            <div style={{padding:'18px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                                <h3 style={{margin:0, color:'#1e293b', fontSize:'1.1rem'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
-                                <button aria-label="Fechar" onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background:'transparent', border:'none', color:'#64748b', cursor:'pointer'}}><Icons.Close /></button>
+                        <div style={{background:'var(--sup-1)', width:'92%', maxWidth:'760px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden'}} onClick={e => e.stopPropagation()}>
+                            <div style={{padding:'18px 22px', borderBottom:'1px solid var(--n-200)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                <h3 style={{margin:0, color:'var(--n-900)', fontSize:'1.1rem'}}>{editingTimeLogId ? 'Editar Registo de Tempo' : 'Novo Registo de Tempo'}</h3>
+                                <button aria-label="Fechar" onClick={() => !timeLogSaving && setShowTimeModal(false)} style={{background:'transparent', border:'none', color:'var(--n-500)', cursor:'pointer'}}><Icons.Close /></button>
                             </div>
-                            <div style={{padding:'18px 22px', background:'#f8fafc'}}>
+                            <div style={{padding:'18px 22px', background:'var(--n-50)'}}>
                                 <form onSubmit={handleSaveTimeLog} style={{display:'grid', gap:'12px', marginBottom:'14px'}}>
                                     <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
                                         <div>
@@ -792,17 +792,17 @@ export default function Atividades() {
                                             {atividadeOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
                                         </select>
                                     </div>
-                                    <div style={{fontSize:'0.78rem', color:'#64748b'}}>Pré-visualização: {formatDuration(timeLogForm.duration_minutes)}</div>
+                                    <div style={{fontSize:'0.78rem', color:'var(--n-500)'}}>Pré-visualização: {formatDuration(timeLogForm.duration_minutes)}</div>
                                     <div style={{display:'flex', justifyContent:'flex-end', gap:'10px'}}>
-                                        <button type="button" onClick={() => setShowTimeModal(false)} style={{padding:'10px 14px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'white'}}>Cancelar</button>
+                                        <button type="button" onClick={() => setShowTimeModal(false)} style={{padding:'10px 14px', borderRadius:'8px', border:'1px solid var(--n-300)', background:'var(--sup-1)'}}>Cancelar</button>
                                         <button type="submit" disabled={timeLogSaving} className="btn-primary hover-shadow" style={{padding:'10px 14px'}}>{timeLogSaving ? 'A guardar…' : 'Guardar'}</button>
                                     </div>
                                 </form>
 
-                                <div style={{borderTop:'1px solid #e2e8f0', paddingTop:'10px', maxHeight:'260px', overflowY:'auto'}} className="custom-scrollbar">
+                                <div style={{borderTop:'1px solid var(--n-200)', paddingTop:'10px', maxHeight:'260px', overflowY:'auto'}} className="custom-scrollbar">
                                     <table style={{width:'100%', borderCollapse:'collapse'}}>
                                         <thead>
-                                            <tr style={{fontSize:'0.72rem', color:'#64748b', textTransform:'uppercase', borderBottom:'1px solid #e2e8f0'}}>
+                                            <tr style={{fontSize:'0.72rem', color:'var(--n-500)', textTransform:'uppercase', borderBottom:'1px solid var(--n-200)'}}>
                                                 <th style={{padding:'8px', textAlign:'left'}}>Data</th>
                                                 <th style={{padding:'8px', textAlign:'left'}}>Atividade</th>
                                                 <th style={{padding:'8px', textAlign:'left'}}>Quem</th>
@@ -812,10 +812,10 @@ export default function Atividades() {
                                         </thead>
                                         <tbody>
                                             {timeLogs.filter(l => (l.duration_minutes || 0) > 0).map(log => (
-                                                <tr key={log.id} style={{borderBottom:'1px solid #f1f5f9'}}>
-                                                    <td style={{padding:'8px', fontSize:'0.78rem', color:'#64748b'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
-                                                    <td style={{padding:'8px', fontSize:'0.8rem', color:'#334155'}}>{atividadeOptions.find(a => String(a.id) === String(log.atividade_id))?.label || 'Atividade'}</td>
-                                                    <td style={{padding:'8px', fontSize:'0.8rem', color:'#334155'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
+                                                <tr key={log.id} style={{borderBottom:'1px solid var(--n-100)'}}>
+                                                    <td style={{padding:'8px', fontSize:'0.78rem', color:'var(--n-500)'}}>{log.start_time ? new Date(log.start_time).toLocaleString('pt-PT') : '-'}</td>
+                                                    <td style={{padding:'8px', fontSize:'0.8rem', color:'var(--n-700)'}}>{atividadeOptions.find(a => String(a.id) === String(log.atividade_id))?.label || 'Atividade'}</td>
+                                                    <td style={{padding:'8px', fontSize:'0.8rem', color:'var(--n-700)'}}>{staff.find((s) => String(s.id) === String(log.user_id))?.nome || staff.find((s) => String(s.id) === String(log.user_id))?.email || 'Utilizador'}</td>
                                                     <td style={{padding:'8px', textAlign:'right', fontWeight:'700'}}>{formatDuration(log.duration_minutes || 0)}</td>
                                                     <td style={{padding:'8px', textAlign:'right'}}>
                                                         <button aria-label="Editar registo de tempo" onClick={() => openTimeEditModal(log)} style={{border:'none', background:'transparent', color:'#f97316', cursor:'pointer', marginRight:'6px'}}><Pencil size={15} aria-hidden="true" /></button>
@@ -824,7 +824,7 @@ export default function Atividades() {
                                                 </tr>
                                             ))}
                                             {timeLogs.filter(l => (l.duration_minutes || 0) > 0).length === 0 && (
-                                                <tr><td colSpan={5} style={{padding:'12px', textAlign:'center', color:'#64748b'}}>Sem registos de tempo.</td></tr>
+                                                <tr><td colSpan={5} style={{padding:'12px', textAlign:'center', color:'var(--n-500)'}}>Sem registos de tempo.</td></tr>
                                             )}
                                         </tbody>
                                     </table>

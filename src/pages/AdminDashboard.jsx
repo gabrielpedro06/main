@@ -477,7 +477,7 @@ export default function AdminDashboard() {
   if (!isAdmin) {
     return (
       <div style={{ padding: "24px" }}>
-        <div style={{ background: "#fff", border: "1px solid #fecaca", color: "#b91c1c", borderRadius: "14px", padding: "20px" }}>
+        <div style={{ background: "var(--sup-1)", border: "1px solid #fecaca", color: "var(--cx-b91c1c, #b91c1c)", borderRadius: "14px", padding: "20px" }}>
           <h2 style={{ marginTop: 0 }}>Acesso restrito</h2>
           <p style={{ marginBottom: 0 }}>Esta área está disponível apenas para utilizadores com perfil de administrador.</p>
         </div>

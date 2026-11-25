@@ -2745,7 +2745,7 @@ export default function RecursosHumanos() {
                   <div style={{display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', marginTop:'5px'}}>
                       {feriado && (
                           <ModernTooltip content={feriado.nome}>
-                              <div style={{fontSize: '0.7rem', color: '#991b1b', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Flag size={10} color="#991b1b"/> {feriado.nome}</div>
+                              <div style={{fontSize: '0.7rem', color: 'var(--cx-991b1b, #991b1b)', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Flag size={10} color="#991b1b"/> {feriado.nome}</div>
                           </ModernTooltip>
                       )}
                       {toleranciaGlobalNoDia && (
@@ -3903,12 +3903,12 @@ export default function RecursosHumanos() {
                                 </button>
                             </div>
                             <div className="rh-cal-legend">
-                                <span><i style={{ background: '#fcd34d' }} /> Férias</span>
-                                <span><i style={{ background: '#fca5a5' }} /> Faltas</span>
+                                <span><i style={{ background: 'var(--cx-fcd34d, #fcd34d)' }} /> Férias</span>
+                                <span><i style={{ background: 'var(--cx-fca5a5, #fca5a5)' }} /> Faltas</span>
                                 <span><i style={{ background: '#d8b4fe' }} /> Baixas</span>
-                                <span><i style={{ background: '#94a3b8' }} /> Parcial (horas)</span>
+                                <span><i style={{ background: 'var(--n-400)' }} /> Parcial (horas)</span>
                                 <span><i style={{ background: 'var(--color-btnPrimary)' }} /> Tolerância</span>
-                                <span><i style={{ background: '#fee2e2', boxShadow: 'inset 0 0 0 1px #fca5a5' }} /> Feriado</span>
+                                <span><i style={{ background: 'var(--cx-fee2e2, #fee2e2)', boxShadow: 'inset 0 0 0 1px #fca5a5' }} /> Feriado</span>
                             </div>
                             <div className="rh-cal-grid">
                                 {['D','S','T','Q','Q','S','S'].map((d, i) => <div key={`wd-${i}`} className="rh-cal-wd">{d}</div>)}

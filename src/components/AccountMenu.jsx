@@ -18,6 +18,8 @@ const Icon = {
   Bell: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>,
   BellOff: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M18.63 13A17.89 17.89 0 0 1 18 8" /><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /><path d="M18 8a6 6 0 0 0-9.33-5" /><line x1="1" y1="1" x2="23" y2="23" /></svg>,
   Text: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h11v2" /><path d="M9.5 5v14" /><path d="M7 19h5" /><path d="M14 12v-1.5h7V12" /><path d="M17.5 10.5V19" /><path d="M16 19h3" /></svg>,
+  Moon: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>,
+  Auto: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>,
   Close: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
 };
 
@@ -42,7 +44,7 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user, userProfile, signOut } = useAuth();
-  const { currentTheme, availableThemes } = useTheme();
+  const { currentTheme, availableThemes, modo, setModo, escuro } = useTheme();
   const [position, setPosition] = useState(null);
   const [showThemes, setShowThemes] = useState(false);
   const [soundOn, setSoundOn] = useState(isNotifySoundEnabled);
@@ -150,6 +152,28 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
                 {soundOn ? <Icon.Bell /> : <Icon.BellOff />} Som das notificações
                 <span className={`bz-switch ${soundOn ? "is-on" : ""}`} aria-hidden="true"><span /></span>
               </button>
+              <div className="bz-account-item bz-account-tamanho" role="group" aria-label="Aparência">
+                {escuro ? <Icon.Moon /> : <Icon.Sun />} Aparência
+                <span className="bz-tamanho-seg">
+                  {[
+                    { valor: "claro", label: "Claro", ico: <Icon.Sun /> },
+                    { valor: "escuro", label: "Escuro", ico: <Icon.Moon /> },
+                    { valor: "auto", label: "Automático (segue o sistema)", ico: <Icon.Auto /> },
+                  ].map(({ valor, label, ico }) => (
+                    <button
+                      key={valor}
+                      type="button"
+                      className={modo === valor ? "is-on" : ""}
+                      aria-pressed={modo === valor}
+                      title={label}
+                      aria-label={label}
+                      onClick={() => setModo(valor)}
+                    >
+                      {ico}
+                    </button>
+                  ))}
+                </span>
+              </div>
               {ecraGrande && (
                 <div className="bz-account-item bz-account-tamanho" role="group" aria-label="Tamanho da interface">
                   <Icon.Text /> Tamanho

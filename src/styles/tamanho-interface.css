@@ -35,7 +35,7 @@
   gap: 2px;
   padding: 3px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--color-textPrimary, #0f172a) 7%, transparent);
+  background: color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 7%, transparent);
 }
 .bz-tamanho-seg button {
   width: 26px;
@@ -57,7 +57,8 @@
 .bz-tamanho-seg button:hover { opacity: 1; }
 .bz-tamanho-seg button.is-on {
   opacity: 1;
-  background: var(--color-bgSecondary, #fff);
+  background: var(--color-bgSecondary, var(--sup-1));
   color: var(--color-btnPrimary, #2563eb);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
 }
+.bz-tamanho-seg button svg { width: 14px; height: 14px; }

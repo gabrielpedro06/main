@@ -2136,8 +2136,8 @@ export default function ProjetoDetalhe() {
               {states.map(s => (
                   <div key={s.val} {...clicavel(() => onChange(s.val))} style={{
                       flex: '1 1 calc(33% - 8px)', minWidth: '95px', textAlign: 'center', padding: '10px 4px', borderRadius: '8px', cursor: 'pointer',
-                      fontSize: '0.70rem', fontWeight: 'bold', border: `1px solid ${currentState === s.val ? s.color : '#cbd5e1'}`,
-                      background: currentState === s.val ? s.color : '#f8fafc', color: currentState === s.val ? '#fff' : '#64748b', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'
+                      fontSize: '0.70rem', fontWeight: 'bold', border: `1px solid ${currentState === s.val ? s.color : 'var(--n-300)'}`,
+                      background: currentState === s.val ? s.color : 'var(--n-50)', color: currentState === s.val ? '#fff' : '#64748b', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'
                   }}>
                       {s.label}
                   </div>
@@ -4254,7 +4254,7 @@ export default function ProjetoDetalhe() {
                               <label className="bz-rotulo">Outros Colaboradores Envolvidos</label>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
+                                      <div style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {internalAssigneeOptions
                                               .filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || ''))
@@ -4276,7 +4276,7 @@ export default function ProjetoDetalhe() {
                                   </div>
 
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
+                                      <div style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {entityAssigneeOptions.filter(s => String(s.id) !== String(atividadeModal.data.responsavel_id || '')).map(s => {
                                               const isSelected = Array.isArray(atividadeModal.data.colaboradores_extra) && atividadeModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
@@ -4418,7 +4418,7 @@ export default function ProjetoDetalhe() {
                               <label className="bz-rotulo">Outros Colaboradores Envolvidos</label>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
+                                      <div style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {internalAssigneeOptions
                                               .filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || ''))
@@ -4440,7 +4440,7 @@ export default function ProjetoDetalhe() {
                                   </div>
 
                                   <div>
-                                      <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
+                                      <div style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Pessoas das Entidades</div>
                                       <div className="pill-container custom-scrollbar" style={{padding: '8px', maxHeight: '88px', overflowY: 'auto'}}>
                                           {entityAssigneeOptions.filter(s => String(s.id) !== String(tarefaModal.data.responsavel_id || '')).map(s => {
                                               const isSelected = Array.isArray(tarefaModal.data.colaboradores_extra) && tarefaModal.data.colaboradores_extra.map(id => String(id)).includes(String(s.id));
@@ -4538,8 +4538,8 @@ export default function ProjetoDetalhe() {
                           )}
 
                           <div className="bz-secao"><Icons.FileText /> Entregaveis</div>
-                          <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', marginBottom: '12px'}}>
-                              <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1e293b', cursor: 'pointer', fontSize: '0.82rem', marginBottom: '8px'}}>
+                          <div style={{background: 'var(--sup-1)', border: '1px solid var(--n-200)', borderRadius: '10px', padding: '12px', marginBottom: '12px'}}>
+                              <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: 'var(--n-900)', cursor: 'pointer', fontSize: '0.82rem', marginBottom: '8px'}}>
                                   <input
                                       type="checkbox"
                                       checked={Boolean(tarefaModal.data.tem_entregavel)}
@@ -4556,7 +4556,7 @@ export default function ProjetoDetalhe() {
                                   <>
                                       <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '10px'}}>
                                           <div>
-                                              <label style={{fontSize: '0.72rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Nome / Tipo de Documento</label>
+                                              <label style={{fontSize: '0.72rem', color: 'var(--n-500)', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Nome / Tipo de Documento</label>
                                               <input aria-label="Nome / Tipo de Documento"
                                                   type="text"
                                                   placeholder="Ex: Relatorio Final PDF"
@@ -4570,7 +4570,7 @@ export default function ProjetoDetalhe() {
                                               />
                                           </div>
                                           <div>
-                                              <label style={{fontSize: '0.72rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data p/ Entrega</label>
+                                              <label style={{fontSize: '0.72rem', color: 'var(--n-500)', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data p/ Entrega</label>
                                               <input
                                                   type="date"
                                                   value={tarefaModal.data.data_entregavel || ''}
@@ -4700,7 +4700,7 @@ export default function ProjetoDetalhe() {
             left: clamp(infoTooltip.x, 120, larguraEcra() - 120),
             transform: 'translateX(-50%)',
             width: '210px',
-            background: '#1e293b',
+            background: 'var(--n-900)',
             color: '#fff',
             borderRadius: '8px',
             padding: '10px 12px',

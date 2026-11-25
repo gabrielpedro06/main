@@ -1,0 +1,115 @@
+/* =====================================================================
+   TABELAS e ESTADOS VAZIOS — o mesmo aspeto em toda a app (usa tokens.css).
+   ---------------------------------------------------------------------
+   Tabelas: cada página tinha a sua (rh-table, po-table, en-table…). Ficam
+   todas com o mesmo cabeçalho (maiúsculas pequenas, fundo suave, fixo ao
+   fazer scroll), o mesmo espaçamento, linhas finas, realce ao passar o rato
+   e números alinhados. Não se mexe em larguras, alinhamentos nem no conteúdo
+   das células (etiquetas, botões).
+   Ficam de fora, de propósito: comparação de versões dos Registos (rg-diff)
+   e as tabelas de conteúdo do Marketing (mk-matrix, mk-g-table, mk-e-table).
+   Tabela nova: <div class="bz-tabela-wrap"><table class="bz-tabela">…</table></div>
+
+   Estados vazios ("ainda não há nada"): ícone num círculo na cor do tema,
+   título, texto e ação — iguais em todas as páginas.
+   Vazio novo: <div class="bz-vazio-grande"><span class="bz-vazio-ico"><Ico/></span><h3>…</h3><p>…</p></div>
+   Seletores com :not(#tb) para ganharem aos estilos antigos sem !important.
+   ===================================================================== */
+
+/* ---------- tabelas ---------- */
+.bz-tabela-wrap {
+  overflow: auto;
+  border-radius: var(--raio-md);
+  border: 1px solid var(--cor-linha);
+  background: var(--cor-superficie);
+}
+.bz-tabela { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+
+:is(.bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela):not(#tb) {
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+:is(.bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela):not(#tb) thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--cor-linha);
+  background: color-mix(in srgb, var(--cor-tinta) 3%, var(--cor-superficie));
+  font-size: var(--texto-2xs);
+  font-weight: var(--peso-forte);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--cor-suave);
+  white-space: nowrap;
+}
+:is(.bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela):not(#tb) tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--cor-linha);
+  vertical-align: middle;
+}
+:is(.bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela):not(#tb) tbody tr:last-child td {
+  border-bottom: 0;
+}
+:is(.bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela):not(#tb) tbody tr {
+  transition: background-color var(--rapido) ease;
+}
+:is(.bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela):not(#tb) tbody tr:hover {
+  background-color: color-mix(in srgb, var(--cor-acento) 4%, transparent);
+}
+/* colunas de números (as páginas já marcam com is-num / is-right / num) */
+:is(.bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela):not(#tb) :is(.is-num, .num, .is-right) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------- estados vazios ---------- */
+:is(.bz-vazio-grande, .rh-empty, .po-empty, .ti-empty, .mk-empty, .en-empty, .tk-empty, .pd-empty, .gm-empty, .fx-empty):not(#tb) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 44px 24px;
+  border-radius: var(--raio-lg);
+  border: 1.5px dashed var(--cor-linha-forte);
+  background: color-mix(in srgb, var(--cor-superficie) 70%, var(--sup-1));
+  text-align: center;
+  color: var(--cor-suave);
+}
+:is(.bz-vazio-ico, .rh-empty-ico, .po-empty-icon, .ti-empty-ico, .en-empty-ico, .tk-empty-icon, .pd-empty-icon, .fx-empty-icon):not(#tb) {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--cor-acento);
+  background:
+    linear-gradient(160deg, rgb(255 255 255 / calc(0.7 * var(--brilho, 1))), rgb(255 255 255 / calc(0 * var(--brilho, 1))) 70%),
+    color-mix(in srgb, var(--cor-acento) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cor-acento) 16%, transparent);
+}
+:is(.bz-vazio-ico, .rh-empty-ico, .po-empty-icon, .ti-empty-ico, .en-empty-ico, .tk-empty-icon, .pd-empty-icon, .fx-empty-icon):not(#tb) svg {
+  width: 28px;
+  height: 28px;
+}
+:is(.bz-vazio-grande, .rh-empty, .po-empty, .ti-empty, .mk-empty, .en-empty, .tk-empty, .pd-empty, .gm-empty, .fx-empty):not(#tb) :is(h3, h4) {
+  margin: 2px 0 0;
+  font-size: 1.02rem;
+  font-weight: var(--peso-forte);
+  letter-spacing: -0.01em;
+  color: var(--cor-tinta);
+  text-wrap: balance;
+}
+:is(.bz-vazio-grande, .rh-empty, .po-empty, .ti-empty, .mk-empty, .en-empty, .tk-empty, .pd-empty, .gm-empty, .fx-empty):not(#tb) p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--cor-suave);
+  text-wrap: pretty;
+}
+:is(.bz-vazio-grande, .rh-empty, .po-empty, .ti-empty, .mk-empty, .en-empty, .tk-empty, .pd-empty, .gm-empty, .fx-empty):not(#tb) > :is(button, a):last-child {
+  margin-top: 8px;
+}

@@ -196,24 +196,24 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
   const active = isCourseActive(curso);
 
   return (
-    <div style={{ background: '#fff', borderRadius: '22px', border: '1px solid #dbe3ef', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 240 }}>
+    <div style={{ background: 'var(--sup-1)', borderRadius: '22px', border: '1px solid #dbe3ef', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 240 }}>
       <div style={{ height: 5, background: accent }} />
       <div style={{ padding: '18px 18px 14px 18px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
-            <div style={{ alignSelf: 'flex-start', padding: '4px 10px', borderRadius: '999px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.72rem', fontWeight: 800 }}>
+            <div style={{ alignSelf: 'flex-start', padding: '4px 10px', borderRadius: '999px', background: 'var(--n-50)', border: '1px solid var(--n-200)', color: 'var(--n-500)', fontSize: '0.72rem', fontWeight: 800 }}>
               {formatDuration(curso.duracao_horas)}
             </div>
-            <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem', lineHeight: 1.08, fontWeight: 900, letterSpacing: '-0.02em' }}>
+            <h3 style={{ margin: 0, color: 'var(--n-900)', fontSize: '1.25rem', lineHeight: 1.08, fontWeight: 900, letterSpacing: '-0.02em' }}>
               {curso.nome}
             </h3>
           </div>
-          <div style={{ minWidth: 42, height: 32, padding: '0 10px', borderRadius: '999px', border: '1px solid #eadfd4', background: 'linear-gradient(180deg, #fffaf3, #fff)', color: '#7c2d12', fontSize: '0.78rem', fontWeight: 900, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <div style={{ minWidth: 42, height: 32, padding: '0 10px', borderRadius: '999px', border: '1px solid #eadfd4', background: 'linear-gradient(180deg, #fffaf3, var(--sup-1))', color: 'var(--cx-7c2d12, #7c2d12)', fontSize: '0.78rem', fontWeight: 900, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
             {getInitials(curso.nome)}
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, color: '#475569', fontSize: '0.92rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, color: 'var(--n-700)', fontSize: '0.92rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icons.Layers size={15} color="#94a3b8" />
             <span>{modulesCount} módulo{modulesCount === 1 ? '' : 's'}</span>
@@ -228,11 +228,11 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
       </div>
 
       <div style={{ borderTop: '1px solid #eef2f7', display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: '8px', padding: '12px 14px' }}>
-        <button type="button" onClick={onView} style={{ border: 'none', background: 'transparent', color: '#92400e', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 8px', borderRadius: '12px' }}>
+        <button type="button" onClick={onView} style={{ border: 'none', background: 'transparent', color: 'var(--cx-92400e, #92400e)', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 8px', borderRadius: '12px' }}>
           <Icons.Eye size={16} />
           Ver Curso
         </button>
-        <button aria-label="Editar" type="button" onClick={onEdit} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fed7aa', background: '#fff7ed', color: '#f59e0b', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Editar">
+        <button aria-label="Editar" type="button" onClick={onEdit} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fed7aa', background: 'var(--cx-fff7ed, #fff7ed)', color: '#f59e0b', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Editar">
           <Icons.Edit size={16} />
         </button>
         <button aria-label="Eliminar" type="button" onClick={onDelete} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fecaca', background: '#fff1f2', color: '#ef4444', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Eliminar">
@@ -246,12 +246,12 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
 function EmptyState({ onNew }) {
   return (
     <div style={{ minHeight: 320, display: 'grid', placeItems: 'center', padding: '28px 16px' }}>
-      <div style={{ maxWidth: 520, width: '100%', textAlign: 'center', border: '1px solid #e2e8f0', background: 'linear-gradient(180deg, #fff, #f8fafc)', borderRadius: 24, padding: '34px 28px', boxShadow: '0 14px 36px rgba(15, 23, 42, 0.06)' }}>
-        <div style={{ width: 72, height: 72, borderRadius: 24, margin: '0 auto 18px', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', color: 'var(--color-btnPrimary)', boxShadow: '0 14px 30px rgba(37, 99, 235, 0.12)' }}>
+      <div style={{ maxWidth: 520, width: '100%', textAlign: 'center', border: '1px solid var(--n-200)', background: 'linear-gradient(180deg, var(--sup-1), var(--n-50))', borderRadius: 24, padding: '34px 28px', boxShadow: '0 14px 36px rgba(15, 23, 42, 0.06)' }}>
+        <div style={{ width: 72, height: 72, borderRadius: 24, margin: '0 auto 18px', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, var(--color-bgSecondary), var(--sup-1))', color: 'var(--color-btnPrimary)', boxShadow: '0 14px 30px rgba(37, 99, 235, 0.12)' }}>
           <Icons.BookOpen size={32} />
         </div>
-        <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>Ainda não existem cursos neste filtro</h3>
-        <p style={{ margin: '0 auto 22px', color: '#64748b', lineHeight: 1.55, maxWidth: 420 }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 900, color: 'var(--n-900)' }}>Ainda não existem cursos neste filtro</h3>
+        <p style={{ margin: '0 auto 22px', color: 'var(--n-500)', lineHeight: 1.55, maxWidth: 420 }}>
           Cria um curso novo para começares a organizar os conteúdos, módulos e textos comerciais.
         </p>
         <button type="button" onClick={onNew} style={{ border: 'none', borderRadius: 14, padding: '12px 18px', background: 'linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))', color: '#fff', fontWeight: 900, cursor: 'pointer', boxShadow: '0 12px 24px var(--color-btnPrimaryShadow)' }}>
@@ -290,7 +290,7 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
             type="text"
             value={`${totalHours} horas`}
             readOnly
-            style={{ ...fieldStyle, ...readOnlyStyle, background: '#f8fafc', color: '#0f172a', fontWeight: 700 }}
+            style={{ ...fieldStyle, ...readOnlyStyle, background: 'var(--n-50)', color: 'var(--n-900)', fontWeight: 700 }}
           />
         </div>
       </div>
@@ -353,15 +353,15 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
       {modules.length > 0 && (
         <div style={{ display: 'grid', gap: '10px', maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
           {modules.map((mod, idx) => (
-            <div key={`${mod.nome || 'mod'}-${idx}`} style={{ border: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '16px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+            <div key={`${mod.nome || 'mod'}-${idx}`} style={{ border: '1px solid var(--n-200)', background: 'var(--n-50)', borderRadius: '16px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.92rem' }}>{mod.nome || 'Sem nome'}</div>
-                <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 4, fontWeight: 700 }}>{Number(mod.duracao_horas || 0)}h</div>
-                {mod.conteudo && <div style={{ color: '#64748b', fontSize: '0.84rem', marginTop: 4, lineHeight: 1.4 }}>{mod.conteudo}</div>}
+                <div style={{ fontWeight: 800, color: 'var(--n-900)', fontSize: '0.92rem' }}>{mod.nome || 'Sem nome'}</div>
+                <div style={{ color: 'var(--n-500)', fontSize: '0.78rem', marginTop: 4, fontWeight: 700 }}>{Number(mod.duracao_horas || 0)}h</div>
+                {mod.conteudo && <div style={{ color: 'var(--n-500)', fontSize: '0.84rem', marginTop: 4, lineHeight: 1.4 }}>{mod.conteudo}</div>}
               </div>
               {editable && (
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  <button aria-label="Editar módulo" type="button" onClick={() => onEditModule(idx)} style={{ border: '1px solid #dbeafe', background: '#eff6ff', color: '#0284c7', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Editar módulo">
+                  <button aria-label="Editar módulo" type="button" onClick={() => onEditModule(idx)} style={{ border: '1px solid #dbeafe', background: 'var(--cx-eff6ff, #eff6ff)', color: '#0284c7', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Editar módulo">
                     <Icons.Edit size={15} />
                   </button>
                   <button aria-label="Remover módulo" type="button" onClick={() => onRemoveModulo(idx)} style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Remover módulo">
@@ -375,13 +375,13 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
       )}
 
       {editable && editingModuleIdx === null && (
-        <button type="button" onClick={() => onEditModule(null)} style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', borderRadius: '12px', padding: '11px 14px', fontWeight: 800, cursor: 'pointer', width: '100%' }}>
+        <button type="button" onClick={() => onEditModule(null)} style={{ border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-900)', borderRadius: '12px', padding: '11px 14px', fontWeight: 800, cursor: 'pointer', width: '100%' }}>
           + Criar novo módulo
         </button>
       )}
 
       {editable && editingModuleIdx !== null && editingModuleIdx !== undefined && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '18px', padding: '14px' }}>
+        <div style={{ background: 'var(--n-50)', border: '1px solid var(--n-200)', borderRadius: '18px', padding: '14px' }}>
           <div style={{ display: 'grid', gap: '10px' }}>
             <input aria-label="Nome do módulo"
               type="text"
@@ -413,7 +413,7 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
               <button type="button" onClick={onAddModulo} style={{ flex: 1, border: 'none', borderRadius: '12px', padding: '11px 14px', background: 'var(--color-btnPrimary)', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
                 {editingModuleIdx >= 0 ? 'Atualizar Módulo' : 'Adicionar Módulo'}
               </button>
-              <button type="button" onClick={onCancelModuleForm} style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: '12px', padding: '11px 14px', background: '#fff', color: '#0f172a', fontWeight: 800, cursor: 'pointer' }}>
+              <button type="button" onClick={onCancelModuleForm} style={{ flex: 1, border: '1px solid var(--n-300)', borderRadius: '12px', padding: '11px 14px', background: 'var(--sup-1)', color: 'var(--n-900)', fontWeight: 800, cursor: 'pointer' }}>
                 Cancelar
               </button>
             </div>
@@ -448,8 +448,8 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
       </div>
 
       {editable && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#0f172a', fontWeight: 700 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid var(--n-200)', paddingTop: '16px' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: 'var(--n-900)', fontWeight: 700 }}>
             <input
               type="checkbox"
               checked={formData.ativo}
@@ -822,7 +822,7 @@ export default function Cursos() {
         <Toast notification={notification} onClose={() => setNotification(null)} />
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748b', fontWeight: 700 }}>A carregar cursos…</div>
+          <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--n-500)', fontWeight: 700 }}>A carregar cursos…</div>
         ) : (
           <>
             <div style={{ display: 'flex', gap: '4px', paddingLeft: '10px', marginBottom: '-1px', position: 'relative', zIndex: 2 }}>
@@ -832,7 +832,7 @@ export default function Cursos() {
                   padding: '12px 25px',
                   background: statusTab === 'ativos' ? '#fff' : '#f1f5f9',
                   color: statusTab === 'ativos' ? 'var(--color-btnPrimary)' : '#64748b',
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid var(--n-200)',
                   borderBottom: statusTab === 'ativos' ? '1px solid #fff' : '1px solid #e2e8f0',
                   borderRadius: '12px 12px 0 0',
                   fontWeight: '800',
@@ -857,7 +857,7 @@ export default function Cursos() {
                   padding: '12px 25px',
                   background: statusTab === 'inativos' ? '#fff' : '#f1f5f9',
                   color: statusTab === 'inativos' ? 'var(--color-btnPrimary)' : '#64748b',
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid var(--n-200)',
                   borderBottom: statusTab === 'inativos' ? '1px solid #fff' : '1px solid #e2e8f0',
                   borderRadius: '12px 12px 0 0',
                   fontWeight: '800',
@@ -878,10 +878,10 @@ export default function Cursos() {
             </div>
 
             <div style={{
-              background: '#fff', 
+              background: 'var(--sup-1)', 
               padding: '25px', 
               borderRadius: '0 18px 18px 18px',
-              border: '1px solid #e2e8f0', 
+              border: '1px solid var(--n-200)', 
               boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
               position: 'relative',
               zIndex: 1,
@@ -936,17 +936,17 @@ export default function Cursos() {
         <div style={{ maxWidth: 980, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', color: '#c2410c', display: 'grid', placeItems: 'center', fontWeight: 950, boxShadow: '0 8px 18px rgba(249, 115, 22, 0.12)' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', color: 'var(--cx-c2410c, #c2410c)', display: 'grid', placeItems: 'center', fontWeight: 950, boxShadow: '0 8px 18px rgba(249, 115, 22, 0.12)' }}>
                 {getInitials(formData.nome)}
               </div>
               <div>
                 <div style={{ fontSize: '0.76rem', fontWeight: 900, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{formatDuration(formData.duracao_horas)} • {Array.isArray(formData.modulos) ? formData.modulos.length : 0} módulos</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>{formData.nome || 'Curso sem nome'}</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--n-900)' }}>{formData.nome || 'Curso sem nome'}</div>
               </div>
             </div>
 
             {drawerMode === 'view' ? (
-              <button type="button" onClick={() => setDrawerMode('edit')} style={{ border: '1px solid #fed7aa', background: '#fff7ed', color: '#c2410c', borderRadius: 14, padding: '11px 14px', fontWeight: 900, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <button type="button" onClick={() => setDrawerMode('edit')} style={{ border: '1px solid #fed7aa', background: 'var(--cx-fff7ed, #fff7ed)', color: 'var(--cx-c2410c, #c2410c)', borderRadius: 14, padding: '11px 14px', fontWeight: 900, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <Icons.Edit size={16} />
                 Editar
               </button>
@@ -956,38 +956,38 @@ export default function Cursos() {
           {drawerMode === 'view' ? (
             <div style={{ display: 'grid', gap: 14 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 18, padding: '18px' }}>
+                <div style={{ background: 'var(--sup-1)', border: '1px solid var(--n-200)', borderRadius: 18, padding: '18px' }}>
                   <div style={sectionTitleStyle}>Textos</div>
-                  <div style={{ display: 'grid', gap: 10, color: '#475569', lineHeight: 1.55, fontSize: '0.94rem' }}>
-                      <div><strong style={{ color: '#0f172a' }}>Enquadramento:</strong> {formData.texto_enquadramento || 'Sem conteúdo.'}</div>
-                      <div><strong style={{ color: '#0f172a' }}>Objetivos:</strong> {formData.objetivos_pedagogicos || 'Sem conteúdo.'}</div>
-                      <div><strong style={{ color: '#0f172a' }}>Metodologia:</strong> {formData.metodologia || 'Sem conteúdo.'}</div>
-                      <div><strong style={{ color: '#0f172a' }}>Honorários:</strong> {formData.honorarios_texto || 'Sem conteúdo.'}</div>
-                      <div><strong style={{ color: '#0f172a' }}>Pagamento:</strong> {formData.plano_pagamento || 'Sem conteúdo.'}</div>
-                      <div><strong style={{ color: '#0f172a' }}>Valor:</strong> {formatCurrency(formData.valor)}</div>
-                      <div><strong style={{ color: '#0f172a' }}>Considerações:</strong> {formData.consideracoes || 'Sem conteúdo.'}</div>
+                  <div style={{ display: 'grid', gap: 10, color: 'var(--n-700)', lineHeight: 1.55, fontSize: '0.94rem' }}>
+                      <div><strong style={{ color: 'var(--n-900)' }}>Enquadramento:</strong> {formData.texto_enquadramento || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: 'var(--n-900)' }}>Objetivos:</strong> {formData.objetivos_pedagogicos || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: 'var(--n-900)' }}>Metodologia:</strong> {formData.metodologia || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: 'var(--n-900)' }}>Honorários:</strong> {formData.honorarios_texto || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: 'var(--n-900)' }}>Pagamento:</strong> {formData.plano_pagamento || 'Sem conteúdo.'}</div>
+                      <div><strong style={{ color: 'var(--n-900)' }}>Valor:</strong> {formatCurrency(formData.valor)}</div>
+                      <div><strong style={{ color: 'var(--n-900)' }}>Considerações:</strong> {formData.consideracoes || 'Sem conteúdo.'}</div>
                   </div>
                 </div>
 
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 18, padding: '18px' }}>
+                <div style={{ background: 'var(--sup-1)', border: '1px solid var(--n-200)', borderRadius: 18, padding: '18px' }}>
                   <div style={sectionTitleStyle}>Módulos</div>
                   {Array.isArray(formData.modulos) && formData.modulos.length > 0 ? (
                     <div style={{ display: 'grid', gap: 10 }}>
                       {formData.modulos.map((mod, idx) => (
-                        <div key={`${mod.nome || 'mod'}-${idx}`} style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: '12px 14px', background: '#f8fafc' }}>
-                          <div style={{ fontWeight: 800, color: '#0f172a' }}>{mod.nome || `Módulo ${idx + 1}`}</div>
-                          {mod.conteudo && <div style={{ color: '#64748b', fontSize: '0.88rem', marginTop: 4, lineHeight: 1.45 }}>{mod.conteudo}</div>}
+                        <div key={`${mod.nome || 'mod'}-${idx}`} style={{ border: '1px solid var(--n-200)', borderRadius: 14, padding: '12px 14px', background: 'var(--n-50)' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--n-900)' }}>{mod.nome || `Módulo ${idx + 1}`}</div>
+                          {mod.conteudo && <div style={{ color: 'var(--n-500)', fontSize: '0.88rem', marginTop: 4, lineHeight: 1.45 }}>{mod.conteudo}</div>}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div style={{ color: '#64748b', fontStyle: 'italic' }}>Sem módulos registados.</div>
+                    <div style={{ color: 'var(--n-500)', fontStyle: 'italic' }}>Sem módulos registados.</div>
                   )}
                 </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={closeDrawer} style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#334155', borderRadius: 14, padding: '12px 16px', fontWeight: 900, cursor: 'pointer' }}>
+                <button type="button" onClick={closeDrawer} style={{ border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-700)', borderRadius: 14, padding: '12px 16px', fontWeight: 900, cursor: 'pointer' }}>
                   Fechar
                 </button>
               </div>

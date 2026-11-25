@@ -5,6 +5,8 @@
 import './utils/recuperacao'
 // Tamanho da interface (80/90/100%) aplicado antes de desenhar a app
 import './utils/tamanhoInterface'
+// Modo claro/escuro aplicado antes de desenhar (sem "flash" branco)
+import './utils/modoInicial'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
@@ -19,6 +21,7 @@ import './styles/refinamentos.css'
 import './styles/tamanho-interface.css'
 import './styles/componentes-base.css' // botões e campos iguais em toda a app
 import './styles/cabecalhos.css' // cabeçalho de página igual em todas as páginas
+import './styles/tabelas.css' // tabelas e estados vazios iguais em toda a app
 import './styles/janelas.css' // design único das janelas (por último: ganha aos estilos antigos)
 import { instalarAberturaSegura } from './utils/ficheirosPrivados'
 import { instalarPlaceholders } from './utils/placeholderImagem'

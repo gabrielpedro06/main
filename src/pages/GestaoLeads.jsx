@@ -530,10 +530,10 @@ export default function GestaoLeads() {
   const labelStyle = { display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' };
 
   const CardActions = ({ item, isInactive, isMissingData }) => (
-    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-        <button aria-label="Ver Dados Completos" onClick={() => openForm(true, item)} title="Ver Dados Completos" style={{background: '#f8fafc', border: '1px solid #cbd5e1', color: '#475569', width: '30px', height: '30px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
+    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '15px', borderTop: '1px solid var(--n-100)'}}>
+        <button aria-label="Ver Dados Completos" onClick={() => openForm(true, item)} title="Ver Dados Completos" style={{background: 'var(--n-50)', border: '1px solid var(--n-300)', color: 'var(--n-700)', width: '30px', height: '30px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
             <Icons.Eye />
-            {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', border: '2px solid white'}}></span>}
+            {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', border: '2px solid var(--sup-1)'}}></span>}
         </button>
 
         <div style={{display: 'flex', gap: '6px'}}>
@@ -557,10 +557,10 @@ export default function GestaoLeads() {
     <div className="page-container" style={{maxWidth: '100%', margin: '0 auto', paddingBottom: '50px'}}>
       
       {/* HEADER */}
-      <div className="card" style={{ marginBottom: 20, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'white', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="card" style={{ marginBottom: 20, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'var(--sup-1)', border: '1px solid var(--n-200)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
         <div>
-          <h1 style={{fontSize: '1.8rem', color: '#0f172a', margin: '0 0 5px 0', fontWeight: '900', letterSpacing: '-0.02em'}}>Marketing Hub</h1>
-          <p style={{color: '#64748b', margin: 0, fontWeight: '500'}}>Gestão de {activeTab === 'leads' ? 'Leads Comerciais' : 'Prospects'}</p>
+          <h1 style={{fontSize: '1.8rem', color: 'var(--n-900)', margin: '0 0 5px 0', fontWeight: '900', letterSpacing: '-0.02em'}}>Marketing Hub</h1>
+          <p style={{color: 'var(--n-500)', margin: 0, fontWeight: '500'}}>Gestão de {activeTab === 'leads' ? 'Leads Comerciais' : 'Prospects'}</p>
         </div>
         <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
             <button className="btn-outline hover-shadow" onClick={() => setShowSendModal(true)}><Icons.Mail /> Campanha</button>
@@ -582,18 +582,18 @@ export default function GestaoLeads() {
         {/* FILTROS */}
         <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: (!selectedSetor && viewMode === 'kanban') ? 'none' : '1px solid #f1f5f9', alignItems: 'center', background: (!selectedSetor && viewMode==='kanban') ? 'white' : 'transparent', padding: (!selectedSetor && viewMode==='kanban') ? '20px' : '0', borderRadius: (!selectedSetor && viewMode==='kanban') ? '12px' : '0', border: (!selectedSetor && viewMode==='kanban') ? '1px solid #e2e8f0' : 'none' }}>
           <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '12px', color: '#64748b'}}><Icons.Search /></span>
+            <span style={{position: 'absolute', left: '12px', top: '12px', color: 'var(--n-500)'}}><Icons.Search /></span>
             <input aria-label="Pesquisar empresa ou NIF" placeholder="Pesquisar empresa ou NIF…" value={searchTerm} onChange={e => {setSearchTerm(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
           </div>
           <input aria-label="Localidade" placeholder="Localidade…" value={filterLocalidade} onChange={(e) => {setFilterLocalidade(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '150px'}} />
           <input aria-label="CAE" placeholder="CAE…" value={filterCae} onChange={(e) => {setFilterCae(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100px'}} />
           
-          <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', background: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+          <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--n-700)', background: 'var(--n-50)', padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--n-200)'}}>
               <input type="checkbox" checked={mostrarInativos} onChange={e => {setMostrarInativos(e.target.checked); setCurrentPage(1);}} style={{accentColor:'#1e293b', width:'14px', height:'14px'}} /> Arquivo
           </label>
           
           {selectedSetor && (
-              <div style={{display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '4px', border: '1px solid #e2e8f0', marginLeft: 'auto'}}>
+              <div style={{display: 'flex', background: 'var(--n-100)', borderRadius: '8px', padding: '4px', border: '1px solid var(--n-200)', marginLeft: 'auto'}}>
                   <button onClick={() => setViewMode("table")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "table" ? 'white' : 'transparent', color: viewMode === "table" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: viewMode === "table" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
                       Lista
                   </button>
@@ -613,7 +613,7 @@ export default function GestaoLeads() {
         {/* 💡 VISTA DE CATEGORIAS (SETORES) - Inicial */}
         {!selectedSetor ? (
             <div className="fade-in">
-                <h2 style={{fontSize: '1.2rem', color: '#475569', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.FolderOpen /> Áreas de Negócio (Setores)</h2>
+                <h2 style={{fontSize: '1.2rem', color: 'var(--n-700)', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.FolderOpen /> Áreas de Negócio (Setores)</h2>
                 
                 <div className="category-grid">
                     {dynamicSetores.map(setor => {
@@ -629,10 +629,10 @@ export default function GestaoLeads() {
                                 style={{ borderTop: `5px solid ${color}` }}
                             >
                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                    <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>{setor}</h3>
+                                    <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.2rem'}}>{setor}</h3>
                                     <span style={{background: `${color}20`, color: color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{count}</span>
                                 </div>
-                                <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver Mais <Icons.ArrowRight /></p>
+                                <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: 'var(--n-500)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver Mais <Icons.ArrowRight /></p>
                             </div>
                         );
                     })}
@@ -644,33 +644,33 @@ export default function GestaoLeads() {
                             style={{ borderTop: `5px solid #94a3b8` }}
                         >
                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Sem Setor Definido</h3>
-                                <span style={{background: `#f1f5f9`, color: '#64748b', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{countsPerSetor['sem-setor']}</span>
+                                <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.2rem'}}>Sem Setor Definido</h3>
+                                <span style={{background: `#f1f5f9`, color: 'var(--n-500)', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{countsPerSetor['sem-setor']}</span>
                             </div>
-                            <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: '#64748b', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver não categorizados <Icons.ArrowRight /></p>
+                            <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: 'var(--n-500)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver não categorizados <Icons.ArrowRight /></p>
                         </div>
                     )}
                 </div>
                 
                 {Object.keys(countsPerSetor).length === 0 && (
-                    <div style={{textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1'}}>
-                        <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#cbd5e1'}}><Icons.Inbox size={48} /></div>
-                        <h3 style={{color: '#1e293b', margin: '0 0 5px 0'}}>Nenhuma empresa encontrada.</h3>
-                        <p style={{color: '#64748b', margin: 0}}>Verifica os teus filtros ou importa novos contactos.</p>
+                    <div style={{textAlign: 'center', padding: '60px', background: 'var(--sup-1)', borderRadius: '16px', border: '1px dashed var(--n-300)'}}>
+                        <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: 'var(--n-300)'}}><Icons.Inbox size={48} /></div>
+                        <h3 style={{color: 'var(--n-900)', margin: '0 0 5px 0'}}>Nenhuma empresa encontrada.</h3>
+                        <p style={{color: 'var(--n-500)', margin: 0}}>Verifica os teus filtros ou importa novos contactos.</p>
                     </div>
                 )}
             </div>
         ) : (
             <div className="fade-in">
-                <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: '1px solid #cbd5e1', paddingBottom: '15px'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: '1px solid var(--n-300)', paddingBottom: '15px'}}>
                     <button 
                         onClick={() => setSelectedSetor(null)}
-                        style={{background: 'white', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
+                        style={{background: 'var(--sup-1)', border: '1px solid var(--n-300)', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: 'var(--n-700)', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
                         className="hover-shadow"
                     >
                         <Icons.ArrowLeft /> Voltar aos Setores
                     </button>
-                    <h2 style={{margin: 0, fontSize: '1.4rem', color: '#1e293b', fontWeight: '800'}}>
+                    <h2 style={{margin: 0, fontSize: '1.4rem', color: 'var(--n-900)', fontWeight: '800'}}>
                         {selectedSetor === 'sem-setor' ? 'Sem Setor Definido' : selectedSetor}
                     </h2>
                 </div>
@@ -694,9 +694,9 @@ export default function GestaoLeads() {
                                             setDraggedItemId(null);
                                         }
                                     }}
-                                    style={{ flex: 1, minWidth: '220px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transition: 'background 0.2s', overflow: 'hidden' }}
+                                    style={{ flex: 1, minWidth: '220px', background: 'var(--n-50)', borderRadius: '12px', border: '1px solid var(--n-200)', display: 'flex', flexDirection: 'column', transition: 'background 0.2s', overflow: 'hidden' }}
                                 >
-                                    <div style={{ padding: '12px 15px', borderBottom: `2px solid ${col.color}`, background: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ padding: '12px 15px', borderBottom: `2px solid ${col.color}`, background: 'var(--sup-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <h4 style={{ margin: 0, color: col.color, fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase' }}>
                                             {col.label}
                                         </h4>
@@ -716,34 +716,34 @@ export default function GestaoLeads() {
                                                 onDragEnd={() => setDraggedItemId(null)}
                                                 style={{ 
                                                     background: isInactive ? '#f1f5f9' : 'white', padding: '12px', borderRadius: '8px', 
-                                                    border: '1px solid #cbd5e1', cursor: isInactive ? 'default' : 'grab', opacity: draggedItemId === item.id ? 0.4 : (isInactive ? 0.6 : 1), 
+                                                    border: '1px solid var(--n-300)', cursor: isInactive ? 'default' : 'grab', opacity: draggedItemId === item.id ? 0.4 : (isInactive ? 0.6 : 1), 
                                                     boxShadow: draggedItemId === item.id ? 'none' : '0 2px 4px rgba(0,0,0,0.04)',
                                                     transition: 'transform 0.1s', position: 'relative'
                                                 }}
                                                 className={isInactive ? "" : "hover-shadow-kanban drag-item"}
                                             >
                                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
-                                                    <strong style={{color: '#1e293b', fontSize: '0.9rem', lineHeight: '1.2'}}>{item.nome}</strong>
-                                                    <button aria-label="Editar lead" onClick={() => openForm(true, item)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0 0 0 5px'}} className="hover-blue-text"><Icons.Edit/></button>
+                                                    <strong style={{color: 'var(--n-900)', fontSize: '0.9rem', lineHeight: '1.2'}}>{item.nome}</strong>
+                                                    <button aria-label="Editar lead" onClick={() => openForm(true, item)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--n-500)', padding: '0 0 0 5px'}} className="hover-blue-text"><Icons.Edit/></button>
                                                 </div>
                                                 
-                                                <div style={{fontSize: '0.7rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                                                <div style={{fontSize: '0.7rem', color: 'var(--n-500)', display: 'flex', flexDirection: 'column', gap: '4px'}}>
                                                     {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
                                                     {item.setor && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Building/> {item.setor}</span>}
                                                     {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
-                                                    {isMissingData && <span style={{color: '#b45309', background: '#fef3c7', padding: '2px 4px', borderRadius: '4px', width: 'fit-content', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
+                                                    {isMissingData && <span style={{color: 'var(--cx-b45309, #b45309)', background: 'var(--cx-fef3c7, #fef3c7)', padding: '2px 4px', borderRadius: '4px', width: 'fit-content', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
                                                 </div>
 
-                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #f1f5f9'}}>
-                                                    <span style={{fontFamily: 'monospace', fontSize: '0.65rem', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', color: '#64748b'}}>{item.nif || 'S/ NIF'}</span>
+                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--n-100)'}}>
+                                                    <span style={{fontFamily: 'monospace', fontSize: '0.65rem', background: 'var(--n-50)', padding: '2px 6px', borderRadius: '4px', color: 'var(--n-500)'}}>{item.nif || 'S/ NIF'}</span>
                                                     
                                                     {item.estado === 'convertido' && !isInactive && (
-                                                        <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', padding: '4px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Rocket /> Cliente</button>
+                                                        <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: 'var(--cx-dcfce7, #dcfce7)', color: '#16a34a', border: '1px solid #bbf7d0', padding: '4px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Rocket /> Cliente</button>
                                                     )}
                                                 </div>
                                             </div>
                                         )})}
-                                        {colItems.length === 0 && <div style={{textAlign: 'center', padding: '15px', color: '#cbd5e1', fontSize: '0.75rem', fontStyle: 'italic', border: '1px dashed #e2e8f0', borderRadius: '8px'}}>Larga aqui…</div>}
+                                        {colItems.length === 0 && <div style={{textAlign: 'center', padding: '15px', color: 'var(--n-300)', fontSize: '0.75rem', fontStyle: 'italic', border: '1px dashed var(--n-200)', borderRadius: '8px'}}>Larga aqui…</div>}
                                     </div>
                                 </div>
                             )
@@ -760,25 +760,25 @@ export default function GestaoLeads() {
                             const statusObj = statusOptions.find(o => o.value === item.estado) || {};
 
                             return (
-                                <div key={item.id} className="lead-card hover-shadow" style={{background: isInactive ? '#f8fafc' : 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', opacity: isInactive ? 0.6 : 1, transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', borderTop: `4px solid ${activeTab === 'leads' ? statusObj.color : '#cbd5e1'}`}}>
+                                <div key={item.id} className="lead-card hover-shadow" style={{background: isInactive ? '#f8fafc' : 'white', border: '1px solid var(--n-200)', borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', opacity: isInactive ? 0.6 : 1, transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', borderTop: `4px solid ${activeTab === 'leads' ? statusObj.color : 'var(--n-300)'}`}}>
                                     
                                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
                                         <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
-                                            {item.nif && <span style={{fontFamily: 'monospace', fontSize: '0.7rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', color: '#64748b'}}>{item.nif}</span>}
-                                            {isInactive && <span style={{fontSize: '0.65rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
+                                            {item.nif && <span style={{fontFamily: 'monospace', fontSize: '0.7rem', background: 'var(--n-100)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', color: 'var(--n-500)'}}>{item.nif}</span>}
+                                            {isInactive && <span style={{fontSize: '0.65rem', background: 'var(--cx-fee2e2, #fee2e2)', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
                                         </div>
                                         {activeTab === "leads" && (
                                             <span style={{fontSize: '0.65rem', background: statusObj.bg, color: statusObj.color, padding: '2px 8px', borderRadius: '12px', fontWeight: '800', textTransform: 'uppercase'}}>{statusObj.label}</span>
                                         )}
                                     </div>
 
-                                    <h3 style={{margin: '0 0 8px 0', fontSize: '1.1rem', color: '#1e293b', fontWeight: '800', lineHeight: '1.2'}}>{item.nome}</h3>
+                                    <h3 style={{margin: '0 0 8px 0', fontSize: '1.1rem', color: 'var(--n-900)', fontWeight: '800', lineHeight: '1.2'}}>{item.nome}</h3>
                                     
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '15px', flex: 1}}>
-                                        <div style={{fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin/> {item.localidade || 'Sem Localidade'}</div>
+                                        <div style={{fontSize: '0.8rem', color: 'var(--n-500)', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin/> {item.localidade || 'Sem Localidade'}</div>
                                         <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center'}}>
                                             {item.setor && <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid var(--color-borderColor)'}}>{item.setor}</span>}
-                                            {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
+                                            {item.cae && <span style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '600'}}>CAE: {item.cae}</span>}
                                         </div>
                                     </div>
 
@@ -794,7 +794,7 @@ export default function GestaoLeads() {
                     <div className="table-responsive" style={{overflowX: 'auto'}}>
                         <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse', minWidth: '900px' }}>
                         <thead>
-                            <tr style={{color: '#64748b', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid #f1f5f9'}}>
+                            <tr style={{color: 'var(--n-500)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid var(--n-100)'}}>
                                 <th style={{padding: '15px', textAlign: 'left', width: '30%'}}>Empresa / Local</th>
                                 <th style={{padding: '15px', textAlign: 'left', width: '25%'}}>Contactos</th>
                                 <th style={{padding: '15px', textAlign: 'left', width: '15%'}}>Setor & CAE</th>
@@ -808,31 +808,31 @@ export default function GestaoLeads() {
                                 const isMissingData = !item.email && !item.contacto;
 
                                 return (
-                                <tr key={item.id} style={{borderBottom: '1px solid #f8fafc', opacity: isInactive ? 0.6 : 1, background: isInactive ? '#f8fafc' : 'white', transition: '0.2s'}} className={!isInactive ? "table-row-hover" : ""}>
+                                <tr key={item.id} style={{borderBottom: '1px solid var(--n-50)', opacity: isInactive ? 0.6 : 1, background: isInactive ? '#f8fafc' : 'white', transition: '0.2s'}} className={!isInactive ? "table-row-hover" : ""}>
                                     <td style={{padding: '15px'}}>
                                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                                             <span style={{fontWeight: '800', color: isInactive ? '#94a3b8' : '#1e293b', fontSize: '0.95rem'}}>{item.nome}</span>
-                                            {isInactive && <span style={{fontSize: '0.6rem', background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
+                                            {isInactive && <span style={{fontSize: '0.6rem', background: 'var(--cx-fee2e2, #fee2e2)', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
                                         </div>
-                                        <div style={{display: 'flex', gap: '10px', fontSize: '0.8rem', color: '#64748b', marginTop: '4px', alignItems: 'center'}}>
-                                            {item.nif && <span style={{background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold'}}>{item.nif}</span>}
+                                        <div style={{display: 'flex', gap: '10px', fontSize: '0.8rem', color: 'var(--n-500)', marginTop: '4px', alignItems: 'center'}}>
+                                            {item.nif && <span style={{background: 'var(--n-100)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold'}}>{item.nif}</span>}
                                             {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
                                         </div>
                                     </td>
 
                                     <td style={{padding: '15px'}}>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem'}}>
-                                            {item.titular && <span style={{fontWeight: '600', color: '#475569', display:'flex', alignItems:'center', gap:'4px'}}><Icons.User/> {item.titular}</span>}
+                                            {item.titular && <span style={{fontWeight: '600', color: 'var(--n-700)', display:'flex', alignItems:'center', gap:'4px'}}><Icons.User/> {item.titular}</span>}
                                             {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
                                             {item.email && <span style={{color: 'var(--color-btnPrimary)', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Mail/> <a href={`mailto:${item.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{item.email}</a></span>}
-                                            {isMissingData && <span style={{fontSize: '0.7rem', color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
+                                            {isMissingData && <span style={{fontSize: '0.7rem', color: 'var(--cx-b45309, #b45309)', background: 'var(--cx-fef3c7, #fef3c7)', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
                                         </div>
                                     </td>
 
                                     <td style={{padding: '15px'}}>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start'}}>
-                                            {item.setor ? <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{item.setor}</span> : <span style={{color: '#cbd5e1'}}>-</span>}
-                                            {item.cae && <span style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '600'}}>CAE: {item.cae}</span>}
+                                            {item.setor ? <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{item.setor}</span> : <span style={{color: 'var(--n-300)'}}>-</span>}
+                                            {item.cae && <span style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '600'}}>CAE: {item.cae}</span>}
                                         </div>
                                     </td>
 
@@ -855,16 +855,16 @@ export default function GestaoLeads() {
 
                                     <td style={{padding: '15px', textAlign: 'right'}}>
                                         <div style={{display: 'flex', justifyContent: 'flex-end', gap: '6px'}}>
-                                            <button aria-label="Ver / Completar Dados" onClick={() => openForm(true, item)} title="Ver / Completar Dados" style={{background: 'white', border: '1px solid #cbd5e1', color: '#475569', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
+                                            <button aria-label="Ver / Completar Dados" onClick={() => openForm(true, item)} title="Ver / Completar Dados" style={{background: 'var(--sup-1)', border: '1px solid var(--n-300)', color: 'var(--n-700)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
                                                 <Icons.Eye />
-                                                {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', border: '2px solid white'}}></span>}
+                                                {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', border: '2px solid var(--sup-1)'}}></span>}
                                             </button>
 
                                             {!isInactive && activeTab === "prospects" && (
                                                 <button aria-label="Mover para Leads" onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
                                             )}
                                             {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
-                                                <button aria-label="Criar Cliente Oficial" onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Handshake /></button>
+                                                <button aria-label="Criar Cliente Oficial" onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: 'var(--cx-dcfce7, #dcfce7)', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Handshake /></button>
                                             )}
 
                                             <button aria-label={isInactive ? "Restaurar" : "Arquivar"} onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} style={{background: isInactive ? '#dcfce7' : '#fee2e2', color: isInactive ? '#16a34a' : '#ef4444', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
@@ -881,7 +881,7 @@ export default function GestaoLeads() {
                 
                 {/* MENSAGEM VAZIA */}
                 {filteredList.length === 0 && viewMode !== "kanban" && (
-                    <div style={{textAlign: 'center', padding: '60px', color: '#64748b'}}>
+                    <div style={{textAlign: 'center', padding: '60px', color: 'var(--n-500)'}}>
                         <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
                         <p style={{margin: 0, fontWeight: '500'}}>Nenhum registo encontrado com estes filtros.</p>
                     </div>
@@ -889,10 +889,10 @@ export default function GestaoLeads() {
 
                 {/* CONTROLOS DE PAGINAÇÃO */}
                 {totalPages > 1 && viewMode !== "kanban" && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--n-200)', flexWrap: 'wrap', gap: '15px' }}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Mostrar:</span>
-                            <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontSize: '0.85rem' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--n-500)' }}>Mostrar:</span>
+                            <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '6px', borderRadius: '6px', border: '1px solid var(--n-300)', outline: 'none', background: 'var(--sup-1)', fontSize: '0.85rem' }}>
                                 <option value={10}>10</option>
                                 <option value={50}>50</option>
                                 <option value={100}>100</option>
@@ -900,9 +900,9 @@ export default function GestaoLeads() {
                         </div>
                         
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="btn-small" style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}>◀ Ant</button>
-                            <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 'bold' }}>Pág {currentPage} de {totalPages}</span>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="btn-small" style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', background: 'white', border: '1px solid #cbd5e1' }}>Seg ▶</button>
+                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="btn-small" style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', background: 'var(--sup-1)', border: '1px solid var(--n-300)' }}>◀ Ant</button>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--n-700)', fontWeight: 'bold' }}>Pág {currentPage} de {totalPages}</span>
+                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="btn-small" style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', background: 'var(--sup-1)', border: '1px solid var(--n-300)' }}>Seg ▶</button>
                         </div>
                     </div>
                 )}
@@ -914,17 +914,17 @@ export default function GestaoLeads() {
       {modalForm.show && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                  <div style={{background: 'white', width: '95%', maxWidth: '700px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden'}}>
-                      <div style={{padding: '20px 25px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <h3 style={{margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800'}}>
+                  <div style={{background: 'var(--sup-1)', width: '95%', maxWidth: '700px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden'}}>
+                      <div style={{padding: '20px 25px', background: 'var(--n-50)', borderBottom: '1px solid var(--n-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.25rem', fontWeight: '800'}}>
                               {modalForm.isEdit ? `Completar Dados: ${modalForm.data.nome}` : `Novo Registo (${activeTab === 'leads' ? 'Lead' : 'Prospect'})`}
                           </h3>
-                          <button aria-label="Fechar" onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer'}}><Icons.Close /></button>
+                          <button aria-label="Fechar" onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{background: 'none', border: 'none', color: 'var(--n-500)', cursor: 'pointer'}}><Icons.Close /></button>
                       </div>
 
                       <form onSubmit={handleSaveForm} style={{padding: '25px'}}>
                           {isMissingCrucialData && (
-                              <div style={{background: '#fffbeb', border: '1px solid #fde68a', color: '#b45309', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                              <div style={{background: 'var(--cx-fffbeb, #fffbeb)', border: '1px solid #fde68a', color: 'var(--cx-b45309, #b45309)', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px'}}>
                                   <Icons.Alert /> Este registo não tem dados de contacto.
                               </div>
                           )}
@@ -958,7 +958,7 @@ export default function GestaoLeads() {
                                               setModalForm({...modalForm, data: {...modalForm.data, setor: selected}});
                                           }
                                       }} 
-                                      style={{...inputStyle, width: '100%', background: 'white'}}
+                                      style={{...inputStyle, width: '100%', background: 'var(--sup-1)'}}
                                   >
                                       <option value="">-- Selecione --</option>
                                       {dynamicSetores.map(s => <option key={s} value={s}>{s}</option>)}
@@ -978,8 +978,8 @@ export default function GestaoLeads() {
                               <div><label style={labelStyle}>Código CAE</label><input type="text" value={modalForm.data.cae || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, cae: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
                           </div>
 
-                          <div style={{background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '25px'}}>
-                              <h4 style={{margin: '0 0 10px 0', fontSize: '0.9rem', color: '#1e293b'}}>Informação de Contacto</h4>
+                          <div style={{background: 'var(--n-50)', padding: '15px', borderRadius: '12px', border: '1px solid var(--n-200)', marginBottom: '25px'}}>
+                              <h4 style={{margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--n-900)'}}>Informação de Contacto</h4>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
                                   <div style={{gridColumn: '1 / -1'}}><label style={labelStyle}>Pessoa Titular / Responsável</label><input aria-label="Pessoa Titular / Responsável" type="text" value={modalForm.data.titular || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, titular: e.target.value}})} style={{...inputStyle, width: '100%'}} placeholder="Nome da pessoa…" /></div>
                                   <div><label style={labelStyle}>Email</label><input type="email" value={modalForm.data.email || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, email: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
@@ -987,8 +987,8 @@ export default function GestaoLeads() {
                               </div>
                           </div>
 
-                          <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-                              <button type="button" onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{padding: '12px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
+                          <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid var(--n-100)'}}>
+                              <button type="button" onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{padding: '12px 20px', borderRadius: '8px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-500)', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
                               <button type="submit" disabled={isDuplicateNif && !modalForm.isEdit} className="btn-primary" style={{padding: '12px 30px', borderRadius: '8px', fontSize: '0.95rem'}}>{modalForm.isEdit ? 'Guardar Alterações' : 'Adicionar Registo'}</button>
                           </div>
                       </form>
@@ -1001,10 +1001,10 @@ export default function GestaoLeads() {
       {showImportModal && (
         <ModalPortal>
             <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                <div style={{background: 'white', width: '90%', maxWidth: '500px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
+                <div style={{background: 'var(--sup-1)', width: '90%', maxWidth: '500px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                     <div style={{marginBottom: '20px'}}>
-                        <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Download /> Importar CSV</h3>
-                        <p style={{margin: '5px 0 0 0', color: '#64748b', fontSize: '0.9rem'}}>Destino: <b>{activeTab === 'leads' ? 'Leads' : 'Prospects'}</b></p>
+                        <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Download /> Importar CSV</h3>
+                        <p style={{margin: '5px 0 0 0', color: 'var(--n-500)', fontSize: '0.9rem'}}>Destino: <b>{activeTab === 'leads' ? 'Leads' : 'Prospects'}</b></p>
                     </div>
 
                     <div style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '8px', padding: '15px', marginBottom: '25px'}}>
@@ -1016,7 +1016,7 @@ export default function GestaoLeads() {
 
                     <div style={{marginBottom: '20px'}}>
                         <label style={labelStyle}>Atribuir Setor em Lote (Opcional)</label>
-                        <select value={importSetor} onChange={(e) => setImportSetor(e.target.value)} style={{...inputStyle, background: 'white', width: '100%'}}>
+                        <select value={importSetor} onChange={(e) => setImportSetor(e.target.value)} style={{...inputStyle, background: 'var(--sup-1)', width: '100%'}}>
                             <option value="">-- Deixar em branco --</option>
                             {dynamicSetores.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
@@ -1024,12 +1024,12 @@ export default function GestaoLeads() {
 
                     <div style={{marginBottom: '25px'}}>
                         <label 
-                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px', border: '2px dashed #cbd5e1', borderRadius: '12px', cursor: 'pointer', background: '#f8fafc', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s' }}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px', border: '2px dashed var(--n-300)', borderRadius: '12px', cursor: 'pointer', background: 'var(--n-50)', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s' }}
                             onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-btnPrimary)'}
                             onMouseOut={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
                         >
-                            <span style={{marginBottom: '10px', color: '#64748b'}}><Icons.Doc /></span>
-                            <span style={{fontSize: '0.9rem', color: '#64748b', fontWeight: '500', textAlign: 'center'}}>
+                            <span style={{marginBottom: '10px', color: 'var(--n-500)'}}><Icons.Doc /></span>
+                            <span style={{fontSize: '0.9rem', color: 'var(--n-500)', fontWeight: '500', textAlign: 'center'}}>
                                 {file ? file.name : "Clica aqui para escolher o ficheiro CSV"}
                             </span>
                             <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0])} style={{display: 'none'}} />
@@ -1037,7 +1037,7 @@ export default function GestaoLeads() {
                     </div>
 
                     <div style={{display: 'flex', gap: '10px'}}>
-                        <button onClick={() => setShowImportModal(false)} style={{flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
+                        <button onClick={() => setShowImportModal(false)} style={{flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-500)', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
                         <button className="btn-primary" onClick={handleFileUpload} disabled={importing} style={{flex: 1, borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'}}>
                             {importing ? "A processar…" : "Carregar Dados"}
                         </button>
@@ -1050,26 +1050,26 @@ export default function GestaoLeads() {
       {showSendModal && (
         <ModalPortal>
             <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                <div style={{background: 'white', width: '95%', maxWidth: '760px', borderRadius: '16px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
+                <div style={{background: 'var(--sup-1)', width: '95%', maxWidth: '760px', borderRadius: '16px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                        <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.35rem'}}>Enviar Campanha por Email</h3>
-                        <button aria-label="Fechar" onClick={() => setShowSendModal(false)} style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer'}}><Icons.Close /></button>
+                        <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.35rem'}}>Enviar Campanha por Email</h3>
+                        <button aria-label="Fechar" onClick={() => setShowSendModal(false)} style={{background: 'none', border: 'none', color: 'var(--n-500)', cursor: 'pointer'}}><Icons.Close /></button>
                     </div>
 
-                    <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: '#475569'}}>
+                    <div style={{background: 'var(--n-50)', border: '1px solid var(--n-200)', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: 'var(--n-700)'}}>
                         Destino atual: <b>{getFilteredEmailsForCampaign().length}</b> emails únicos da lista filtrada.
                     </div>
 
                     <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
                         <button
                             onClick={() => setCampaignForm(prev => ({ ...prev, mode: "template" }))}
-                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "template" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "template" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
+                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--n-300)', background: campaignForm.mode === "template" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "template" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
                         >
                             Template Brevo (principal)
                         </button>
                         <button
                             onClick={() => setCampaignForm(prev => ({ ...prev, mode: "html" }))}
-                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: campaignForm.mode === "html" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "html" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
+                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--n-300)', background: campaignForm.mode === "html" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "html" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
                         >
                             HTML (secundário)
                         </button>
@@ -1090,7 +1090,7 @@ export default function GestaoLeads() {
                                     type="text"
                                     disabled
                                     value="Template gerido no Brevo"
-                                    style={{...inputStyle, width: '100%', background: '#f8fafc', color: '#64748b'}}
+                                    style={{...inputStyle, width: '100%', background: 'var(--n-50)', color: 'var(--n-500)'}}
                                 />
                                 <input
                                     type="number"
@@ -1120,7 +1120,7 @@ export default function GestaoLeads() {
                                 />
                             </div>
 
-                            <div style={{display: 'grid', gridTemplateColumns: '180px 1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase'}}>
+                            <div style={{display: 'grid', gridTemplateColumns: '180px 1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: 'var(--n-500)', fontWeight: '700', textTransform: 'uppercase'}}>
                                 <span>Template ID</span>
                                 <span>Conteúdo</span>
                                 <span>Batch size</span>
@@ -1170,7 +1170,7 @@ export default function GestaoLeads() {
                                 />
                             </div>
 
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase'}}>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: 'var(--n-500)', fontWeight: '700', textTransform: 'uppercase'}}>
                                 <span>Assunto</span>
                                 <span>Batch size</span>
                                 <span>Delay (ms)</span>
@@ -1187,7 +1187,7 @@ export default function GestaoLeads() {
                     )}
 
                     {lastCampaignSummary && (
-                        <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: '#334155'}}>
+                        <div style={{background: 'var(--n-50)', border: '1px solid var(--n-200)', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: 'var(--n-700)'}}>
                             <b>Resumo:</b> enviados {lastCampaignSummary.sentRecipients}/{lastCampaignSummary.acceptedRecipients} | inválidos {lastCampaignSummary.invalidEmails?.length || 0} | repetidos {lastCampaignSummary.duplicates?.length || 0} | falhados {lastCampaignSummary.failedRecipients?.length || 0}
                             {(lastCampaignSummary.failedRecipients?.length || 0) > 0 && (
                                 <div style={{marginTop: '8px', background: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', padding: '8px 10px', borderRadius: '8px'}}>
@@ -1198,7 +1198,7 @@ export default function GestaoLeads() {
                     )}
 
                     <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                        <button onClick={() => setShowSendModal(false)} style={{padding: '12px 18px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer'}}>Fechar</button>
+                        <button onClick={() => setShowSendModal(false)} style={{padding: '12px 18px', borderRadius: '8px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-500)', fontWeight: 'bold', cursor: 'pointer'}}>Fechar</button>
                         <button onClick={handleSendCampaign} disabled={sendingCampaign} className="btn-primary" style={{padding: '12px 20px', borderRadius: '8px'}}>
                             {sendingCampaign ? "A enviar…" : "Enviar Agora"}
                         </button>
@@ -1212,12 +1212,12 @@ export default function GestaoLeads() {
       {confirmDialog.show && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal-max) + 1)"}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
+                  <div style={{background: 'var(--sup-1)', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
-                      <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
+                      <h3 style={{margin: '0 0 10px 0', color: 'var(--n-900)', fontSize: '1.25rem'}}>Confirmação</h3>
+                      <p style={{color: 'var(--n-500)', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
                       <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">Cancelar</button>
+                          <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-700)', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">Cancelar</button>
                           <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">{confirmDialog.confirmText}</button>
                       </div>
                   </div>

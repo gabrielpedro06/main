@@ -70,6 +70,25 @@
   --cor-aviso: #d97706;
   --cor-info: #0284c7;
 
+  /* ---------- Neutros com o tom do tema ----------
+     Substituem a escala "slate" fria (#0f172a, #64748b, #e2e8f0, #f8fafc…) que estava
+     escrita à mão no CSS. Os escuros levam um toque da cor principal do tema; os claros
+     misturam-se com o fundo do tema. No tema padrão ficam quase iguais aos antigos. */
+  --n-900: color-mix(in srgb, #10141b 90%, var(--color-btnPrimary, #2563eb));  /* texto principal */
+  --n-700: color-mix(in srgb, #3b4350 88%, var(--color-btnPrimary, #2563eb));  /* texto forte secundário */
+  --n-500: color-mix(in srgb, #677080 86%, var(--color-btnPrimary, #2563eb));  /* texto suave */
+  --n-400: color-mix(in srgb, #97a0ad 86%, var(--color-btnPrimary, #2563eb));  /* texto ténue, ícones */
+  --n-300: color-mix(in srgb, #cbd2db 75%, var(--color-borderColor, #cbd5e1)); /* bordas fortes */
+  --n-200: color-mix(in srgb, #e1e6ec 65%, var(--color-borderColor, #e2e8f0)); /* bordas / linhas */
+  --n-100: color-mix(in srgb, #eef1f5 60%, var(--color-bgPrimary, #f1f5f9));   /* fundos suaves */
+  --n-50: color-mix(in srgb, #f8f9fb 55%, var(--color-bgPrimary, #f8fafc));    /* fundos muito suaves */
+
+  /* ---------- Superfícies (o que era "branco") ----------
+     --sup-1: cartões, painéis, campos; --sup-2: elevado por cima de um cartão.
+     No claro são brancos; no modo escuro passam a cinzentos escuros com o tom do tema. */
+  --sup-1: #ffffff;
+  --sup-2: #ffffff;
+
   /* ---------- Movimento ---------- */
   --mola: cubic-bezier(0.2, 0.9, 0.3, 1.12);
   --suave: cubic-bezier(0.22, 1, 0.36, 1);
@@ -80,4 +99,99 @@
   --altura-controlo: 40px;
   --altura-controlo-sm: 32px;
   --altura-controlo-lg: 46px;
+}
+
+/* =====================================================================
+   MODO ESCURO (html[data-modo="escuro"], posto pelo ThemeContext).
+   As --color-* do tema já vêm em versão escura (constants/themes.js →
+   coresEscuras); aqui invertem-se os neutros, as superfícies e as sombras.
+   ===================================================================== */
+html[data-modo="escuro"] {
+  --sup-1: color-mix(in srgb, #181c23 92%, var(--color-btnPrimary, #2563eb));
+  --sup-2: color-mix(in srgb, #20252e 92%, var(--color-btnPrimary, #2563eb));
+
+  --n-900: color-mix(in srgb, #eceff3 94%, var(--color-btnPrimary, #2563eb));
+  --n-700: color-mix(in srgb, #c7ccd4 92%, var(--color-btnPrimary, #2563eb));
+  --n-500: color-mix(in srgb, #9aa2ae 90%, var(--color-btnPrimary, #2563eb));
+  --n-400: color-mix(in srgb, #7a828f 90%, var(--color-btnPrimary, #2563eb));
+  --n-300: color-mix(in srgb, #434a55 90%, var(--color-btnPrimary, #2563eb));
+  --n-200: color-mix(in srgb, #323842 90%, var(--color-btnPrimary, #2563eb));
+  --n-100: color-mix(in srgb, #262b34 90%, var(--color-btnPrimary, #2563eb));
+  --n-50: color-mix(in srgb, #1e232b 90%, var(--color-btnPrimary, #2563eb));
+
+  --cor-campo: color-mix(in srgb, #12151b 90%, var(--color-btnPrimary, #2563eb));
+  --cor-superficie: var(--sup-1);
+
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 24px -14px rgba(0, 0, 0, 0.7);
+  --sombra-3: 0 16px 34px -18px rgba(0, 0, 0, 0.75);
+  --sombra-4: 0 26px 52px -20px rgba(0, 0, 0, 0.8);
+  --sombra-5: 0 50px 100px -30px rgba(0, 0, 0, 0.85), 0 16px 36px -18px rgba(0, 0, 0, 0.6);
+
+  /* brilhos brancos do vidro (janelas, ícones) ficam quase apagados */
+  --brilho: 0.12;
+
+  color-scheme: dark;
+}
+html[data-modo="escuro"] body { background: var(--color-bgPrimary); color: var(--n-900); }
+/* imagens (fotos, logótipos) um pouco menos brilhantes no escuro */
+html[data-modo="escuro"] img:not([src$=".svg"]) { filter: brightness(0.94); }
+
+/* Cores de estado fixas (fundos pastel, bordas, textos escuros) no escuro.
+   Gerado por estados_escuro.py: o código usa var(--cx-HEX, #HEX). */
+html[data-modo="escuro"] {
+  --cx-0369a1: color-mix(in srgb, #0369a1 30%, #f1f5f9);
+  --cx-047857: color-mix(in srgb, #047857 30%, #f1f5f9);
+  --cx-065f46: color-mix(in srgb, #065f46 30%, #f1f5f9);
+  --cx-14532d: color-mix(in srgb, #14532d 30%, #f1f5f9);
+  --cx-15803d: color-mix(in srgb, #15803d 30%, #f1f5f9);
+  --cx-166534: color-mix(in srgb, #166534 30%, #f1f5f9);
+  --cx-1d4ed8: color-mix(in srgb, #1d4ed8 30%, #f1f5f9);
+  --cx-1e40af: color-mix(in srgb, #1e40af 30%, #f1f5f9);
+  --cx-6d28d9: color-mix(in srgb, #6d28d9 30%, #f1f5f9);
+  --cx-78350f: color-mix(in srgb, #78350f 30%, #f1f5f9);
+  --cx-7c2d12: color-mix(in srgb, #7c2d12 30%, #f1f5f9);
+  --cx-7e22ce: color-mix(in srgb, #7e22ce 30%, #f1f5f9);
+  --cx-7f1d1d: color-mix(in srgb, #7f1d1d 30%, #f1f5f9);
+  --cx-854d0e: color-mix(in srgb, #854d0e 30%, #f1f5f9);
+  --cx-86efac: color-mix(in srgb, #22c55e 38%, var(--sup-1));
+  --cx-92400e: color-mix(in srgb, #92400e 30%, #f1f5f9);
+  --cx-93c5fd: color-mix(in srgb, #3b82f6 38%, var(--sup-1));
+  --cx-991b1b: color-mix(in srgb, #991b1b 30%, #f1f5f9);
+  --cx-9a3412: color-mix(in srgb, #9a3412 30%, #f1f5f9);
+  --cx-a16207: color-mix(in srgb, #a16207 30%, #f1f5f9);
+  --cx-a7f3d0: color-mix(in srgb, #10b981 38%, var(--sup-1));
+  --cx-b45309: color-mix(in srgb, #b45309 30%, #f1f5f9);
+  --cx-b91c1c: color-mix(in srgb, #b91c1c 30%, #f1f5f9);
+  --cx-bae6fd: color-mix(in srgb, #0ea5e9 38%, var(--sup-1));
+  --cx-bbf7d0: color-mix(in srgb, #22c55e 38%, var(--sup-1));
+  --cx-be185d: color-mix(in srgb, #be185d 30%, #f1f5f9);
+  --cx-bfdbfe: color-mix(in srgb, #3b82f6 38%, var(--sup-1));
+  --cx-c2410c: color-mix(in srgb, #c2410c 30%, #f1f5f9);
+  --cx-dbeafe: color-mix(in srgb, #3b82f6 22%, var(--sup-1));
+  --cx-dcfce7: color-mix(in srgb, #22c55e 20%, var(--sup-1));
+  --cx-e0f2fe: color-mix(in srgb, #0ea5e9 20%, var(--sup-1));
+  --cx-ecfdf5: color-mix(in srgb, #10b981 12%, var(--sup-1));
+  --cx-ede9fe: color-mix(in srgb, #8b5cf6 22%, var(--sup-1));
+  --cx-eff6ff: color-mix(in srgb, #3b82f6 14%, var(--sup-1));
+  --cx-f0f9ff: color-mix(in srgb, #0ea5e9 12%, var(--sup-1));
+  --cx-f0fdf4: color-mix(in srgb, #22c55e 12%, var(--sup-1));
+  --cx-f5f3ff: color-mix(in srgb, #8b5cf6 14%, var(--sup-1));
+  --cx-faf5ff: color-mix(in srgb, #a855f7 14%, var(--sup-1));
+  --cx-fbcfe8: color-mix(in srgb, #ec4899 38%, var(--sup-1));
+  --cx-fca5a5: color-mix(in srgb, #ef4444 38%, var(--sup-1));
+  --cx-fcd34d: color-mix(in srgb, #f59e0b 38%, var(--sup-1));
+  --cx-fce7f3: color-mix(in srgb, #ec4899 20%, var(--sup-1));
+  --cx-fde68a: color-mix(in srgb, #f59e0b 38%, var(--sup-1));
+  --cx-fdf2f8: color-mix(in srgb, #ec4899 12%, var(--sup-1));
+  --cx-fecaca: color-mix(in srgb, #ef4444 38%, var(--sup-1));
+  --cx-fed7aa: color-mix(in srgb, #f97316 38%, var(--sup-1));
+  --cx-fee2e2: color-mix(in srgb, #ef4444 22%, var(--sup-1));
+  --cx-fef2f2: color-mix(in srgb, #ef4444 14%, var(--sup-1));
+  --cx-fef3c7: color-mix(in srgb, #f59e0b 20%, var(--sup-1));
+  --cx-fef9c3: color-mix(in srgb, #eab308 20%, var(--sup-1));
+  --cx-fefce8: color-mix(in srgb, #eab308 12%, var(--sup-1));
+  --cx-ffedd5: color-mix(in srgb, #f97316 20%, var(--sup-1));
+  --cx-fff7ed: color-mix(in srgb, #f97316 12%, var(--sup-1));
+  --cx-fffbeb: color-mix(in srgb, #f59e0b 12%, var(--sup-1));
 }

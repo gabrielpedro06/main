@@ -23,13 +23,13 @@
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 26px 50px -30px color-mix(in srgb, var(--color-sidebarBg, #0f172a) 75%, transparent),
+    0 26px 50px -30px color-mix(in srgb, var(--color-sidebarBg, var(--n-900)) 75%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 :is(.page-hero, .adm-hero, .rg-hero, .af-hero, .ag-hero, .en-hero, .gm-hero, .pa-hero, .po-hero, .rh-hero, .ti-hero, .tk-hero):not(#cb) {
   background:
     radial-gradient(120% 140% at 100% 0%, rgba(255, 255, 255, 0.1), transparent 55%),
-    linear-gradient(125deg, var(--color-sidebarBg, #1e293b) 0%, var(--color-sidebarBgSecondary, var(--color-sidebarBg, #0f172a)) 100%);
+    linear-gradient(125deg, var(--color-sidebarBg, var(--n-900)) 0%, var(--color-sidebarBgSecondary, var(--color-sidebarBg, var(--n-900))) 100%);
 }
 
 /* ---------- ícone ---------- */

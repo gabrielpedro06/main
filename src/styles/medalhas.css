@@ -8,31 +8,31 @@
 .mdl-search {
   display: inline-flex; align-items: center; gap: 7px; min-width: 0;
   padding: 0 11px; height: 38px; border-radius: 11px;
-  border: 1px solid var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, #64748b);
+  border: 1px solid var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, var(--n-500));
 }
-.mdl-search input { border: 0; outline: 0; background: transparent; font: inherit; font-size: 0.85rem; color: var(--rh-ink, #0f172a); min-width: 0; width: 180px; }
+.mdl-search input { border: 0; outline: 0; background: transparent; font: inherit; font-size: 0.85rem; color: var(--rh-ink, var(--n-900)); min-width: 0; width: 180px; }
 .mdl-search:focus-within { border-color: var(--color-btnPrimary, #2563eb); }
 
 .mdl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
 .mdl-card {
   position: relative; display: flex; gap: 14px; align-items: flex-start;
-  padding: 14px; border-radius: 18px; background: #fff;
-  border: 1px solid var(--rh-line, #e2e8f0);
+  padding: 14px; border-radius: 18px; background: var(--sup-1);
+  border: 1px solid var(--rh-line, var(--n-200));
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: transform 0.2s var(--rh-ease, ease), box-shadow 0.2s ease;
 }
 .mdl-card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -18px rgba(15, 23, 42, 0.35); }
-.mdl-card.is-skeleton { height: 118px; background: linear-gradient(90deg, #f1f5f9, #f8fafc, #f1f5f9); background-size: 200% 100%; animation: mdlShimmer 1.2s linear infinite; }
+.mdl-card.is-skeleton { height: 118px; background: linear-gradient(90deg, var(--n-100), var(--n-50), var(--n-100)); background-size: 200% 100%; animation: mdlShimmer 1.2s linear infinite; }
 @keyframes mdlShimmer { to { background-position: -200% 0; } }
 .mdl-card-img {
   flex-shrink: 0; width: 76px; height: 76px; border-radius: 16px; display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-btnPrimary, #2563eb) 10%, #fff), #f8fafc 70%);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--color-btnPrimary, #2563eb) 10%, var(--sup-1)), var(--n-50) 70%);
 }
 .mdl-card-img img { width: 68px; height: 68px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.18)); }
 .mdl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-right: 28px; }
-.mdl-card-body strong { font-size: 0.95rem; font-weight: 800; color: var(--rh-ink, #0f172a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mdl-card-body small { font-size: 0.76rem; font-weight: 700; color: var(--rh-muted, #64748b); }
-.mdl-card-body p { margin: 4px 0 0; font-size: 0.8rem; line-height: 1.4; color: var(--rh-text, #334155); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mdl-card-body strong { font-size: 0.95rem; font-weight: 800; color: var(--rh-ink, var(--n-900)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdl-card-body small { font-size: 0.76rem; font-weight: 700; color: var(--rh-muted, var(--n-500)); }
+.mdl-card-body p { margin: 4px 0 0; font-size: 0.8rem; line-height: 1.4; color: var(--rh-text, var(--n-700)); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .mdl-card-actions { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transition: opacity 0.15s ease; }
 .mdl-card:hover .mdl-card-actions, .mdl-card:focus-within .mdl-card-actions { opacity: 1; }
 @media (hover: none) { .mdl-card-actions { opacity: 1; } }
@@ -42,12 +42,12 @@
 .mdl-av {
   width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
   display: grid; place-items: center; font-size: 0.62rem; font-weight: 800; color: #fff;
-  background: var(--color-btnPrimary, #2563eb); border: 2px solid #fff;
+  background: var(--color-btnPrimary, #2563eb); border: 2px solid var(--sup-1);
 }
 .mdl-avatars .mdl-av + .mdl-av { margin-left: -8px; }
 .mdl-av img { width: 100%; height: 100%; object-fit: cover; }
-.mdl-av.is-more { background: #e2e8f0; color: #475569; }
-.mdl-people-n { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--rh-muted, #64748b); }
+.mdl-av.is-more { background: var(--n-200); color: var(--n-700); }
+.mdl-people-n { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--rh-muted, var(--n-500)); }
 
 /* Modal */
 .mdl-form-top { display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: stretch; }
@@ -55,13 +55,13 @@
 .mdl-drop {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   min-height: 150px; padding: 10px; border-radius: 16px; cursor: pointer; font: inherit; overflow: hidden;
-  border: 2px dashed var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, #64748b);
+  border: 2px dashed var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, var(--n-500));
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .mdl-drop:hover { border-color: var(--color-btnPrimary, #2563eb); color: var(--color-btnPrimary, #2563eb); }
-.mdl-drop strong { font-size: 0.8rem; color: var(--rh-ink, #0f172a); }
+.mdl-drop strong { font-size: 0.8rem; color: var(--rh-ink, var(--n-900)); }
 .mdl-drop small { font-size: 0.72rem; }
-.mdl-drop.has-img { border-style: solid; background: radial-gradient(circle at 50% 40%, #fff, #f1f5f9 75%); }
+.mdl-drop.has-img { border-style: solid; background: radial-gradient(circle at 50% 40%, var(--sup-1), var(--n-100) 75%); }
 .mdl-drop.has-img img { max-width: 100%; max-height: 120px; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.2)); }
 .mdl-drop-change {
   position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 4px; border-radius: 8px;
@@ -69,27 +69,27 @@
   opacity: 0; transform: translateY(4px); transition: opacity 0.15s ease, transform 0.15s ease;
 }
 .mdl-drop:hover .mdl-drop-change, .mdl-drop:focus-visible .mdl-drop-change { opacity: 1; transform: none; }
-.mdl-opt { font-weight: 600; color: var(--rh-faint, #94a3b8); text-transform: none; letter-spacing: 0; }
+.mdl-opt { font-weight: 600; color: var(--rh-faint, var(--n-400)); text-transform: none; letter-spacing: 0; }
 
-.mdl-picker { border: 1px solid var(--rh-field-line, #cfd6df); border-radius: 14px; background: #fff; overflow: hidden; }
-.mdl-picker-top { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid var(--rh-line, #e2e8f0); }
+.mdl-picker { border: 1px solid var(--rh-field-line, #cfd6df); border-radius: 14px; background: var(--sup-1); overflow: hidden; }
+.mdl-picker-top { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid var(--rh-line, var(--n-200)); }
 .mdl-picker-top .mdl-search { flex: 1; }
 .mdl-picker-top .mdl-search input { width: 100%; }
 .mdl-picker-list { max-height: 240px; overflow-y: auto; padding: 6px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px; }
 .mdl-person {
   display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; min-width: 0;
-  border: 1px solid transparent; background: transparent; cursor: pointer; font: inherit; text-align: left; color: var(--rh-text, #334155);
+  border: 1px solid transparent; background: transparent; cursor: pointer; font: inherit; text-align: left; color: var(--rh-text, var(--n-700));
 }
-.mdl-person:hover { background: var(--rh-soft, #f1f5f9); }
-.mdl-person.is-on { background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 9%, #fff); border-color: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 30%, #fff); color: var(--rh-ink, #0f172a); }
+.mdl-person:hover { background: var(--rh-soft, var(--n-100)); }
+.mdl-person.is-on { background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 9%, var(--sup-1)); border-color: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 30%, var(--sup-1)); color: var(--rh-ink, var(--n-900)); }
 .mdl-person-name { flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mdl-tick {
   width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; display: grid; place-items: center;
   border: 1.5px solid var(--rh-field-line, #cfd6df); color: #fff;
 }
 .mdl-person.is-on .mdl-tick { background: var(--color-btnPrimary, #2563eb); border-color: var(--color-btnPrimary, #2563eb); }
-.mdl-none { grid-column: 1 / -1; margin: 10px; font-size: 0.82rem; color: var(--rh-muted, #64748b); text-align: center; }
-.mdl-del-text { margin: 0; font-size: 0.9rem; color: var(--rh-text, #334155); line-height: 1.5; }
+.mdl-none { grid-column: 1 / -1; margin: 10px; font-size: 0.82rem; color: var(--rh-muted, var(--n-500)); text-align: center; }
+.mdl-del-text { margin: 0; font-size: 0.9rem; color: var(--rh-text, var(--n-700)); line-height: 1.5; }
 
 @media (max-width: 560px) {
   .mdl-form-top { grid-template-columns: 1fr; }
@@ -102,7 +102,7 @@
 .mdl-peek-wrap > .pp-card { flex-shrink: 0; }
 .mdl-panel {
   width: 300px; display: flex; flex-direction: column; border-radius: 24px; overflow: hidden;
-  background: #fff; color: #0f172a; box-shadow: 0 30px 70px -25px rgba(15, 23, 42, 0.55);
+  background: var(--sup-1); color: var(--n-900); box-shadow: 0 30px 70px -25px rgba(15, 23, 42, 0.55);
   font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
   animation: mdlSlide 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -113,10 +113,10 @@
 }
 .mdl-panel-head span {
   width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0;
-  background: #fef3c7; color: #b45309;
+  background: var(--cx-fef3c7, #fef3c7); color: var(--cx-b45309, #b45309);
 }
 .mdl-panel-head strong { display: block; font-size: 0.95rem; font-weight: 800; }
-.mdl-panel-head small { display: block; font-size: 0.74rem; color: #64748b; font-weight: 600; }
+.mdl-panel-head small { display: block; font-size: 0.74rem; color: var(--n-500); font-weight: 600; }
 /* Vitrine: prateleiras com as medalhas */
 .mdl-showcase {
   flex: 1; overflow-y: auto; padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -131,12 +131,12 @@
 .mdl-tile-stage {
   position: relative; width: 100%; height: 96px; display: grid; place-items: center; margin-bottom: 8px;
   border-radius: 18px 18px 6px 6px;
-  background: radial-gradient(70% 60% at 50% 42%, #fff7e0 0%, rgba(255, 247, 224, 0) 70%), linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  background: radial-gradient(70% 60% at 50% 42%, #fff7e0 0%, rgba(255, 247, 224, 0) 70%), linear-gradient(180deg, var(--n-50) 0%, #eef2f7 100%);
 }
 /* a prateleira */
 .mdl-tile-stage::after {
   content: ""; position: absolute; left: -4px; right: -4px; bottom: -6px; height: 8px; border-radius: 4px;
-  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%); box-shadow: 0 6px 10px -6px rgba(15, 23, 42, 0.4);
+  background: linear-gradient(180deg, var(--n-200) 0%, var(--n-300) 100%); box-shadow: 0 6px 10px -6px rgba(15, 23, 42, 0.4);
 }
 .mdl-tile-stage img {
   width: 72px; height: 72px; object-fit: contain; filter: drop-shadow(0 8px 8px rgba(15, 23, 42, 0.25));
@@ -149,14 +149,14 @@
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   font-size: 0.78rem; font-weight: 800; line-height: 1.25; margin-top: 4px;
 }
-.mdl-tile small { font-size: 0.7rem; font-weight: 600; color: #64748b; }
+.mdl-tile small { font-size: 0.7rem; font-weight: 600; color: var(--n-500); }
 
 /* Ficha de uma medalha */
 .mdl-back {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 8px; border: 0; border-radius: 10px;
-  background: #f1f5f9; color: #0f172a; font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer;
+  background: var(--n-100); color: var(--n-900); font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer;
 }
-.mdl-back:hover { background: #e2e8f0; }
+.mdl-back:hover { background: var(--n-200); }
 .mdl-detail {
   flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: 20px 20px 24px; animation: mdlPop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -174,12 +174,12 @@
   animation: mdlFloat 4s ease-in-out infinite alternate;
 }
 @keyframes mdlFloat { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-8px) rotate(2deg); } }
-.mdl-detail h4 { margin: 0; font-size: 1.1rem; font-weight: 900; line-height: 1.25; color: #0f172a; }
+.mdl-detail h4 { margin: 0; font-size: 1.1rem; font-weight: 900; line-height: 1.25; color: var(--n-900); }
 .mdl-detail-date {
   margin-top: 8px; padding: 4px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 800;
-  color: #b45309; background: #fef3c7;
+  color: var(--cx-b45309, #b45309); background: var(--cx-fef3c7, #fef3c7);
 }
-.mdl-detail p { margin: 12px 0 0; font-size: 0.84rem; line-height: 1.55; color: #475569; }
+.mdl-detail p { margin: 12px 0 0; font-size: 0.84rem; line-height: 1.55; color: var(--n-700); }
 
 /* Medalha no canto da foto (Equipa online) */
 .mdl-avatar-badge {
@@ -192,7 +192,7 @@
 .mdl-avatar-badge b {
   position: absolute; right: -5px; bottom: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
   display: grid; place-items: center; font-size: 0.58rem; font-weight: 900; color: #fff; background: #d97706;
-  box-shadow: 0 0 0 1.5px #fff;
+  box-shadow: 0 0 0 1.5px var(--sup-1);
 }
 @keyframes mdlBadge { from { opacity: 0; transform: scale(0) rotate(-40deg); } }
 
@@ -200,7 +200,7 @@
   .mdl-tile, .mdl-detail, .mdl-detail-glow, .mdl-detail-stage img, .mdl-avatar-badge { animation: none !important; }
 }
 
-.mdl-panel-empty { padding: 26px 18px; text-align: center; color: #64748b; font-size: 0.82rem; line-height: 1.5; }
+.mdl-panel-empty { padding: 26px 18px; text-align: center; color: var(--n-500); font-size: 0.82rem; line-height: 1.5; }
 
 @media (max-width: 760px) {
   .mdl-peek-wrap { flex-direction: column; align-items: center; overflow-y: auto; }

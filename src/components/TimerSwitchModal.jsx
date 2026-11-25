@@ -82,8 +82,8 @@ export default function TimerSwitchModal({
             maxWidth: "460px", // Ligeiramente mais estreito para texto centrado ler melhor
             borderRadius: "24px",
             padding: "36px 32px",
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
+            background: "var(--sup-1)",
+            border: "1px solid var(--n-200)",
             boxShadow: "0 25px 50px -12px rgba(15,23,42,0.25)",
             display: "flex",
             flexDirection: "column",
@@ -115,12 +115,12 @@ export default function TimerSwitchModal({
           </div>
 
           {/* Título */}
-          <h3 style={{ margin: 0, color: "#0f172a", fontSize: "1.4rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
+          <h3 style={{ margin: 0, color: "var(--n-900)", fontSize: "1.4rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
             {title}
           </h3>
 
           {/* Mensagem Centrada */}
-          <p style={{ margin: 0, color: "#475569", fontSize: "1.05rem", lineHeight: 1.6 }}>
+          <p style={{ margin: 0, color: "var(--n-700)", fontSize: "1.05rem", lineHeight: 1.6 }}>
             {message}
           </p>
 
@@ -134,9 +134,9 @@ export default function TimerSwitchModal({
                 flex: "1 1 50%", // Divide o espaço igualmente
                 height: "50px",
                 borderRadius: "14px",
-                border: "1px solid #cbd5e1",
-                background: "white",
-                color: "#475569",
+                border: "1px solid var(--n-300)",
+                background: "var(--sup-1)",
+                color: "var(--n-700)",
                 fontWeight: 600,
                 fontSize: "1rem",
                 cursor: "pointer"

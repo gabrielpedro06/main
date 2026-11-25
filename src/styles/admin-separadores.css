@@ -4,7 +4,7 @@
    (admin.css): cartões adm-card, indicadores adm-kpi, tabelas adm-tabela.
    ===================================================================== */
 /* ícone do indicador com a cor de cada um (--k) */
-.adm-kpi-ico.has-cor { color: var(--k, var(--adm-accent)); background: color-mix(in srgb, var(--k, var(--adm-accent)) 12%, #fff); }
+.adm-kpi-ico.has-cor { color: var(--k, var(--adm-accent)); background: color-mix(in srgb, var(--k, var(--adm-accent)) 12%, var(--sup-1)); }
 .adm-kpi-ico.has-cor svg { width: 18px; height: 18px; }
 .adm-kpi-value .adm-live { width: 9px; height: 9px; }
 
@@ -23,10 +23,10 @@
 .adm-pie-legend em { font-style: normal; text-align: right; color: var(--adm-muted); font-weight: 700; }
 
 /* equipa online e estados */
-.adm-badge.is-online { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; background: #dcfce7; color: #166534; }
+.adm-badge.is-online { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; background: var(--cx-dcfce7, #dcfce7); color: var(--cx-166534, #166534); }
 .adm-badge.is-online .adm-live { width: 7px; height: 7px; flex: none; }
-.adm-badge.is-ok { background: #dcfce7; color: #166534; }
-.adm-badge.is-curso { background: #e0f2fe; color: #0369a1; }
+.adm-badge.is-ok { background: var(--cx-dcfce7, #dcfce7); color: var(--cx-166534, #166534); }
+.adm-badge.is-curso { background: var(--cx-e0f2fe, #e0f2fe); color: var(--cx-0369a1, #0369a1); }
 .adm-online { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; max-height: 300px; overflow-y: auto; }
 .adm-online-pessoa {
   display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; border-radius: 18px;
@@ -38,13 +38,13 @@
 .adm-av.is-lg i { width: 14px; height: 14px; right: 0; bottom: 0; }
 
 /* tabelas */
-.adm-tabela-wrap { overflow: auto; border-radius: 16px; border: 1px solid var(--adm-line); background: #fff; }
+.adm-tabela-wrap { overflow: auto; border-radius: 16px; border: 1px solid var(--adm-line); background: var(--sup-1); }
 .adm-tabela-wrap.is-alta { max-height: 360px; }
 .adm-tabela { width: 100%; min-width: 720px; border-collapse: separate; border-spacing: 0; font-size: 0.84rem; text-align: left; }
 .adm-tabela thead th {
   position: sticky; top: 0; z-index: 1; padding: 11px 14px; white-space: nowrap;
   font-size: 0.68rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--adm-muted);
-  background: color-mix(in srgb, var(--adm-soft) 92%, #fff); border-bottom: 1px solid var(--adm-line);
+  background: color-mix(in srgb, var(--adm-soft) 92%, var(--sup-1)); border-bottom: 1px solid var(--adm-line);
 }
 .adm-tabela td { padding: 11px 14px; border-bottom: 1px solid var(--adm-line); color: var(--adm-text); vertical-align: middle; }
 .adm-tabela tbody tr:last-child td { border-bottom: 0; }
@@ -58,7 +58,7 @@
 .adm-tabela .is-nowrap { white-space: nowrap; }
 .adm-taxa { display: inline-flex; align-items: center; gap: 8px; }
 .adm-taxa-barra { width: 70px; height: 6px; border-radius: 6px; background: var(--adm-soft); overflow: hidden; }
-.adm-taxa-barra i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--adm-accent) 60%, #fff), var(--adm-accent)); }
+.adm-taxa-barra i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--adm-accent) 60%, var(--sup-1)), var(--adm-accent)); }
 .adm-taxa b { min-width: 46px; font-weight: 900; color: var(--adm-ink); }
 
 /* pessoa (avatar + nome + papel) */
@@ -80,7 +80,7 @@
 .adm-lista h3 { color: var(--k, var(--adm-ink)); }
 .adm-contador {
   min-width: 28px; height: 24px; padding: 0 8px; display: grid; place-items: center; border-radius: 99px;
-  font-size: 0.78rem; font-weight: 900; color: var(--k, var(--adm-accent)); background: color-mix(in srgb, var(--k, var(--adm-accent)) 12%, #fff);
+  font-size: 0.78rem; font-weight: 900; color: var(--k, var(--adm-accent)); background: color-mix(in srgb, var(--k, var(--adm-accent)) 12%, var(--sup-1));
 }
 .adm-lista ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 230px; overflow-y: auto; }
 .adm-lista li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--adm-soft); font-size: 0.8rem; }
@@ -89,22 +89,22 @@
 .adm-lista li.is-vazio { justify-content: center; color: var(--adm-muted); font-weight: 600; }
 
 /* estados */
-.adm-empty.is-erro { background: #fef2f2; color: #b91c1c; font-weight: 700; }
+.adm-empty.is-erro { background: var(--cx-fef2f2, #fef2f2); color: var(--cx-b91c1c, #b91c1c); font-weight: 700; }
 
 /* janelas de escolha (projeto / colaborador): abrem num portal, fora de .adm-page, por isso repetem as variáveis */
-.adm-escolhas, .adm-campo { --adm-accent: var(--color-btnPrimary, #2563eb); --adm-soft: #f5f7fa; --adm-muted: #64748b; }
+.adm-escolhas, .adm-campo { --adm-accent: var(--color-btnPrimary, #2563eb); --adm-soft: var(--n-50); --adm-muted: var(--n-500); }
 .adm-escolhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .adm-escolha {
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; padding: 14px 16px; border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 10%, transparent); background: rgba(255, 255, 255, 0.7);
+  border: 1px solid color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 10%, transparent); background: rgba(255, 255, 255, 0.7);
   font: inherit; text-align: left; cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.18s ease, box-shadow 0.15s ease;
 }
 .adm-escolha:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 40%, transparent); box-shadow: 0 10px 20px -14px rgba(15, 23, 42, 0.4); }
-.adm-escolha strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; font-weight: 800; color: var(--color-textPrimary, #0f172a); }
-.adm-escolha small { font-size: 0.74rem; font-weight: 600; color: color-mix(in srgb, var(--color-textPrimary, #0f172a) 58%, transparent); text-transform: capitalize; }
+.adm-escolha strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; font-weight: 800; color: var(--color-textPrimary, var(--n-900)); }
+.adm-escolha small { font-size: 0.74rem; font-weight: 600; color: color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 58%, transparent); text-transform: capitalize; }
 .adm-escolha.is-on {
-  border-color: var(--color-btnPrimary, #2563eb); background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 8%, #fff);
+  border-color: var(--color-btnPrimary, #2563eb); background: color-mix(in srgb, var(--color-btnPrimary, #2563eb) 8%, var(--sup-1));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-btnPrimary, #2563eb) 15%, transparent);
 }
 .adm-escolha.is-pessoa { flex-direction: row; align-items: center; gap: 12px; }
@@ -113,8 +113,8 @@
 
 /* campo de palavra-passe (confirmar perfil) */
 .adm-campo { display: grid; gap: 6px; margin-top: 18px; text-align: left; }
-.adm-campo span { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent); }
-.adm-campo input { height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 14%, transparent); background: #fff; font: inherit; font-size: 0.95rem; }
+.adm-campo span { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 62%, transparent); }
+.adm-campo input { height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 14%, transparent); background: var(--sup-1); font: inherit; font-size: 0.95rem; }
 .adm-campo input:focus { outline: none; border-color: var(--color-btnPrimary, #2563eb); box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-btnPrimary, #2563eb) 15%, transparent); }
 .jn-caixa .adm-empty.is-erro { margin-top: 10px; }
 

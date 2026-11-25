@@ -2,7 +2,7 @@
 .page-hero {
   position: relative; display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;
   padding: 22px 24px; border-radius: 24px; color: #fff; overflow: hidden;
-  background: linear-gradient(125deg, var(--color-sidebarBg, #1e293b) 0%, var(--color-sidebarBgSecondary, #0f172a) 100%);
+  background: linear-gradient(125deg, var(--color-sidebarBg, var(--n-900)) 0%, var(--color-sidebarBgSecondary, var(--n-900)) 100%);
   box-shadow: 0 24px 48px -24px var(--color-btnPrimaryShadowHover, rgba(15, 23, 42, 0.4)), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   animation: pageHeroRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -26,7 +26,7 @@
 .page-hero-chip strong { font-size: 0.95rem; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
 .page-hero-btn {
   display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 999px;
-  border: 0; background: #fff; color: var(--color-sidebarBg, #0f172a); text-decoration: none;
+  border: 0; background: #fff; color: var(--color-sidebarBg, var(--n-900)); text-decoration: none;
   font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; white-space: nowrap;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }

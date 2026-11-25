@@ -2,11 +2,11 @@
    APROVAR PEDIDO (pages/AprovarPedido.jsx) — prefixo único: apv-
    ========================================================================= */
 .apv-page {
-  --apv-ink: #0f172a;
-  --apv-text: #334155;
-  --apv-muted: #64748b;
-  --apv-line: #e8edf3;
-  --apv-soft: #f5f7fa;
+  --apv-ink: var(--n-900);
+  --apv-text: var(--n-700);
+  --apv-muted: var(--n-500);
+  --apv-line: var(--n-200);
+  --apv-soft: var(--n-50);
   --apv-card: #fff;
   --apv-accent: var(--color-btnPrimary, #2563eb);
   --apv-ok: #16a34a;
@@ -31,7 +31,7 @@
 .apv-hero {
   position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 16px; padding: 22px 24px; border-radius: 24px; color: #fff;
-  background: linear-gradient(125deg, var(--color-sidebarBg, #1e293b) 0%, var(--color-sidebarBgSecondary, #0f172a) 100%);
+  background: linear-gradient(125deg, var(--color-sidebarBg, var(--n-900)) 0%, var(--color-sidebarBgSecondary, var(--n-900)) 100%);
   box-shadow: 0 24px 48px -24px var(--color-btnPrimaryShadowHover, rgba(15, 23, 42, 0.4)), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   animation: apvRise 0.5s var(--apv-ease) both;
 }
@@ -48,9 +48,9 @@
   font-weight: 900; font-size: 1.05rem; color: #fff; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.22);
 }
 .apv-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.apv-avatar.is-sm { width: 34px; height: 34px; border-radius: 11px; font-size: 0.72rem; color: var(--apv-accent); background: color-mix(in srgb, var(--apv-accent) 12%, #fff); border: 0; }
+.apv-avatar.is-sm { width: 34px; height: 34px; border-radius: 11px; font-size: 0.72rem; color: var(--apv-accent); background: color-mix(in srgb, var(--apv-accent) 12%, var(--sup-1)); border: 0; }
 
-.apv-state { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; background: #fff; }
+.apv-state { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; background: var(--sup-1); }
 .apv-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .apv-state.is-wait { color: var(--apv-wait); }
 .apv-state.is-ok { color: var(--apv-ok); }
@@ -59,8 +59,8 @@
 
 /* ---------- Aviso ---------- */
 .apv-alert { padding: 12px 16px; border-radius: 14px; font-size: 0.88rem; font-weight: 700; animation: apvRise 0.3s var(--apv-ease) both; }
-.apv-alert.is-ok { color: #166534; background: #ecfdf3; border: 1px solid #bbf7d0; }
-.apv-alert.is-no { color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; }
+.apv-alert.is-ok { color: var(--cx-166534, #166534); background: #ecfdf3; border: 1px solid var(--cx-bbf7d0, #bbf7d0); }
+.apv-alert.is-no { color: var(--cx-991b1b, #991b1b); background: var(--cx-fef2f2, #fef2f2); border: 1px solid var(--cx-fecaca, #fecaca); }
 
 /* ---------- Cartões ---------- */
 .apv-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -74,7 +74,7 @@
 
 .apv-period {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-radius: 16px;
-  background: color-mix(in srgb, var(--apv-accent) 7%, #fff); border: 1px solid color-mix(in srgb, var(--apv-accent) 16%, #fff);
+  background: color-mix(in srgb, var(--apv-accent) 7%, var(--sup-1)); border: 1px solid color-mix(in srgb, var(--apv-accent) 16%, var(--sup-1));
 }
 .apv-period span { display: block; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--apv-muted); }
 .apv-period strong { font-size: 1.05rem; font-weight: 900; color: var(--apv-ink); text-transform: capitalize; }
@@ -94,15 +94,15 @@
 .apv-attach {
   display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 9px 14px; border-radius: 11px;
   font-size: 0.85rem; font-weight: 800; color: var(--apv-accent); text-decoration: none;
-  border: 1px solid color-mix(in srgb, var(--apv-accent) 25%, #fff); transition: background 0.2s ease;
+  border: 1px solid color-mix(in srgb, var(--apv-accent) 25%, var(--sup-1)); transition: background 0.2s ease;
 }
-.apv-attach:hover { background: color-mix(in srgb, var(--apv-accent) 7%, #fff); }
+.apv-attach:hover { background: color-mix(in srgb, var(--apv-accent) 7%, var(--sup-1)); }
 
 .apv-balance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .apv-balance div { padding: 12px; border-radius: 14px; background: var(--apv-soft); min-width: 0; }
 .apv-balance span { display: block; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--apv-muted); }
 .apv-balance strong { display: block; margin-top: 2px; font-size: 1.05rem; font-weight: 900; color: var(--apv-ink); font-variant-numeric: tabular-nums; }
-.apv-balance .is-no { background: #fef2f2; }
+.apv-balance .is-no { background: var(--cx-fef2f2, #fef2f2); }
 .apv-balance .is-no strong { color: var(--apv-no); }
 .apv-muted { margin: 10px 0 0; font-size: 0.82rem; color: var(--apv-muted); }
 .apv-warn { margin: 10px 0 0; font-size: 0.84rem; font-weight: 800; color: var(--apv-no); }
@@ -131,7 +131,7 @@
 .apv-btn:disabled { opacity: 0.6; cursor: default; }
 .apv-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--apv-accent) 35%, transparent); outline-offset: 2px; }
 .apv-btn.is-ok { background: var(--apv-ok); color: #fff; }
-.apv-btn.is-no { background: #fff; color: var(--apv-no); border-color: #fecaca; }
+.apv-btn.is-no { background: var(--sup-1); color: var(--apv-no); border-color: var(--cx-fecaca, #fecaca); }
 .apv-btn.is-ghost { background: var(--apv-soft); color: var(--apv-ink); border-color: var(--apv-line); }
 
 /* ---------- Diálogo ---------- */
@@ -142,14 +142,14 @@
 }
 @keyframes apvFade { from { opacity: 0; } }
 .apv-dialog-box {
-  width: 100%; max-width: 420px; padding: 24px; border-radius: 22px; background: #fff; text-align: center;
+  width: 100%; max-width: 420px; padding: 24px; border-radius: 22px; background: var(--sup-1); text-align: center;
   box-shadow: 0 30px 60px -20px rgba(15, 23, 42, 0.45); animation: apvRise 0.3s var(--apv-ease, ease) both;
 }
 .apv-dialog-icon { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; margin-bottom: 10px; }
 .apv-dialog-icon.is-ok { color: #16a34a; background: #ecfdf3; }
-.apv-dialog-icon.is-no { color: #dc2626; background: #fef2f2; }
-.apv-dialog h3 { margin: 0 0 6px; font-size: 1.15rem; font-weight: 900; color: #0f172a; }
-.apv-dialog p { margin: 0; font-size: 0.88rem; color: #475569; }
+.apv-dialog-icon.is-no { color: #dc2626; background: var(--cx-fef2f2, #fef2f2); }
+.apv-dialog h3 { margin: 0 0 6px; font-size: 1.15rem; font-weight: 900; color: var(--n-900); }
+.apv-dialog p { margin: 0; font-size: 0.88rem; color: var(--n-700); }
 .apv-dialog .apv-warn { color: #dc2626; font-weight: 800; margin-top: 10px; }
 .apv-dialog-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
 .apv-dialog .apv-btn {
@@ -158,11 +158,11 @@
 }
 .apv-dialog .apv-btn.is-ok { background: #16a34a; color: #fff; }
 .apv-dialog .apv-btn.is-no { background: #dc2626; color: #fff; }
-.apv-dialog .apv-btn.is-ghost { background: #f5f7fa; color: #0f172a; border-color: #e8edf3; }
+.apv-dialog .apv-btn.is-ghost { background: var(--n-50); color: var(--n-900); border-color: var(--n-200); }
 
 /* ---------- Estados vazios / a carregar ---------- */
 .apv-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 56px 20px; border-radius: 24px; background: var(--apv-card); border: 1px solid var(--apv-line); }
-.apv-empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; color: var(--apv-accent); background: color-mix(in srgb, var(--apv-accent) 10%, #fff); }
+.apv-empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; color: var(--apv-accent); background: color-mix(in srgb, var(--apv-accent) 10%, var(--sup-1)); }
 .apv-empty h1 { margin: 6px 0 0; font-size: 1.2rem; font-weight: 900; color: var(--apv-ink); }
 .apv-empty p { margin: 0 0 10px; color: var(--apv-muted); }
 .apv-skeleton { display: flex; flex-direction: column; gap: 16px; }

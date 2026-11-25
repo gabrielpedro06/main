@@ -4,8 +4,8 @@
 .km {
   --km-a: #10b981;
   --km-b: #ef4444;
-  --km-ink: #0f172a;
-  --km-sub: #64748b;
+  --km-ink: var(--n-900);
+  --km-sub: var(--n-500);
   --km-line: color-mix(in srgb, var(--color-btnPrimary) 22%, #cfd6df);
   --km-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, #f3f5f8);
   --km-spring: cubic-bezier(0.22, 1, 0.36, 1);
@@ -23,7 +23,7 @@
 }
 .km-stops-line {
   position: absolute; left: 29px; top: 46px; bottom: 46px; width: 2px;
-  background: repeating-linear-gradient(180deg, #94a3b8 0 4px, transparent 4px 8px);
+  background: repeating-linear-gradient(180deg, var(--n-400) 0 4px, transparent 4px 8px);
   pointer-events: none;
 }
 .km-swap {
@@ -32,7 +32,7 @@
   display: grid; place-items: center;
   border-radius: 50%;
   border: 1.5px solid var(--km-line);
-  background: #fff; color: var(--km-sub);
+  background: var(--sup-1); color: var(--km-sub);
   cursor: pointer;
   box-shadow: 0 6px 14px -8px rgba(15, 23, 42, 0.4);
   transition: transform 0.35s var(--km-spring), color 0.2s ease, border-color 0.2s ease;
@@ -45,7 +45,7 @@
   min-height: 60px;
   padding: 6px 60px 6px 8px;
   border-radius: 14px;
-  background: #fff;
+  background: var(--sup-1);
   border: 1.5px solid transparent;
   box-shadow: 0 2px 6px -4px rgba(15, 23, 42, 0.25);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -58,7 +58,7 @@
   width: 40px; height: 40px; flex-shrink: 0;
   display: grid; place-items: center;
   border: none; border-radius: 12px;
-  background: color-mix(in srgb, var(--tone) 14%, #fff);
+  background: color-mix(in srgb, var(--tone) 14%, var(--sup-1));
   color: var(--tone);
   font: inherit; font-size: 1rem; font-weight: 900;
   cursor: pointer;
@@ -84,7 +84,7 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 .km-stop.is-a .km-mini-btn { right: 60px; }
-.km-mini-btn:hover { background: color-mix(in srgb, var(--km-a) 12%, #fff); color: var(--km-a); }
+.km-mini-btn:hover { background: color-mix(in srgb, var(--km-a) 12%, var(--sup-1)); color: var(--km-a); }
 .km-stop:has(.km-mini-btn) { padding-right: 98px; }
 .km-stop > .km-spinner { position: absolute; right: 68px; }
 
@@ -93,14 +93,14 @@
   position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 20;
   padding: 6px;
   border-radius: 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--sup-1);
+  border: 1px solid var(--n-200);
   box-shadow: 0 24px 48px -18px rgba(15, 23, 42, 0.45);
   max-height: 280px; overflow-y: auto;
   animation: kmPop 0.2s var(--km-spring) both;
   transform-origin: top center;
 }
-.km-suggest-head { padding: 6px 10px 4px; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
+.km-suggest-head { padding: 6px 10px 4px; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--n-500); }
 .km-suggest-empty { padding: 14px 12px; font-size: 0.84rem; color: var(--km-sub); }
 .km-suggest-item {
   width: 100%;
@@ -111,11 +111,11 @@
   text-align: left; cursor: pointer;
   font: inherit;
 }
-.km-suggest-item.is-hi { background: var(--color-bgSecondary, #eff6ff); }
+.km-suggest-item.is-hi { background: var(--color-bgSecondary, var(--cx-eff6ff, #eff6ff)); }
 .km-suggest-icon {
   width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px;
   display: grid; place-items: center;
-  background: #f1f5f9; color: var(--km-sub);
+  background: var(--n-100); color: var(--km-sub);
 }
 .km-suggest-item.is-hi .km-suggest-icon { background: var(--color-btnPrimary); color: #fff; }
 .km-suggest-text { min-width: 0; display: flex; flex-direction: column; }
@@ -132,7 +132,7 @@
   isolation: isolate;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
-.km-map .leaflet-container { font: inherit; background: #eef2f6; }
+.km-map .leaflet-container { font: inherit; background: var(--n-100); }
 .km-map .leaflet-tile-pane { filter: saturate(0.85) contrast(0.98); }
 .km-map.is-picking .leaflet-container { cursor: crosshair; }
 .km-map .leaflet-control-attribution { font-size: 0.6rem; background: rgba(255, 255, 255, 0.7); border-radius: 6px 0 0 0; }
@@ -150,7 +150,7 @@
   pointer-events: none;
   animation: kmDrop 0.35s var(--km-spring) both;
 }
-.km-hint-dot { width: 9px; height: 9px; border-radius: 50%; background: #94a3b8; }
+.km-hint-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--n-400); }
 .km-hint.is-a .km-hint-dot { background: var(--km-a); box-shadow: 0 0 0 4px color-mix(in srgb, var(--km-a) 35%, transparent); animation: kmPulse 1.4s ease-in-out infinite; }
 .km-hint.is-b .km-hint-dot { background: var(--km-b); box-shadow: 0 0 0 4px color-mix(in srgb, var(--km-b) 35%, transparent); animation: kmPulse 1.4s ease-in-out infinite; }
 
@@ -159,7 +159,7 @@
   width: 34px; height: 34px;
   display: grid; place-items: center;
   border: none; border-radius: 10px;
-  background: #fff; color: #334155;
+  background: var(--sup-1); color: var(--n-700);
   box-shadow: 0 6px 16px -8px rgba(15, 23, 42, 0.5);
   cursor: pointer;
   transition: transform 0.2s var(--km-spring), color 0.2s ease;
@@ -171,7 +171,7 @@
   display: flex; flex-direction: column;
   padding: 10px 14px;
   border-radius: 14px;
-  background: #fff;
+  background: var(--sup-1);
   box-shadow: 0 12px 26px -12px rgba(15, 23, 42, 0.5);
   animation: kmPop 0.35s var(--km-spring) both;
 }
@@ -188,7 +188,7 @@
   width: 34px; height: 34px;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
-  border: 3px solid #fff;
+  border: 3px solid var(--sup-1);
   box-shadow: 0 8px 16px -6px rgba(15, 23, 42, 0.6);
   animation: kmPinDrop 0.5s var(--km-spring) both;
 }
@@ -198,14 +198,14 @@
 .leaflet-marker-draggable { cursor: grab; }
 .leaflet-dragging .leaflet-marker-draggable { cursor: grabbing; }
 
-.km-error { padding: 10px 14px; border-radius: 12px; background: #fef2f2; color: #b91c1c; font-size: 0.84rem; font-weight: 600; border: 1px solid #fecaca; }
+.km-error { padding: 10px 14px; border-radius: 12px; background: var(--cx-fef2f2, #fef2f2); color: var(--cx-b91c1c, #b91c1c); font-size: 0.84rem; font-weight: 600; border: 1px solid var(--cx-fecaca, #fecaca); }
 
 /* ---------- TOTAL ---------- */
 .km-total {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   padding: 14px 16px;
   border-radius: 18px;
-  background: linear-gradient(135deg, var(--color-bgSecondary, #eff6ff), #fff);
+  background: linear-gradient(135deg, var(--color-bgSecondary, var(--cx-eff6ff, #eff6ff)), var(--sup-1));
   border: 1.5px solid color-mix(in srgb, var(--color-btnPrimary) 25%, transparent);
 }
 .km-total-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -232,7 +232,7 @@
   padding: 10px 14px;
   border-radius: 14px;
   border: 1.5px solid var(--km-line);
-  background: #fff;
+  background: var(--sup-1);
   font: inherit; text-align: left;
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -241,13 +241,13 @@
 .km-roundtrip.is-on { border-color: var(--color-btnPrimary); box-shadow: 0 0 0 4px var(--color-btnPrimaryShadow, rgba(59, 130, 246, 0.12)); }
 .km-roundtrip-switch {
   position: relative; width: 40px; height: 24px; flex-shrink: 0;
-  border-radius: 99px; background: #cbd5e1;
+  border-radius: 99px; background: var(--n-300);
   transition: background 0.25s ease;
 }
 .km-roundtrip-switch span {
   position: absolute; top: 3px; left: 3px;
   width: 18px; height: 18px; border-radius: 50%;
-  background: #fff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.3);
+  background: var(--sup-1); box-shadow: 0 2px 4px rgba(15, 23, 42, 0.3);
   transition: transform 0.3s var(--km-spring);
 }
 .km-roundtrip.is-on .km-roundtrip-switch { background: var(--color-btnPrimary); }
@@ -261,7 +261,7 @@
   border: 2px solid color-mix(in srgb, var(--color-btnPrimary) 30%, transparent); border-top-color: var(--color-btnPrimary);
   animation: kmSpin 0.7s linear infinite;
 }
-.km-spinner.is-light { border-color: rgba(255, 255, 255, 0.3); border-top-color: #fff; width: 13px; height: 13px; }
+.km-spinner.is-light { border-color: rgba(255, 255, 255, 0.3); border-top-color: var(--sup-1); width: 13px; height: 13px; }
 
 @keyframes kmPop { from { opacity: 0; transform: scale(0.96) translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes kmDrop { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }

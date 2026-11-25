@@ -1,6 +1,6 @@
 /* =====================================================================
    Refinamentos globais de tipografia e de telemóvel.
-   Usa :where() (especificidade zero): são só valores por omissão, qualquer
+   Usa:where() (especificidade zero): são só valores por omissão, qualquer
    regra de uma página ganha a estes. Carregado no fim, em main.jsx.
    ===================================================================== */
 
@@ -162,6 +162,6 @@ img.bz-ph {
 }
 img.bz-ph-neutro {
   background-image: linear-gradient(135deg,
-    color-mix(in srgb, var(--color-btnPrimary, #3b82f6) 18%, #e2e8f0),
-    color-mix(in srgb, var(--color-btnPrimary, #3b82f6) 8%, #f1f5f9));
+    color-mix(in srgb, var(--color-btnPrimary, #3b82f6) 18%, var(--n-200)),
+    color-mix(in srgb, var(--color-btnPrimary, #3b82f6) 8%, var(--n-100)));
 }

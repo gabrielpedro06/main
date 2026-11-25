@@ -12,17 +12,17 @@
   padding: 0 12px;
   border-radius: 12px;
   border: 1px solid #d5dde8;
-  background: #fff;
+  background: var(--sup-1);
   font: inherit;
   font-size: 0.88rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--n-900);
   text-align: left;
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
-.fs-trigger:hover { border-color: #cbd5e1; }
-.fs-trigger:disabled { cursor: not-allowed; opacity: 0.6; background: #f8fafc; }
+.fs-trigger:hover { border-color: var(--n-300); }
+.fs-trigger:disabled { cursor: not-allowed; opacity: 0.6; background: var(--n-50); }
 .fs-trigger:disabled:hover { border-color: #d5dde8; }
 .fs-trigger.is-open,
 .fs-trigger:focus-visible {
@@ -30,7 +30,7 @@
   border-color: var(--color-btnPrimary);
   box-shadow: 0 0 0 4px var(--color-btnPrimaryShadow, rgba(15, 23, 42, 0.08));
 }
-.fs-trigger-icon { display: flex; color: #94a3b8; flex-shrink: 0; }
+.fs-trigger-icon { display: flex; color: var(--n-400); flex-shrink: 0; }
 .fs-trigger-text {
   flex: 1;
   min-width: 0;
@@ -43,8 +43,8 @@
 }
 .fs-trigger-opt-icon { display: inline-flex; flex-shrink: 0; }
 .fs-trigger-opt-icon .fs-tile { width: 22px; height: 22px; border-radius: 7px; font-size: 0.58rem; }
-.fs-placeholder { color: #94a3b8; font-weight: 600; }
-.fs-caret { display: flex; color: #94a3b8; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.fs-placeholder { color: var(--n-400); font-weight: 600; }
+.fs-caret { display: flex; color: var(--n-400); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .fs-trigger.is-open .fs-caret { transform: rotate(180deg); }
 
 /* Variante em vidro (para heros com gradiente) */
@@ -73,8 +73,8 @@
   padding: 6px;
   box-sizing: border-box;
   border-radius: 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--sup-1);
+  border: 1px solid var(--n-200);
   box-shadow: 0 30px 60px -20px rgba(15, 23, 42, 0.45), 0 2px 8px rgba(15, 23, 42, 0.06);
   font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
   transform-origin: top left;
@@ -91,8 +91,8 @@
   margin: 2px 2px 6px;
   padding: 0 10px;
   border-radius: 11px;
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--n-100);
+  color: var(--n-500);
 }
 .fs-search input {
   flex: 1;
@@ -104,7 +104,7 @@
   box-shadow: none !important;
   font: inherit;
   font-size: 0.86rem;
-  color: #0f172a;
+  color: var(--n-900);
 }
 
 .fs-list { flex: 1; min-height: 0; overflow-y: auto; outline: none; scrollbar-width: thin; }
@@ -114,7 +114,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--n-500);
 }
 .fs-option {
   width: 100%;
@@ -133,14 +133,14 @@
   transition: background 0.12s ease;
 }
 @keyframes fsOpt { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
-.fs-option.is-active { background: #f1f5f9; }
+.fs-option.is-active { background: var(--n-100); }
 .fs-option.is-selected { background: var(--color-bgSecondary); }
 .fs-opt-icon { display: flex; flex-shrink: 0; }
 .fs-opt-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .fs-opt-label {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--n-900);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -149,14 +149,14 @@
 .fs-opt-hint {
   font-size: 0.72rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--n-500);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .fs-opt-check { display: flex; color: var(--color-btnPrimary); animation: fsCheck 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes fsCheck { from { transform: scale(0.3); } to { transform: scale(1); } }
-.fs-empty { padding: 18px 10px; text-align: center; font-size: 0.84rem; color: #64748b; }
+.fs-empty { padding: 18px 10px; text-align: center; font-size: 0.84rem; color: var(--n-500); }
 
 /* Ícones em "tile" para as opções */
 .fs-tile {
@@ -171,7 +171,7 @@
   font-size: 0.66rem;
   font-weight: 900;
   letter-spacing: 0.02em;
-  background: linear-gradient(135deg, var(--t1, #94a3b8), var(--t2, #475569));
+  background: linear-gradient(135deg, var(--t1, var(--n-400)), var(--t2, var(--n-700)));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
@@ -191,7 +191,7 @@
 /* as classes antigas dos <select> traziam uma seta desenhada no fundo: o FancySelect já tem a sua */
 .fs-trigger.sm-trigger:is(.pd-select, .pd-input) {
   background-image: none !important;
-  background-color: var(--pd-field-bg, #fff) !important;
+  background-color: var(--pd-field-bg, var(--sup-1)) !important;
   padding-right: 12px;
   text-align: left;
 }
@@ -228,7 +228,7 @@
 }
 /* Marketing: tipo de anexo (pequeno) */
 :is(.mk-anexo-txt, .mk-anexos-drop) .fs-trigger.sm-trigger {
-  height: 22px; padding: 0 6px; gap: 4px; border: 1px solid var(--mk-line); border-radius: 6px; background-color: #f8fafc;
+  height: 22px; padding: 0 6px; gap: 4px; border: 1px solid var(--mk-line); border-radius: 6px; background-color: var(--n-50);
   font-size: 0.7rem; font-weight: 800; color: var(--mk-muted);
 }
 :is(.mk-anexo-txt, .mk-anexos-drop) .fs-trigger.sm-trigger .fs-caret svg { width: 11px; height: 11px; }
@@ -239,7 +239,7 @@
 }
 .po-vg-field.is-inline .fs-trigger.sm-trigger { height: 40px; }
 .po-vg-perpage .fs-trigger.sm-trigger {
-  height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--po-line); background-color: #fff;
+  height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--po-line); background-color: var(--sup-1);
   font-size: 0.8rem; font-weight: 700; color: var(--po-ink);
 }
 @media (max-width: 760px) { .po-vg-field .fs-trigger.sm-trigger { max-width: none; width: 100%; } }

@@ -272,6 +272,10 @@ mobile. `--bz-bottomnav-h` (76px) é usado pelos avisos e barras fixas para fica
   sombras (`--sombra-1…5`, `--sombra-foco`), letra (`--texto-*`, `--peso-*`), espaçamentos (`--esp-*`),
   cores derivadas do tema (`--cor-acento`, `--cor-tinta`, `--cor-suave`, `--cor-linha`, `--cor-perigo`…),
   movimento (`--mola`, `--suave`) e alturas de controlos. **Código novo usa sempre estes tokens.**
+- Neutros com o tom do tema: `--n-900` (texto) até `--n-50` (fundo muito suave), em `tokens.css`. Os escuros
+  levam um toque da cor principal e os claros misturam-se com o fundo do tema. Substituíram os ~1370
+  cinzentos "slate" escritos à mão nos CSS (`#0f172a`, `#64748b`, `#e2e8f0`, `#f8fafc`…). Usar `--n-*` em vez
+  de cinzentos fixos.
 - `styles/componentes-base.css`:
   - `.bz-btn` é o botão para código novo (`is-primary`, `is-danger`, `is-ok`, `is-soft`, `is-ghost`, `is-sm`,
     `is-lg`, `is-block`).
@@ -286,6 +290,12 @@ mobile. `--bz-bottomnav-h` (76px) é usado pelos avisos e barras fixas para fica
   - Peças: `bz-grelha-2`, `bz-dica`, `bz-erro`, `bz-vazio`.
   - Já usados nos formulários do Projetos (assistente) e do Detalhe do projeto, que deixaram de ter os
     objetos `labelStyle`/`inputStyle`/`sectionTitleStyle`.
+- Campos e rótulos das páginas (secção 5 de `componentes-base.css`) têm o mesmo aspeto de `bz-campo` e
+  `bz-rotulo`: `rh-`, `en-`, `pa-`, `af-`, `gm-`, `mk-`, `tk-`, `ti-`, `pd-`, `pf-`, `cc-input`, as textareas e
+  os rótulos `*-field > label`. A prioridade (html + classe) ganha à regra base de cada página, mas perde
+  para as regras específicas (modo de leitura, só leitura, título grande, notas), que continuam a mandar.
+- Ícones: já são de uma só família na prática (traço 2 e pontas redondas em ~95% dos SVG, ao estilo
+  lucide). Ícones novos: `lucide-react` ou o mesmo estilo (viewBox 24, `strokeWidth="2"`, pontas redondas).
 - Listas de escolha: usar `components/SelectModerno.jsx` (mesmas `<option>` do `<select>`). 60 dos 75
   `<select>` já foram trocados. Ficam os não controlados (`defaultValue`), com `ref`, e os das Leads e
   Atividades. Estilos por contexto (filtros da Administração, Agenda, Projetos, Ativos TI, anexos do
@@ -300,6 +310,18 @@ Usado em Ajuda, Cursos e TransferGest. Os cabeçalhos antigos (`tk-`, `rh-`, `po
 `af-`, `gm-`, `pa-`, `mk-`, `adm-`, `rg-hero`) recebem o mesmo aspeto via `styles/cabecalhos.css`: moldura,
 ícone, título, chips (`*-stat`), botão branco (`*-cta`), botões de vidro e linha de ferramentas. Ficam de fora
 os especiais (Início, Fórum, Detalhe do projeto, Perfil, Ausências). O Marketing mantém a cor da marca.
+
+### Tabelas e estados vazios
+
+`styles/tabelas.css`:
+- **Tabelas:** `rh-table`, `po-table`, `po-vg-table`, `en-table`, `pa-table`, `af-table`, `pd-ftable`,
+  `sgm-table`, `rg-tabela`, `mk-rec-table`, `data-table` e `propostas-pagamentos-tabela` têm o mesmo
+  cabeçalho (maiúsculas pequenas, fixo ao fazer scroll), espaçamento, linhas, realce ao passar o rato e
+  números alinhados (`is-num`). Para tabelas novas usar `bz-tabela-wrap` + `bz-tabela`. Ficam de fora
+  `rg-diff`, `mk-matrix`, `mk-g-table` e `mk-e-table`.
+- **Estados vazios:** `rh-`, `po-`, `ti-`, `mk-`, `en-`, `tk-`, `pd-`, `gm-` e `fx-empty` têm o mesmo
+  aspeto: ícone num círculo na cor do tema, título, texto e ação. Para estados novos usar
+  `bz-vazio-grande` + `bz-vazio-ico`.
 
 ### Janelas (design único, vidro)
 
@@ -430,11 +452,35 @@ A exigência real do 2FA está na base de dados: a migração `071_mfa_obrigator
 - `applyThemeVariables(nome)` escreve em `<html>` as variáveis CSS `--color-<chave>` (mais
   `--color-bgGradient`, `--color-sidebarBgSecondary`, `--color-accentColor`). Todo o CSS usa
   estas variáveis (ex.: `var(--color-btnPrimary)`).
+- Texto (`textPrimary`/`textSecondary`/`textLight`) é neutro, quase preto, com só 12% da cor
+  escura do tema; a cor do tema fica para botões, ícones, títulos de secção e destaques.
 - Persistência: `localStorage['app-theme']` — é por browser, não por utilizador.
 - `changeTheme(nome)` usa `document.startViewTransition` para um cross-fade (com a classe
   `bz-theme-transition`), exceto com `prefers-reduced-motion`.
 - Seletor visual: `components/ThemeSelector.jsx`; decorações por tema: `ThemeDecor*.jsx`,
   `utils/themeDecor.js`.
+
+### 7.1 Modo escuro
+
+- Três opções no menu da conta ("Aparência"): Claro, Escuro e Automático (segue o sistema e
+  acompanha-o quando muda). `useTheme()` expõe `modo` ('claro'|'escuro'|'auto'), `setModo` e
+  `escuro` (o resultado). Guardado em `localStorage['app-modo']`, por browser.
+- `utils/modoInicial.js` (importado no início de `main.jsx`) põe `data-modo="escuro"` no
+  `<html>` antes do primeiro desenho, para não piscar branco.
+- As cores do tema em versão escura vêm de `coresEscuras(tema)` em `constants/themes.js`
+  (fundos quase pretos com um toque da cor do tema, textos claros, botão principal mais claro).
+- `styles/tokens.css`, em `html[data-modo="escuro"]`: inverte os neutros `--n-*`, as superfícies
+  `--sup-1/--sup-2`, `--cor-campo` e as sombras; `--brilho` apaga os brilhos brancos do vidro
+  (janelas, ícones) e `--jn-veu` escurece o fundo atrás das janelas.
+- Regras para CSS/JSX novos, para funcionar nos dois modos:
+  - fundo branco → `var(--sup-1)`; cinzentos → `var(--n-*)` (nunca `#fff`/`#f8fafc` fixos);
+  - cores de estado (fundos pastel, bordas claras, textos escuros de vermelho/verde/âmbar…):
+    `var(--cx-HEX, #HEX)`, ex. `var(--cx-fef2f2, #fef2f2)`. No claro fica a cor original; no
+    escuro usa a definição no fim do `tokens.css`. Se usares um tom que ainda não está lá,
+    acrescenta-o;
+  - brilhos brancos em vidro: `rgb(255 255 255 / calc(0.5 * var(--brilho, 1)))`.
+- Ficam de fora (de propósito): PDFs gerados, gráficos com cores em atributos SVG e as cores
+  passadas por JavaScript fora de `style={{…}}`.
 
 ## 8. Fluxo de dados
 

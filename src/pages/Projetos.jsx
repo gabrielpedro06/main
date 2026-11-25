@@ -3732,7 +3732,7 @@ const exportCurrentOverviewPdf = () => {
                                                 menuWidth={360}
                                                 options={clientes.map(c => ({ value: c.id, label: getClientDisplayName(c) || c.marca, hint: c.eh_organismo ? "Entidade financiadora" : undefined }))}
                                             />
-                                            <button type="button" onClick={() => openQuickEntidade("lider")} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
+                                            <button type="button" onClick={() => openQuickEntidade("lider")} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed var(--n-300)', background: 'var(--sup-1)', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
                                                 + Nova entidade
                                             </button>
                                         </div>
@@ -3763,7 +3763,7 @@ const exportCurrentOverviewPdf = () => {
                                                         .filter(c => !(form.parceiros_ids || []).includes(c.id))
                                                         .map(c => ({ value: c.id, label: getClientDisplayName(c) || c.marca }))}
                                                 />
-                                                <button type="button" onClick={() => openQuickEntidade("parceiro")} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
+                                                <button type="button" onClick={() => openQuickEntidade("parceiro")} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed var(--n-300)', background: 'var(--sup-1)', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
                                                     + Nova entidade parceira
                                                 </button>
                                             </div>
@@ -3836,7 +3836,7 @@ const exportCurrentOverviewPdf = () => {
                                                             type="button"
                                                             onClick={openQuickOrganismoModal}
                                                             disabled={isViewOnly}
-                                                            style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}
+                                                            style={{marginTop: '8px', border: '1px dashed var(--n-300)', background: 'var(--sup-1)', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}
                                                         >
                                                             + Novo organismo
                                                         </button>
@@ -3872,7 +3872,7 @@ const exportCurrentOverviewPdf = () => {
                                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                                             <div>
                                                 <div className="bz-rotulo">Colaboradores Internos</div>
-                                                <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
+                                                <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: 'var(--n-50)', borderRadius: '10px', border: '1px solid var(--n-200)'}}>
                                                     {staff
                                                         .filter(s => String(s.id) !== String(form.responsavel_id || ''))
                                                         .filter(s => s.ativo !== false || (form.colaboradores || []).includes(s.id))
@@ -3896,7 +3896,7 @@ const exportCurrentOverviewPdf = () => {
 
                                             <div>
                                                 <div className="bz-rotulo">Contactos das Entidades</div>
-                                                <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
+                                                <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: 'var(--n-50)', borderRadius: '10px', border: '1px solid var(--n-200)'}}>
                                                     {entidadePessoas
                                                         .filter(s => String(s.id) !== String(form.responsavel_id || ''))
                                                         .map(s => {
@@ -3952,7 +3952,7 @@ const exportCurrentOverviewPdf = () => {
                                                             })),
                                                         ]}
                                                     />
-                                                    <button type="button" onClick={() => setQuickPrograma({ codigo: "", nome: "", avisoCodigo: "", isSubmitting: false })} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
+                                                    <button type="button" onClick={() => setQuickPrograma({ codigo: "", nome: "", avisoCodigo: "", isSubmitting: false })} disabled={isViewOnly} style={{marginTop: '8px', border: '1px dashed var(--n-300)', background: 'var(--sup-1)', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: isViewOnly ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '0.85rem'}}>
                                                         + Novo programa
                                                     </button>
                                                 </div>
@@ -3977,7 +3977,7 @@ const exportCurrentOverviewPdf = () => {
                                                                     return { value: av.id, label: av.codigo, hint: nf ? `${nf} ${nf === 1 ? "fase" : "fases"}` : undefined };
                                                                 })}
                                                             />
-                                                            <button type="button" onClick={() => setQuickAviso({ codigo: "", fases: [{ nome: "Fase 1", prazo: "" }], isSubmitting: false })} disabled={isViewOnly || !selectedPrograma} title={!selectedPrograma ? "Escolhe primeiro o programa" : undefined} style={{marginTop: '8px', border: '1px dashed #cbd5e1', background: 'white', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: (isViewOnly || !selectedPrograma) ? 'not-allowed' : 'pointer', opacity: selectedPrograma ? 1 : 0.55, fontWeight: '700', fontSize: '0.85rem'}}>
+                                                            <button type="button" onClick={() => setQuickAviso({ codigo: "", fases: [{ nome: "Fase 1", prazo: "" }], isSubmitting: false })} disabled={isViewOnly || !selectedPrograma} title={!selectedPrograma ? "Escolhe primeiro o programa" : undefined} style={{marginTop: '8px', border: '1px dashed var(--n-300)', background: 'var(--sup-1)', color: 'var(--color-btnPrimary)', padding: '8px 12px', borderRadius: '8px', cursor: (isViewOnly || !selectedPrograma) ? 'not-allowed' : 'pointer', opacity: selectedPrograma ? 1 : 0.55, fontWeight: '700', fontSize: '0.85rem'}}>
                                                                 + Novo aviso
                                                             </button>
                                                         </div>
@@ -4018,16 +4018,16 @@ const exportCurrentOverviewPdf = () => {
                                         </div>
                                     </div>
                                     {form.data_inicio && form.data_fim && form.data_inicio > form.data_fim && (
-                                        <div style={{marginTop: '-18px', marginBottom: '18px', color: '#b91c1c', fontSize: '0.8rem', fontWeight: '700'}}>
+                                        <div style={{marginTop: '-18px', marginBottom: '18px', color: 'var(--cx-b91c1c, #b91c1c)', fontSize: '0.8rem', fontWeight: '700'}}>
                                             A Data de Início tem de ser anterior ou igual à Data de Fim.
                                         </div>
                                     )}
 
                                     {!isProjetoFormacao && (
-                                        <div style={{marginBottom: '10px', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#f8fafc'}}>
+                                        <div style={{marginBottom: '10px', padding: '16px', borderRadius: '12px', border: '1px solid var(--n-200)', background: 'var(--n-50)'}}>
                                             <div style={{marginBottom: '10px'}}>
-                                                <div style={{fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Fases do Projeto</div>
-                                                <div style={{fontSize: '0.85rem', color: '#64748b'}}>
+                                                <div style={{fontSize: '0.8rem', fontWeight: '800', color: 'var(--n-500)', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Fases do Projeto</div>
+                                                <div style={{fontSize: '0.85rem', color: 'var(--n-500)'}}>
                                                 As fases são importadas automaticamente a partir do Aviso selecionado. Servem apenas como referência e não alteram as datas do projeto.
                                                 </div>
                                             </div>
@@ -4095,8 +4095,8 @@ const exportCurrentOverviewPdf = () => {
                                     <div className="bz-secao is-primeira"><Icons.ListTree /> Pré-visualização de Atividades</div>
                                     
                                     {!editId && templateTree.length > 0 ? (
-                                        <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '10px'}}>
-                                            <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0'}}>
+                                        <div style={{background: 'var(--n-50)', padding: '20px', borderRadius: '12px', border: '1px solid var(--n-200)', marginBottom: '10px'}}>
+                                            <p style={{fontSize: '0.85rem', color: 'var(--n-500)', margin: '0 0 15px 0'}}>
                                                 Abaixo está a estrutura gerada pelo modelo selecionado. Podes desmarcar itens que não se aplicam a este projeto específico.
                                             </p>
                                             
@@ -4104,7 +4104,7 @@ const exportCurrentOverviewPdf = () => {
                                                 {templateTree.map(ativ => {
                                                     const isSelected = templateSelection[`a_${ativ.id}`];
                                                     return (
-                                                        <div key={`a_${ativ.id}`} style={{ background: 'white', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
+                                                        <div key={`a_${ativ.id}`} style={{ background: 'var(--sup-1)', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
                                                             
                                                             <div 
                                                                 {...clicavel(() => toggleTemplateSelection('a', ativ.id))}
@@ -4129,7 +4129,7 @@ const exportCurrentOverviewPdf = () => {
                                                                                 </div>
                                                                                 
                                                                                 {isTarSelected && tar.subtarefas?.length > 0 && (
-                                                                                    <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '2px solid #f1f5f9', marginLeft: '7px' }}>
+                                                                                    <div style={{ paddingLeft: '32px', display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '2px solid var(--n-100)', marginLeft: '7px' }}>
                                                                                         {tar.subtarefas.map(sub => {
                                                                                             const isSubSelected = templateSelection[`s_${sub.id}`];
                                                                                             return (
@@ -4171,7 +4171,7 @@ const exportCurrentOverviewPdf = () => {
 
                                             {!isMultiEntidade && !editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0) && (
                                                 <div style={{
-                                                    background: '#fffbeb',
+                                                    background: 'var(--cx-fffbeb, #fffbeb)',
                                                     border: '1px solid #fde68a',
                                                     borderRadius: '12px',
                                                     padding: '14px 18px',
@@ -4179,14 +4179,14 @@ const exportCurrentOverviewPdf = () => {
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '14px',
-                                                    color: '#92400e',
+                                                    color: 'var(--cx-92400e, #92400e)',
                                                     boxShadow: '0 2px 4px rgba(217, 119, 6, 0.05)'
                                                 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                                         <Icons.Alert size={22} color="#d97706" />
                                                     </div>
                                                     <div style={{ fontSize: '0.88rem', lineHeight: '1.4' }}>
-                                                        <strong style={{ display: 'block', marginBottom: '2px', color: '#78350f' }}>
+                                                        <strong style={{ display: 'block', marginBottom: '2px', color: 'var(--cx-78350f, #78350f)' }}>
                                                             Valores Obrigatórios na Criação do Projeto
                                                         </strong>
                                                         {Number(form.investimento || 0) <= 0 && Number(form.incentivo || 0) <= 0
@@ -4199,8 +4199,8 @@ const exportCurrentOverviewPdf = () => {
                                             )}
 
                                             {isMultiEntidade ? (
-                                                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
+                                                <div style={{ background: 'var(--n-50)', padding: '20px', borderRadius: '12px', border: '1px solid var(--n-200)', marginBottom: '30px' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', fontSize: '0.74rem', fontWeight: 800, color: 'var(--n-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
                                                     <span>Entidade</span>
                                                     <span style={{ textAlign: 'right' }}>Investimento elegível (€)</span>
                                                     <span style={{ textAlign: 'right' }}>Incentivo (€)</span>
@@ -4209,16 +4209,16 @@ const exportCurrentOverviewPdf = () => {
                                                     const ent = clientes.find((c) => String(c.id) === id);
                                                     return (
                                                     <div key={id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
-                                                        <span style={{ fontWeight: 700, color: '#1e293b' }}>
+                                                        <span style={{ fontWeight: 700, color: 'var(--n-900)' }}>
                                                         {getClientDisplayName(ent) || ent?.marca}
-                                                        {id === String(form.cliente_id) && <em style={{ marginLeft: 6, fontSize: '0.7rem', color: '#64748b' }}>(líder)</em>}
+                                                        {id === String(form.cliente_id) && <em style={{ marginLeft: 6, fontSize: '0.7rem', color: 'var(--n-500)' }}>(líder)</em>}
                                                         </span>
                                                         {moneyInput(orcamentos[id]?.investimento, (v) => setOrcamento(id, 'investimento', v))}
                                                         {moneyInput(orcamentos[id]?.incentivo, (v) => setOrcamento(id, 'incentivo', v))}
                                                     </div>
                                                     );
                                                 })}
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', fontWeight: 800 }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '12px', paddingTop: '10px', borderTop: '1px dashed var(--n-300)', fontWeight: 800 }}>
                                                     <span>Total do projeto</span>
                                                     <span style={{ textAlign: 'right' }}>{fmtEUR(sumOrc('investimento'))} €</span>
                                                     <span style={{ textAlign: 'right' }}>{fmtEUR(sumOrc('incentivo'))} €</span>
@@ -4229,7 +4229,7 @@ const exportCurrentOverviewPdf = () => {
                                                     display: 'grid',
                                                     gridTemplateColumns: '1fr 1fr',
                                                     gap: '30px',
-                                                    background: '#f8fafc',
+                                                    background: 'var(--n-50)',
                                                     padding: '20px',
                                                     borderRadius: '12px',
                                                     border: (!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0)) ? '1px solid #fed7aa' : '1px solid #e2e8f0',
@@ -4295,12 +4295,12 @@ const exportCurrentOverviewPdf = () => {
                                                     </div>
 
                                                     {Number(form.investimento || 0) > 0 && Number(form.incentivo || 0) > 0 && (
-                                                        <div style={{ gridColumn: 'span 2', display: 'flex', gap: '15px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', fontSize: '0.85rem' }}>
-                                                            <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
+                                                        <div style={{ gridColumn: 'span 2', display: 'flex', gap: '15px', paddingTop: '10px', borderTop: '1px dashed var(--n-300)', fontSize: '0.85rem' }}>
+                                                            <div style={{ background: 'var(--n-100)', padding: '6px 12px', borderRadius: '6px', color: 'var(--n-700)' }}>
                                                                 Taxa de Financiamento: <strong style={{ color: 'var(--color-btnPrimary)' }}>{((Number(form.incentivo) / Number(form.investimento)) * 100).toFixed(2)}%</strong>
                                                             </div>
-                                                            <div style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', color: '#475569' }}>
-                                                                Autofinanciamento: <strong style={{ color: '#1e293b' }}>{new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.max(0, Number(form.investimento) - Number(form.incentivo)))}</strong>
+                                                            <div style={{ background: 'var(--n-100)', padding: '6px 12px', borderRadius: '6px', color: 'var(--n-700)' }}>
+                                                                Autofinanciamento: <strong style={{ color: 'var(--n-900)' }}>{new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.max(0, Number(form.investimento) - Number(form.incentivo)))}</strong>
                                                             </div>
                                                         </div>
                                                     )}

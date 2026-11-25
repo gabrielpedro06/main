@@ -934,8 +934,8 @@ export default function TransferGest() {
       {!selectedCampanha ? (
         <div style={{ padding: "20px 0" }}>
           <div className="campaign-menu-grid">
-            <button type="button" onClick={() => setSelectedCampanha("Todas")} className="campaign-menu-card all" style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "#f8fafc", color: "#3730a3" }}>
-              <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "#ede9fe", color: "#7c3aed", borderRadius: 8, padding: 8 }}>ALL</div>
+            <button type="button" onClick={() => setSelectedCampanha("Todas")} className="campaign-menu-card all" style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "var(--n-50)", color: "#3730a3" }}>
+              <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "var(--cx-ede9fe, #ede9fe)", color: "#7c3aed", borderRadius: 8, padding: 8 }}>ALL</div>
               <div className="info">
                 <h3 style={{ margin: 0, fontWeight: 800 }}>Todas as Campanhas</h3>
                 <p style={{ margin: 0 }}>Ver todos os registos sem filtro de campanha.</p>
@@ -949,14 +949,14 @@ export default function TransferGest() {
                 key={camp}
                 onClick={() => setSelectedCampanha(camp)}
                 className="campaign-menu-card"
-                style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "#fff", color: "#3730a3", marginLeft: 12 }}
+                style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "var(--sup-1)", color: "#3730a3", marginLeft: 12 }}
               >
-                <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "#fef3c7", color: "#b45309", borderRadius: 8, padding: 8 }}>TG</div>
+                <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "var(--cx-fef3c7, #fef3c7)", color: "var(--cx-b45309, #b45309)", borderRadius: 8, padding: 8 }}>TG</div>
                 <div className="info">
                   <h3 style={{ margin: 0, fontWeight: 800 }}>{camp}</h3>
                   <p style={{ margin: 0 }}>Gerir contactos e envios desta campanha.</p>
                 </div>
-                <div className="arrow" style={{ fontWeight: 900, fontSize: 22, color: "#b45309" }}>→</div>
+                <div className="arrow" style={{ fontWeight: 900, fontSize: 22, color: "var(--cx-b45309, #b45309)" }}>→</div>
               </button>
             ))}
           </div>
@@ -1024,7 +1024,7 @@ export default function TransferGest() {
         ))}
       </div>
 
-      <div className="card" style={{ padding: "16px", border: "1px solid var(--color-borderColor)", background: "var(--color-cardBg, #fff)", borderRadius: "0 12px 12px 12px" }}>
+      <div className="card" style={{ padding: "16px", border: "1px solid var(--color-borderColor)", background: "var(--color-cardBg, var(--sup-1))", borderRadius: "0 12px 12px 12px" }}>
         <div className="tg-search-row">
           <div className="tg-search-box">
             <input aria-label="Pesquisar: nome, nif, registo, email | localidade:porto ano:2026 target:industria interesse:sim"
@@ -1087,7 +1087,7 @@ export default function TransferGest() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        <h3 style={{ margin: 0, color: "#1e293b", fontSize: "1rem", fontWeight: 800, lineHeight: 1.2 }}>{formatDisplayValue(item.denominacao)}</h3>
+                        <h3 style={{ margin: 0, color: "var(--n-900)", fontSize: "1rem", fontWeight: 800, lineHeight: 1.2 }}>{formatDisplayValue(item.denominacao)}</h3>
                         {item.ativo === false && <span className="tg-archived-pill">ARQUIVADO</span>}
                       </div>
                       <div style={{ color: "var(--color-textSecondary)", fontSize: "0.84rem", marginTop: "2px" }}>{formatDisplayValue(item.nome)}</div>
@@ -1108,24 +1108,24 @@ export default function TransferGest() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(220px, 0.85fr)", gap: "12px", marginTop: "14px" }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Contacto</div>
-                    <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.contacto_telefone)}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Contacto</div>
+                    <div style={{ fontSize: "0.84rem", color: "var(--n-700)", marginTop: "4px" }}>{formatDisplayValue(item.contacto_telefone)}</div>
                     <div style={{ fontSize: "0.84rem", color: "var(--color-btnPrimary)", marginTop: "2px" }}>{formatDisplayValue(item.contacto_email)}</div>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Registo</div>
-                    <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.numero_registo)}</div>
-                    <div style={{ fontSize: "0.84rem", color: "#64748b", marginTop: "2px" }}>{formatDisplayValue(item.data_registo)}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Registo</div>
+                    <div style={{ fontSize: "0.84rem", color: "var(--n-700)", marginTop: "4px" }}>{formatDisplayValue(item.numero_registo)}</div>
+                    <div style={{ fontSize: "0.84rem", color: "var(--n-500)", marginTop: "2px" }}>{formatDisplayValue(item.data_registo)}</div>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Localidade</div>
-                    <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.sede_localidade)}</div>
-                    <div style={{ fontSize: "0.84rem", color: "#64748b", marginTop: "2px" }}>{formatDisplayValue(item.sede_concelho)} / {formatDisplayValue(item.sede_distrito)}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Localidade</div>
+                    <div style={{ fontSize: "0.84rem", color: "var(--n-700)", marginTop: "4px" }}>{formatDisplayValue(item.sede_localidade)}</div>
+                    <div style={{ fontSize: "0.84rem", color: "var(--n-500)", marginTop: "2px" }}>{formatDisplayValue(item.sede_concelho)} / {formatDisplayValue(item.sede_distrito)}</div>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Target / Classificação</div>
-                    <div style={{ fontSize: "0.84rem", color: "#334155", marginTop: "4px" }}>{formatDisplayValue(item.target)}</div>
-                    <div style={{ fontSize: "0.84rem", color: "#64748b", marginTop: "2px" }}>{formatDisplayValue(item.classificacao_transfergest)}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" }}>Target / Classificação</div>
+                    <div style={{ fontSize: "0.84rem", color: "var(--n-700)", marginTop: "4px" }}>{formatDisplayValue(item.target)}</div>
+                    <div style={{ fontSize: "0.84rem", color: "var(--n-500)", marginTop: "2px" }}>{formatDisplayValue(item.classificacao_transfergest)}</div>
                   </div>
                 </div>
 
@@ -1325,49 +1325,49 @@ export default function TransferGest() {
 
               <div className="jn-corpo">
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Identificação</div>
-                  <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>NIF: {formatDisplayValue(detailItem.numero_contribuinte)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>N registo: {formatDisplayValue(detailItem.numero_registo)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Data: {formatDisplayValue(detailItem.data_registo)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Ano: {formatDisplayValue(detailItem.ano)}</div>
+                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "var(--n-50)" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase" }}>Identificação</div>
+                  <div style={{ marginTop: "8px", color: "var(--n-700)", fontSize: "0.9rem" }}>NIF: {formatDisplayValue(detailItem.numero_contribuinte)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>N registo: {formatDisplayValue(detailItem.numero_registo)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Data: {formatDisplayValue(detailItem.data_registo)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Ano: {formatDisplayValue(detailItem.ano)}</div>
                 </div>
 
-                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Contacto</div>
-                  <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>Telefone: {formatDisplayValue(detailItem.contacto_telefone)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Email: {formatDisplayValue(detailItem.contacto_email)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Interesse: {detailItem.interesse_email_marketing ? "SIM" : "NAO"}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Estado: {formatDisplayValue(detailItem.estado).toUpperCase()}</div>
+                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "var(--n-50)" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase" }}>Contacto</div>
+                  <div style={{ marginTop: "8px", color: "var(--n-700)", fontSize: "0.9rem" }}>Telefone: {formatDisplayValue(detailItem.contacto_telefone)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Email: {formatDisplayValue(detailItem.contacto_email)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Interesse: {detailItem.interesse_email_marketing ? "SIM" : "NAO"}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Estado: {formatDisplayValue(detailItem.estado).toUpperCase()}</div>
                 </div>
 
-                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Geografia</div>
-                  <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>Sede: {formatDisplayValue(detailItem.sede_endereco)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>CP: {formatDisplayValue(detailItem.sede_codigo_postal)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Localidade: {formatDisplayValue(detailItem.sede_localidade)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Concelho / Distrito: {formatDisplayValue(detailItem.sede_concelho)} / {formatDisplayValue(detailItem.sede_distrito)}</div>
+                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "var(--n-50)" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase" }}>Geografia</div>
+                  <div style={{ marginTop: "8px", color: "var(--n-700)", fontSize: "0.9rem" }}>Sede: {formatDisplayValue(detailItem.sede_endereco)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>CP: {formatDisplayValue(detailItem.sede_codigo_postal)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Localidade: {formatDisplayValue(detailItem.sede_localidade)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Concelho / Distrito: {formatDisplayValue(detailItem.sede_concelho)} / {formatDisplayValue(detailItem.sede_distrito)}</div>
                 </div>
 
-                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Enquadramento</div>
-                  <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>ERT DRT: {formatDisplayValue(detailItem.ert_drt)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>NUT II: {formatDisplayValue(detailItem.nut_ii)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>NUT III: {formatDisplayValue(detailItem.nut_iii)}</div>
-                  <div style={{ color: "#334155", fontSize: "0.9rem" }}>Target: {formatDisplayValue(detailItem.target)}</div>
+                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "var(--n-50)" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase" }}>Enquadramento</div>
+                  <div style={{ marginTop: "8px", color: "var(--n-700)", fontSize: "0.9rem" }}>ERT DRT: {formatDisplayValue(detailItem.ert_drt)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>NUT II: {formatDisplayValue(detailItem.nut_ii)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>NUT III: {formatDisplayValue(detailItem.nut_iii)}</div>
+                  <div style={{ color: "var(--n-700)", fontSize: "0.9rem" }}>Target: {formatDisplayValue(detailItem.target)}</div>
                 </div>
 
-                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Classificação</div>
-                  <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.classificacao_transfergest)}</div>
-                  <div style={{ marginTop: "10px", fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Estado</div>
-                  <div style={{ marginTop: "6px", color: "#334155", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.estado).toUpperCase()}</div>
-                  <div style={{ color: "#64748b", fontSize: "0.82rem", marginTop: "4px" }}>{detailItem.estado_historico && detailItem.estado_historico[detailItem.estado] ? `Desde ${detailItem.estado_historico[detailItem.estado]}` : "Sem data de estado"}</div>
+                <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "var(--n-50)" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase" }}>Classificação</div>
+                  <div style={{ marginTop: "8px", color: "var(--n-700)", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.classificacao_transfergest)}</div>
+                  <div style={{ marginTop: "10px", fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase" }}>Estado</div>
+                  <div style={{ marginTop: "6px", color: "var(--n-700)", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.estado).toUpperCase()}</div>
+                  <div style={{ color: "var(--n-500)", fontSize: "0.82rem", marginTop: "4px" }}>{detailItem.estado_historico && detailItem.estado_historico[detailItem.estado] ? `Desde ${detailItem.estado_historico[detailItem.estado]}` : "Sem data de estado"}</div>
                 </div>
 
-                <div style={{ gridColumn: "1 / -1", padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Observacoes</div>
-                  <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{formatDisplayValue(detailItem.observacoes)}</div>
+                <div style={{ gridColumn: "1 / -1", padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "var(--n-50)" }}>
+                  <div style={{ fontSize: "0.72rem", color: "var(--n-500)", fontWeight: 800, textTransform: "uppercase" }}>Observacoes</div>
+                  <div style={{ marginTop: "8px", color: "var(--n-700)", fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{formatDisplayValue(detailItem.observacoes)}</div>
                 </div>
               </div>
               </div>

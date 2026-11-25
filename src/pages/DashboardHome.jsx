@@ -1309,7 +1309,7 @@ export default function DashboardHome() {
   };
 
   const formatarHoras = (segundos) => {
-      if (segundos === 0) return <span style={{color: '#64748b', fontStyle: 'italic', fontSize: '0.75rem'}}>Em curso</span>;
+      if (segundos === 0) return <span style={{color: 'var(--n-500)', fontStyle: 'italic', fontSize: '0.75rem'}}>Em curso</span>;
       const horas = Math.floor(segundos / 3600);
       const minutos = Math.floor((segundos % 3600) / 60);
       return <span style={{fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{horas}h{minutos.toString().padStart(2, '0')}</span>;
@@ -1824,7 +1824,7 @@ export default function DashboardHome() {
                                 <h3>Histórico de assiduidade</h3>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px'}}>
                                     <button aria-label="Mês anterior" className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() - 1); setHistoryDate(d); }}><Icons.ChevronLeft /></button>
-                                    <span style={{fontWeight: 'bold', color: '#475569', minWidth: '120px', textAlign: 'center'}}>
+                                    <span style={{fontWeight: 'bold', color: 'var(--n-700)', minWidth: '120px', textAlign: 'center'}}>
                                         {nomesMeses[historyDate.getMonth()]} {historyDate.getFullYear()}
                                     </span>
                                     <button aria-label="Mês seguinte" className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() + 1); setHistoryDate(d); }}><Icons.ChevronRight /></button>
@@ -1833,8 +1833,8 @@ export default function DashboardHome() {
                         </div>
 
                         <div style={{display: 'flex', gap: '20px', alignItems: 'center'}}>
-                            <div style={{background: '#f8fafc', padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center'}}>
-                                <div style={{fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold'}}>Total do Mês</div>
+                            <div style={{background: 'var(--n-50)', padding: '10px 20px', borderRadius: '10px', border: '1px solid var(--n-200)', textAlign: 'center'}}>
+                                <div style={{fontSize: '0.75rem', color: 'var(--n-500)', textTransform: 'uppercase', fontWeight: 'bold'}}>Total do Mês</div>
                                 <div style={{fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-btnPrimary)'}}>{totalHorasMes.h}h {totalHorasMes.m}m</div>
                             </div>
                             
@@ -1847,9 +1847,9 @@ export default function DashboardHome() {
                     </div>
 
                     <div className="jn-corpo custom-scrollbar" style={{padding: '18px 22px'}}>
-                        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
-                            <thead style={{background: '#f1f5f9'}}>
-                                <tr style={{textAlign: 'left', color: '#475569'}}>
+                        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', background: 'var(--sup-1)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
+                            <thead style={{background: 'var(--n-100)'}}>
+                                <tr style={{textAlign: 'left', color: 'var(--n-700)'}}>
                                     <th style={{padding: '12px 15px'}}>Data</th>
                                     <th style={{padding: '12px 15px'}}>Entrada</th>
                                     <th style={{padding: '12px 15px'}}>Saída</th>
@@ -1889,11 +1889,11 @@ export default function DashboardHome() {
                                                 
                                                 <div style={{flex: 2, minWidth: '200px'}}>
                                                     <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#ea580c'}}>Motivo (Obrigatório) *</label>
-                                                    <input aria-label="Motivo (Obrigatório)" type="text" placeholder="Ex: Fui ao médico e não piquei…" value={addForm.motivo_alteracao} onChange={e => setAddForm({...addForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
+                                                    <input aria-label="Motivo (Obrigatório)" type="text" placeholder="Ex: Fui ao médico e não piquei…" value={addForm.motivo_alteracao} onChange={e => setAddForm({...addForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: 'var(--cx-fff7ed, #fff7ed)'}} className="input-focus-alert" required />
                                                 </div>
 
                                                 <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px'}}>
-                                                    <button type="button" onClick={() => setIsAdding(false)} className="btn-small hover-shadow" style={{height: '38px', background: 'white', border: '1px solid #cbd5e1', color: '#64748b'}}>Cancelar</button>
+                                                    <button type="button" onClick={() => setIsAdding(false)} className="btn-small hover-shadow" style={{height: '38px', background: 'var(--sup-1)', border: '1px solid var(--n-300)', color: 'var(--n-500)'}}>Cancelar</button>
                                                     <button type="submit" className="btn-primary hover-shadow" style={{padding: '0 20px', height: '38px', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.Save /> Inserir Registo</button>
                                                 </div>
                                             </form>
@@ -1902,7 +1902,7 @@ export default function DashboardHome() {
                                 )}
 
                                 {fullHistory.length === 0 && !isAdding ? (
-                                    <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>
+                                    <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', color: 'var(--n-500)'}}>
                                         <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', opacity: 0.5}}><Icons.Calendar size={30} /></div>
                                         Nenhum registo neste mês.
                                     </td></tr>
@@ -1912,8 +1912,8 @@ export default function DashboardHome() {
 
                                     return (
                                         <React.Fragment key={r.id}>
-                                            <tr style={{borderBottom: '1px solid #e2e8f0', background: isEditing ? 'var(--color-bgSecondary)' : 'white'}} className={!isEditing ? "table-row-hover" : ""}>
-                                                <td style={{padding: '12px 15px', fontWeight: 'bold', color: '#334155'}}>
+                                            <tr style={{borderBottom: '1px solid var(--n-200)', background: isEditing ? 'var(--color-bgSecondary)' : 'white'}} className={!isEditing ? "table-row-hover" : ""}>
+                                                <td style={{padding: '12px 15px', fontWeight: 'bold', color: 'var(--n-700)'}}>
                                                     {new Date(r.data_registo).toLocaleDateString('pt-PT')}
                                                 </td>
                                                 <td style={{padding: '12px 15px', color: 'var(--color-btnPrimary)'}}>{r.hora_entrada?.slice(0,5)}</td>
@@ -1926,7 +1926,7 @@ export default function DashboardHome() {
                                                 <td style={{padding: '12px 15px'}}>{formatarHoras(totalSegundos)}</td>
                                                 
                                                 <td style={{padding: '12px 15px'}}>
-                                                    <div style={{maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#64748b', fontSize: '0.8rem'}} title={r.observacoes || ''}>
+                                                    <div style={{maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--n-500)', fontSize: '0.8rem'}} title={r.observacoes || ''}>
                                                         {r.motivo_alteracao && <span style={{color: '#ea580c', fontWeight:'bold', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px'}}><Icons.AlertTriangle size={12} /> Editado: {r.motivo_alteracao}</span>}
                                                         {r.observacoes ? String(r.observacoes).replace(/✅ TAREFAS REALIZADAS:\n/g, '').replace(/\n/g, ', ') : '-'}
                                                     </div>
@@ -1963,11 +1963,11 @@ export default function DashboardHome() {
 
                                                             <div style={{flex: 2, minWidth: '200px'}}>
                                                                 <label style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#ea580c'}}>Motivo da Correção *</label>
-                                                                <input aria-label="Motivo da Correção" type="text" placeholder="Ex: Esqueci de picar saída" value={editForm.motivo_alteracao} onChange={e => setEditForm({...editForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: '#fff7ed'}} className="input-focus-alert" required />
+                                                                <input aria-label="Motivo da Correção" type="text" placeholder="Ex: Esqueci de picar saída" value={editForm.motivo_alteracao} onChange={e => setEditForm({...editForm, motivo_alteracao: e.target.value})} style={{...inputEditStyle, borderColor: '#fdba74', background: 'var(--cx-fff7ed, #fff7ed)'}} className="input-focus-alert" required />
                                                             </div>
 
                                                             <div style={{display: 'flex', alignItems: 'flex-end', gap: '10px'}}>
-                                                                <button type="button" onClick={() => setEditingRecord(null)} className="btn-small hover-shadow" style={{height: '38px', background: 'white', border: '1px solid #cbd5e1', color: '#64748b'}}>Cancelar</button>
+                                                                <button type="button" onClick={() => setEditingRecord(null)} className="btn-small hover-shadow" style={{height: '38px', background: 'var(--sup-1)', border: '1px solid var(--n-300)', color: 'var(--n-500)'}}>Cancelar</button>
                                                                 <button type="submit" className="btn-primary hover-shadow" style={{padding: '0 20px', height: '38px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Save /> Guardar</button>
                                                             </div>
                                                         </form>
@@ -2005,7 +2005,7 @@ export default function DashboardHome() {
                           {ccWarning.type === 'gestor' ? (
                               <>
                                   <p style={{margin: '0 0 10px 0'}}>Os seguintes colaboradores estão com a validade do CC quase a expirar ou já expirada. Peça que atualizem os dados:</p>
-                                  <ul style={{margin: 0, paddingLeft: '20px', color: '#1e293b', fontWeight: '500'}}>
+                                  <ul style={{margin: 0, paddingLeft: '20px', color: 'var(--n-900)', fontWeight: '500'}}>
                                       {ccWarning.users.map(u => (
                                           <li key={u.id}>{u.nome} <span style={{fontSize: '0.8rem', color: '#ef4444', marginLeft: '5px'}}>({new Date(u.validade_cc).toLocaleDateString('pt-PT')})</span></li>
                                       ))}
@@ -2026,10 +2026,10 @@ export default function DashboardHome() {
       {showBirthdayPopup && (
         <ModalPortal>
             <div className="jn-fundo" style={{zIndex: "calc(var(--z-modal) + 13)"}}>
-                <div style={{background: 'linear-gradient(135deg, #ffffff, #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
+                <div style={{background: 'linear-gradient(135deg, var(--sup-1), #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
                     <div style={{display: 'flex', justifyContent: 'center', color: '#f59e0b', marginBottom: '15px', animation: 'bounce 2s infinite'}}><Icons.Gift /></div>
-                    <h2 style={{margin: '0 0 10px 0', color: '#b45309', fontSize: '2rem'}}>Parabéns, {userFirstName}!</h2>
-                    <p style={{color: '#92400e', marginBottom: '25px', fontSize: '1.1rem', lineHeight: '1.5'}}>
+                    <h2 style={{margin: '0 0 10px 0', color: 'var(--cx-b45309, #b45309)', fontSize: '2rem'}}>Parabéns, {userFirstName}!</h2>
+                    <p style={{color: 'var(--cx-92400e, #92400e)', marginBottom: '25px', fontSize: '1.1rem', lineHeight: '1.5'}}>
                         A equipa deseja-te um dia incrivelmente feliz, cheio de sucesso e alegrias!
                     </p>
                     <button 
