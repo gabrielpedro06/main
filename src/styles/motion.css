@@ -20,7 +20,7 @@
   --bz-dur: 280ms;
   --bz-dur-slow: 460ms;
   --bz-topbar-h: 56px;
-  --bz-bottomnav-h: 64px;
+  --bz-bottomnav-h: 76px; /* barra inferior em vidro (BarraNavegacao): altura + margem */
 }
 
 /* ---------------------------------------------------------------------

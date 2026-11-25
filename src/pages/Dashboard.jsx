@@ -12,6 +12,7 @@ import PaginaSkeleton from "../components/Skeleton";
 import CommandMenu from "../components/CommandMenu";
 import { abrirComando } from "../utils/comando";
 import GestosJanelas from "../components/GestosJanelas";
+import BarraNavegacao from "../components/BarraNavegacao";
 import AtalhosTeclado from "../components/AtalhosTeclado";
 import { arrastarParaFechar } from "../utils/gestos";
 import { navegarComTransicao, paginaMudou, podeTransicao } from "../utils/transicaoPagina";
@@ -91,6 +92,8 @@ export default function Dashboard() {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest?.("a[href^='#/']");
     if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+    // Barra inferior do telemóvel: a bolha a deslizar já é a animação (a View Transition escondia-a)
+    if (a.closest(".bz-gn")) return;
     const destino = a.getAttribute("href").slice(1);
     if (destino === location.pathname + location.search) return;
     e.preventDefault(); // o <Link> do React Router vê isto e não navega ele próprio
@@ -214,26 +217,13 @@ export default function Dashboard() {
         </main>
 
         {isMobile && (
-          <nav className="bz-bottom-nav" aria-label="Navegação rápida">
-            {BOTTOM_NAV.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`bz-bottom-nav-item ${isActive(item) ? "active" : ""}`}
-              >
-                <span className="bz-bottom-nav-icon"><item.Icon /></span>
-                <span className="bz-bottom-nav-label">{item.label}</span>
-              </Link>
-            ))}
-            <button
-              type="button"
-              className={`bz-bottom-nav-item ${menuOpen ? "active" : ""}`}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              <span className="bz-bottom-nav-icon"><NavIcon.Menu /></span>
-              <span className="bz-bottom-nav-label">Menu</span>
-            </button>
-          </nav>
+          <BarraNavegacao
+            ativo={menuOpen ? "menu" : (BOTTOM_NAV.find((item) => isActive(item))?.to ?? null)}
+            itens={[
+              ...BOTTOM_NAV.map((item) => ({ chave: item.to, to: item.to, label: item.label, Icon: item.Icon })),
+              { chave: "menu", label: "Menu", Icon: NavIcon.Menu, onClick: () => setMenuOpen((v) => !v), expandido: menuOpen },
+            ]}
+          />
         )}
       </div>
     </div>

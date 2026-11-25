@@ -1,0 +1,170 @@
+/* =====================================================================
+   Barra de navegação inferior em vidro (components/BarraNavegacao.jsx)
+   Flutua por cima do conteúdo (o conteúdo passa por baixo, desfocado).
+   A forma com o entalhe é desenhada em JS (clip-path + svg).
+   ===================================================================== */
+.bz-gn {
+  --gn-altura: 62px;
+  --gn-bolha: 50px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: calc(var(--z-app) + 4);
+  padding: calc(var(--gn-bolha) / 2 + 6px) max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  pointer-events: none; /* só a barra recebe toques; o espaço à volta deixa tocar no conteúdo */
+}
+
+.bz-gn-barra {
+  position: relative;
+  height: var(--gn-altura);
+  max-width: 520px;
+  margin: 0 auto;
+  pointer-events: auto;
+}
+
+/* Vidro: desfoca e satura o que está por baixo, com um brilho em cima */
+.bz-gn-vidro {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.14) 100%),
+    color-mix(in srgb, var(--color-bgSecondary, #ffffff) 58%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.9);
+  backdrop-filter: blur(18px) saturate(1.9);
+}
+
+.bz-gn-sombra,
+.bz-gn-brilho {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* sombra: a mesma forma, desfocada e um pouco mais abaixo */
+.bz-gn-sombra path {
+  fill: rgba(15, 23, 42, 0.34);
+  filter: blur(12px);
+  transform: translateY(6px);
+}
+/* contorno de luz (aresta do vidro) */
+.bz-gn-brilho path {
+  fill: none;
+  stroke: url(#bz-gn-luz);
+  stroke-width: 1.2;
+}
+/* aresta escura fina por fora: a forma (e o recorte) lê-se também em fundos claros */
+.bz-gn-brilho path.bz-gn-aresta {
+  stroke: color-mix(in srgb, var(--color-textPrimary, #0f172a) 16%, transparent);
+  stroke-width: 2.2;
+}
+
+/* Bolha do item ativo */
+.bz-gn-bolha {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--gn-bolha);
+  height: var(--gn-bolha);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 46%),
+    linear-gradient(160deg,
+      color-mix(in srgb, var(--color-btnPrimary, #2563eb) 82%, #fff) 0%,
+      var(--color-btnPrimary, #2563eb) 55%,
+      color-mix(in srgb, var(--color-btnPrimary, #2563eb) 75%, #000) 100%);
+  box-shadow:
+    0 10px 22px -8px color-mix(in srgb, var(--color-btnPrimary, #2563eb) 70%, transparent),
+    0 2px 5px rgba(15, 23, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.18);
+  transform-origin: 50% 50%;
+  will-change: transform;
+  pointer-events: none;
+  z-index: 2;
+}
+.bz-gn-bolha-ico {
+  display: grid;
+  place-items: center;
+  animation: bzGnIco 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.bz-gn-bolha-ico svg { width: 22px; height: 22px; }
+@keyframes bzGnIco { from { opacity: 0; transform: scale(0.4) rotate(-20deg); } to { opacity: 1; transform: none; } }
+
+/* Itens */
+.bz-gn-itens {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0 14px;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+.bz-gn-itens > li { flex: 1; min-width: 0; display: flex; }
+.bz-gn-item {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 0 9px;
+  border: 0;
+  background: none;
+  color: color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bz-gn-ico {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  transition: opacity 0.2s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.bz-gn-ico svg { width: 22px; height: 22px; }
+.bz-gn-label {
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: color 0.2s ease, font-weight 0.2s ease;
+}
+.bz-gn-item:active .bz-gn-ico { transform: scale(0.86); }
+/* ativo: o ícone "sobe" para a bolha; fica só a etiqueta, por baixo do entalhe */
+.bz-gn-item.is-ativo { color: var(--color-btnPrimary, #2563eb); }
+.bz-gn-item.is-ativo .bz-gn-ico { opacity: 0; transform: translateY(-14px) scale(0.6); }
+.bz-gn-item.is-ativo .bz-gn-label { font-weight: 800; }
+.bz-gn-item:focus-visible { outline: none; }
+.bz-gn-item:focus-visible .bz-gn-label { text-decoration: underline; text-underline-offset: 3px; }
+
+/* O conteúdo passa por baixo da barra: espaço no fim de cada página */
+.dashboard-container.is-mobile .dashboard-main {
+  padding-bottom: calc(var(--gn-espaco, 104px) + env(safe-area-inset-bottom)) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bz-gn-bolha-ico, .bz-gn-ico { animation: none; transition: none; }
+}
+
+/* Barras/avisos fixos das páginas ficam por cima da barra de vidro (telemóvel) */
+.dashboard-container.is-mobile :is(.pf-savebar, .pd-savebar, .rh-floatbar, .fx-toast) {
+  bottom: calc(var(--bz-bottomnav-h, 76px) + env(safe-area-inset-bottom) + 14px);
+}
+
+/* Mudança de página com View Transition (ex.: pelo menu lateral): a barra fica fora da
+   "fotografia" da página e é mostrada ao vivo, para se ver a bolha a deslizar */
+html.bz-vt-pagina .bz-gn { view-transition-name: bz-navegacao; }
+::view-transition-group(bz-navegacao),
+::view-transition-new(bz-navegacao) { animation: none; }
+::view-transition-old(bz-navegacao) { display: none; }

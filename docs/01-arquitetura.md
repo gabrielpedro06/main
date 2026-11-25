@@ -257,6 +257,15 @@ Total por campanha: `tempoDe([ids])` soma várias peças; `CampanhaTempo` aparec
 quando há filtro de campanha (total, por pessoa, peças com mais tempo); o filtro mostra o total em
 cada opção e o `CronoPainel` mostra o total da campanha da peça.
 
+### Barra de navegação do telemóvel (vidro)
+
+`components/BarraNavegacao.jsx` + `styles/barra-navegacao.css`, usada em `Dashboard.jsx` (só em
+mobile). Barra flutuante com `backdrop-filter`. A forma, um retângulo arredondado com o entalhe
+circular por baixo da bolha do item ativo, é gerada por `caminho()` e aplicada como `clip-path:
+path()` ao vidro e às duas `<svg>` (sombra e contorno). O deslizar é uma mola em
+`requestAnimationFrame`. O conteúdo passa por baixo: `.dashboard-main` tem `padding-bottom` em
+mobile. `--bz-bottomnav-h` (76px) é usado pelos avisos e barras fixas para ficarem por cima.
+
 ### Gestos no telemóvel (voltar fecha / arrastar fecha)
 
 `components/GestosJanelas.jsx` (montado em `Dashboard.jsx`, só em ecrãs ≤ 900px ou de toque) observa o
