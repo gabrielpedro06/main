@@ -3,6 +3,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import FancySelect from "../FancySelect";
 import { I } from "./mkIcons";
 import { iniciais, corPessoa } from "./mkUtils";
+import SelectModerno from "../SelectModerno";
 
 /** Textarea que cresce com o conteúdo */
 export function AutoText({ value, onChange, onBlur, placeholder, rows = 2, className = "", autoFocus = false }) {
@@ -179,18 +180,18 @@ export function ListaEditor({ items, onChange, campos, novo = {}, addLabel = "Ad
               } else if (c.tipo === "select" || c.tipo === "frente") {
                 const opcoes = c.tipo === "frente" ? (ctx.frentes || []) : (c.opcoes || []);
                 campo = (
-                  <select className="mk-input" value={v || ""} onChange={(e) => set(e.target.value || null)}>
+                  <SelectModerno className="mk-input" value={v || ""} onChange={(e) => set(e.target.value || null)}>
                     <option value="">—</option>
                     {opcoes.map((o) => <option key={o} value={o}>{o}</option>)}
                     {v && !opcoes.includes(v) && <option value={v}>{v}</option>}
-                  </select>
+                  </SelectModerno>
                 );
               } else if (c.tipo === "persona") {
                 campo = (
-                  <select className="mk-input" value={v || ""} onChange={(e) => set(e.target.value || null)}>
+                  <SelectModerno className="mk-input" value={v || ""} onChange={(e) => set(e.target.value || null)}>
                     <option value="">—</option>
                     {(ctx.personas || []).map((p) => <option key={p.id} value={p.id}>{p.nome_persona || "Sem nome"}{p.papel ? ` · ${p.papel}` : ""}</option>)}
-                  </select>
+                  </SelectModerno>
                 );
               } else if (c.tipo === "personas") {
                 const sel = Array.isArray(v) ? v : [];

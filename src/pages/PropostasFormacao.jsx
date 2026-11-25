@@ -18,6 +18,7 @@ import { supabase } from "../services/supabase";
 import { generateFormacaoPDF } from "../components/pdfFormacaoGenerator";
 import "./../styles/dashboard.css";
 import { Pencil } from "lucide-react";
+import SelectModerno from "../components/SelectModerno";
 
 const stepTitles = [
   "Empresa Consultora",
@@ -957,19 +958,19 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                 <div className="field-grid">
                   <div className="field span-2">
                     <label>Selecionar Empresa</label>
-                    <select value={empresaConsultora.id} onChange={(event) => selectEmpresaConsultora(event.target.value)}>
+                    <SelectModerno value={empresaConsultora.id} onChange={(event) => selectEmpresaConsultora(event.target.value)}>
                       <option value="">-</option>
                       {empresasConsultoras.map((empresa) => (
                         <option key={empresa.id} value={empresa.id}>
                           {empresa.nome}
                         </option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
 
                   <div className="field">
                     <label>Pessoa da consultora</label>
-                    <select
+                    <SelectModerno
                       value={empresaConsultora.signatario_id || ""}
                       onChange={(event) => selectContatoConsultora(event.target.value)}
                       disabled={!empresaConsultora.id}
@@ -984,7 +985,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                       {contatosConsultora.map((contacto) => (
                         <option key={contacto.id} value={contacto.id}>{contacto.nome}</option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
 
                   <div className="field">
@@ -1036,11 +1037,11 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                   </div>
                   <div className="field">
                     <label>Estado</label>
-                    <select value={proposta.estado} onChange={setField(setProposta, "estado")}>
+                    <SelectModerno value={proposta.estado} onChange={setField(setProposta, "estado")}>
                       {PROPOSTA_ESTADOS.map((estado) => (
                         <option key={estado.value} value={estado.value}>{estado.label}</option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
                 </div>
               </div>
@@ -1056,14 +1057,14 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                 <div className="field-grid">
                   <div className="field span-2">
                     <label>Selecionar Cliente</label>
-                    <select value={cliente.id} onChange={(event) => selectCliente(event.target.value)}>
+                    <SelectModerno value={cliente.id} onChange={(event) => selectCliente(event.target.value)}>
                       <option value="">-</option>
                       {clientes.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.nome}
                         </option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
                   <div className="field">
                     <label>NIPC</label>
@@ -1085,7 +1086,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                 <div className="field-grid">
                   <div className="field span-2">
                     <label>Selecionar Contacto</label>
-                    <select
+                    <SelectModerno
                       value={cliente.contacto_id || ""}
                       onChange={(event) => selectContatoCliente(event.target.value)}
                       disabled={!cliente.id}
@@ -1100,7 +1101,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                       {contatosCliente.map((contacto) => (
                         <option key={contacto.id} value={contacto.id}>{contacto.nome}</option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
                   <div className="field">
                     <label>Nome</label>

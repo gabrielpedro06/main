@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import "./../styles/dashboard.css";
+import SelectModerno from "../components/SelectModerno";
 
 const Icons = {
   Edit: ({ size = 16, color = "currentColor" }) => (
@@ -544,14 +545,14 @@ export default function ListaPropostas() {
 
                   <div className="field" style={{ marginBottom: "10px" }}>
                     <label style={{ fontSize: "0.78rem" }}>Estado</label>
-                    <select
+                    <SelectModerno
                       value={proposta.estado}
                       onChange={(event) => handleChangeEstado(proposta, event.target.value)}
                     >
                       {PROPOSTA_ESTADOS.map((estadoItem) => (
                         <option key={estadoItem.value} value={estadoItem.value}>{estadoItem.label}</option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
 
                   <h3>{getTituloProposta(proposta)}</h3>
@@ -612,7 +613,7 @@ export default function ListaPropostas() {
                           {getEstadoLabel(proposta.estado)}
                         </span>
                         <div style={{ marginTop: "6px" }}>
-                          <select
+                          <SelectModerno
                             value={proposta.estado}
                             onChange={(event) => handleChangeEstado(proposta, event.target.value)}
                             style={{ minWidth: "150px" }}
@@ -620,7 +621,7 @@ export default function ListaPropostas() {
                             {PROPOSTA_ESTADOS.map((estadoItem) => (
                               <option key={estadoItem.value} value={estadoItem.value}>{estadoItem.label}</option>
                             ))}
-                          </select>
+                          </SelectModerno>
                         </div>
                       </td>
                       <td className="muted">{formatDatePt(proposta.created_at)}</td>

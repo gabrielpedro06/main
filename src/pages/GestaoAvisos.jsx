@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import "../styles/programas.css";
 import { Sparkles } from "lucide-react";
+import SelectModerno from "../components/SelectModerno";
 
 const Icons = {
   Edit: () => (
@@ -961,14 +962,14 @@ export default function GestaoAvisos() {
                       </div>
                       <div className="pa-field">
                         <label>Entidade Financiadora</label>
-                        <select name="entidade_financiadora_id" className="pa-input" disabled={isViewOnly} value={programaFormData.entidade_financiadora_id} onChange={handleProgramaInputChange}>
+                        <SelectModerno name="entidade_financiadora_id" className="pa-input" disabled={isViewOnly} value={programaFormData.entidade_financiadora_id} onChange={handleProgramaInputChange}>
                           <option value="">— Selecionar organismo —</option>
                           {organismos.map((organismo) => (
                             <option key={organismo.id} value={organismo.id}>
                               {getClientSelectName(organismo)}
                             </option>
                           ))}
-                        </select>
+                        </SelectModerno>
                       </div>
                     </div>
                   </section>
@@ -985,11 +986,11 @@ export default function GestaoAvisos() {
                       </div>
                       <div className="pa-field">
                         <label>Tipo de Incentivo</label>
-                        <select name="tipo_incentivo" className="pa-input" disabled={isViewOnly} value={programaFormData.tipo_incentivo} onChange={handleProgramaInputChange}>
+                        <SelectModerno name="tipo_incentivo" className="pa-input" disabled={isViewOnly} value={programaFormData.tipo_incentivo} onChange={handleProgramaInputChange}>
                           {TIPO_INCENTIVO_OPTIONS.map((tipo) => (
                             <option key={tipo} value={tipo}>{tipo}</option>
                           ))}
-                        </select>
+                        </SelectModerno>
                       </div>
                       <div className="pa-field">
                         <label>Investimento Mínimo (€)</label>
@@ -1071,7 +1072,7 @@ export default function GestaoAvisos() {
                     {/* MODO 1: SELECIONAR EXISTENTE OU ESCOLHER CRIAR NOVO */}
                     {modoAdicaoAviso && (
                       <div className="pa-add-box">
-                        <select
+                        <SelectModerno
                           className="pa-input"
                           value=""
                           onChange={(e) => {
@@ -1086,7 +1087,7 @@ export default function GestaoAvisos() {
                           {avisos.filter(a => !(programaFormData.avisos_ids || []).map(String).includes(String(a.id))).map((aviso) => (
                             <option key={aviso.id} value={aviso.id}>{aviso.codigo}</option>
                           ))}
-                        </select>
+                        </SelectModerno>
                         <span className="pa-or">OU</span>
                         <button type="button" className="pa-btn is-soft" onClick={() => { setModoAdicaoAviso(false); setCriarNovoAvisoInline(true); }}>
                           <Icons.Plus /> Criar Novo de Raiz

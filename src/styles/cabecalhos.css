@@ -1,0 +1,163 @@
+/* =====================================================================
+   CABEÇALHOS DE PÁGINA — o mesmo aspeto em todas as páginas.
+   ---------------------------------------------------------------------
+   O cabeçalho comum é o components/PageHero.jsx (styles/page-hero.css).
+   As páginas mais antigas têm o seu próprio cabeçalho (tk-hero, rh-hero,
+   mk-hero…), todos nascidos do mesmo modelo mas que foram divergindo
+   (espaçamento, ícone 46/50/52px, sombras, chips, botões). Esta camada
+   dá-lhes a MESMA moldura e as mesmas peças, sem mexer no JSX:
+     · faixa na cor do tema (as cores da sidebar), cantos 26px, aresta de luz
+     · ícone em vidro 50px · título 1.5rem · subtítulo · sobretítulo
+     · chips de números · botão branco (principal) · botões de vidro
+     · linha de ferramentas separada por uma linha fina
+   Ficam de fora, de propósito, os cabeçalhos especiais: Início (saudação),
+   Fórum (caixa de publicar), Detalhe do projeto, Perfil e Ausências.
+   O Marketing mantém o reflexo da cor da marca escolhida.
+   Seletores com :not(#cb) para ganharem aos estilos antigos sem !important.
+   ===================================================================== */
+
+/* ---------- moldura ---------- */
+:is(.page-hero, .adm-hero, .rg-hero, .af-hero, .ag-hero, .en-hero, .gm-hero, .mk-hero, .pa-hero, .po-hero, .rh-hero, .ti-hero, .tk-hero):not(#cb) {
+  border-radius: var(--raio-xl);
+  padding: 22px 24px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 26px 50px -30px color-mix(in srgb, var(--color-sidebarBg, #0f172a) 75%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+:is(.page-hero, .adm-hero, .rg-hero, .af-hero, .ag-hero, .en-hero, .gm-hero, .pa-hero, .po-hero, .rh-hero, .ti-hero, .tk-hero):not(#cb) {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(255, 255, 255, 0.1), transparent 55%),
+    linear-gradient(125deg, var(--color-sidebarBg, #1e293b) 0%, var(--color-sidebarBgSecondary, var(--color-sidebarBg, #0f172a)) 100%);
+}
+
+/* ---------- ícone ---------- */
+:is(.page-hero-icon, .adm-hero-icon, .rg-hero-icon, .af-hero-icon, .ag-hero-icon, .en-hero-icon, .gm-hero-icon, .mk-hero-icon, .pa-hero-icon, .po-hero-icon, .rh-hero-icon, .ti-hero-icon, .tk-hero-icon):not(#cb) {
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 20px -12px rgba(0, 0, 0, 0.45);
+}
+:is(.page-hero-icon, .adm-hero-icon, .rg-hero-icon, .af-hero-icon, .ag-hero-icon, .en-hero-icon, .gm-hero-icon, .mk-hero-icon, .pa-hero-icon, .po-hero-icon, .rh-hero-icon, .ti-hero-icon, .tk-hero-icon):not(#cb) svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ---------- textos ---------- */
+:is(.page-hero, .adm-hero, .rg-hero, .af-hero, .ag-hero, .en-hero, .gm-hero, .mk-hero, .pa-hero, .po-hero, .rh-hero, .ti-hero, .tk-hero):not(#cb) h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #fff;
+  text-wrap: balance;
+}
+:is(.page-hero, .adm-hero, .rg-hero, .af-hero, .ag-hero, .en-hero, .gm-hero, .mk-hero, .pa-hero, .po-hero, .rh-hero, .ti-hero, .tk-hero):not(#cb) h1 + p {
+  margin: 3px 0 0;
+  max-width: 72ch;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.74);
+}
+:is(.page-hero-kicker, .adm-hero-kicker, .rg-hero-kicker):not(#cb) {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+/* ---------- chips de números ---------- */
+:is(.page-hero-chip, .adm-chip, .rg-chip, .af-stat, .ag-stat, .en-stat, .gm-stat, .mk-stat, .pa-stat, .po-stat, .rh-stat, .ti-stat, .tk-stat):not(#cb) {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: var(--raio-pilula);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-variant-numeric: tabular-nums;
+}
+:is(.page-hero-chip, .adm-chip, .rg-chip, .af-stat, .ag-stat, .en-stat, .gm-stat, .mk-stat, .pa-stat, .po-stat, .rh-stat, .ti-stat, .tk-stat):not(#cb) :is(strong, b) {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* ---------- botão principal do cabeçalho (branco) ---------- */
+:is(.page-hero-btn, .rg-hero-btn, .af-hero-btn, .mk-hero-btn, .ti-hero-btn, .af-cta, .en-cta, .mk-cta, .pa-cta, .po-cta, .ti-cta, .tk-cta):not(#cb):not(.is-vidro) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--altura-controlo);
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--raio-sm);
+  background: #fff;
+  color: var(--color-sidebarBg, var(--cor-acento));
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 10px 22px -12px rgba(0, 0, 0, 0.5);
+  transition: transform 0.18s var(--mola), box-shadow var(--rapido) ease;
+}
+:is(.page-hero-btn, .rg-hero-btn, .af-hero-btn, .mk-hero-btn, .ti-hero-btn, .af-cta, .en-cta, .mk-cta, .pa-cta, .po-cta, .ti-cta, .tk-cta):not(#cb):not(.is-vidro):hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 28px -14px rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- botões de vidro do cabeçalho (secundários) ---------- */
+:is(.page-hero-btn.is-vidro, .ag-glass-btn, .tk-glass-btn):not(#cb) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--altura-controlo);
+  padding: 0 14px;
+  border-radius: var(--raio-sm);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background var(--rapido) ease, transform 0.18s var(--mola);
+}
+:is(.page-hero-btn.is-vidro, .ag-glass-btn, .tk-glass-btn):not(#cb):hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); transform: translateY(-1px); }
+
+/* ---------- linha de ferramentas (pesquisa, filtros, separadores) ---------- */
+:is(.page-hero-tools, .ag-hero-tools, .en-hero-tools, .mk-hero-tools, .pa-hero-tools, .po-hero-tools, .rh-hero-tools, .ti-hero-tools, .tk-hero-actions-row):not(#cb) {
+  position: relative;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* ---------- telemóvel ---------- */
+@media (max-width: 640px) {
+  :is(.page-hero, .adm-hero, .rg-hero, .af-hero, .ag-hero, .en-hero, .gm-hero, .mk-hero, .pa-hero, .po-hero, .rh-hero, .ti-hero, .tk-hero):not(#cb) {
+    padding: 18px;
+    border-radius: 22px;
+  }
+  :is(.page-hero, .adm-hero, .rg-hero, .af-hero, .ag-hero, .en-hero, .gm-hero, .mk-hero, .pa-hero, .po-hero, .rh-hero, .ti-hero, .tk-hero):not(#cb) h1 { font-size: 1.3rem; }
+  :is(.page-hero-icon, .adm-hero-icon, .rg-hero-icon, .af-hero-icon, .ag-hero-icon, .en-hero-icon, .gm-hero-icon, .mk-hero-icon, .pa-hero-icon, .po-hero-icon, .rh-hero-icon, .ti-hero-icon, .tk-hero-icon):not(#cb) {
+    width: 44px; height: 44px; border-radius: 14px;
+  }
+}

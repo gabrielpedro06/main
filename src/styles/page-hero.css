@@ -38,6 +38,23 @@
 .page-hero-crumb:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 .page-hero-crumb:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 4px; }
 
+/* Linha de ferramentas por baixo (pesquisa, filtros) e pesquisa em vidro */
+.page-hero-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.page-hero-busca {
+  flex: 1 1 280px; min-width: 200px; position: relative; display: flex; align-items: center; gap: 8px;
+  height: 42px; padding: 0 14px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.18); color: rgba(255, 255, 255, 0.75);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.page-hero-busca:focus-within { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.4); }
+.page-hero-busca svg { flex: none; width: 17px; height: 17px; }
+.page-hero-busca input,
+html .page-hero-busca input:focus {
+  flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; box-shadow: none;
+  background: transparent; color: #fff; font: inherit; font-size: 0.9rem;
+}
+.page-hero-busca input::placeholder { color: rgba(255, 255, 255, 0.6); }
+
 @media (max-width: 640px) {
   .page-hero { padding: 18px; border-radius: 20px; }
   .page-hero h1 { font-size: 1.3rem; }
@@ -45,3 +62,12 @@
 @media (prefers-reduced-motion: reduce) {
   .page-hero, .page-hero-orb { animation: none; }
 }
+
+/* Botões e listas dentro do cabeçalho */
+.page-hero-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.page-hero .fs-trigger {
+  height: 40px; min-width: 220px; border-color: rgba(255, 255, 255, 0.22);
+  background-color: rgba(255, 255, 255, 0.12); color: #fff;
+}
+.page-hero .fs-trigger:hover { background-color: rgba(255, 255, 255, 0.18); }
+.page-hero .fs-trigger .fs-caret, .page-hero .fs-trigger .fs-placeholder { color: rgba(255, 255, 255, 0.75); }

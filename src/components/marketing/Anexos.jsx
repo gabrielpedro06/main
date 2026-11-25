@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { I } from "./mkIcons";
+import SelectModerno from "../SelectModerno";
 
 const CATEGORIAS_ANEXO = [
   { id: "briefing", label: "Briefing" },
@@ -62,9 +63,9 @@ export default function Anexos({ value, onChange, pasta, categoriaInicial = "out
               <div className="mk-anexo-txt">
                 {f.url ? <a href={f.url} target="_blank" rel="noreferrer" title={f.nome}>{f.nome}</a> : <b title="Ficheiro referido no Notion — carregue-o aqui">{f.nome}</b>}
                 <span>
-                  <select value={f.categoria || "outro"} onChange={(e) => mudarCategoria(f, e.target.value)} aria-label="Tipo de anexo">
+                  <SelectModerno value={f.categoria || "outro"} onChange={(e) => mudarCategoria(f, e.target.value)} aria-label="Tipo de anexo">
                     {CATEGORIAS_ANEXO.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                  </select>
+                  </SelectModerno>
                   {f.url ? tam(f.tamanho) : <em>por carregar</em>}
                 </span>
               </div>
@@ -83,9 +84,9 @@ export default function Anexos({ value, onChange, pasta, categoriaInicial = "out
           <I.Archive size={15} /> {aCarregar ? `A carregar ${aCarregar}…` : "Anexar ficheiros"}
         </button>
         <span>ou arraste para aqui · como</span>
-        <select value={categoria} onChange={(e) => setCategoria(e.target.value)} aria-label="Tipo dos novos anexos">
+        <SelectModerno value={categoria} onChange={(e) => setCategoria(e.target.value)} aria-label="Tipo dos novos anexos">
           {CATEGORIAS_ANEXO.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
+        </SelectModerno>
         <input ref={input} type="file" multiple hidden onChange={(e) => { carregar(e.target.files); e.target.value = ""; }} />
       </div>
     </div>

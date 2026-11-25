@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
+import SelectModerno from "./SelectModerno";
 
 // Janela "Parar cronómetro": nota opcional e (opcionalmente) novo estado do item.
 // Se o novo estado for "em_analise", pede destino (próprio/colega/cliente/contabilista/
@@ -564,7 +565,7 @@ export default function StopTimerNoteModal({
                 }}
               >
                 <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Encaminhar para</label>
-                <select
+                <SelectModerno
                   className="stop-note-select"
                   value={analysisDestination}
                   onChange={(e) => {
@@ -589,12 +590,12 @@ export default function StopTimerNoteModal({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </SelectModerno>
 
                 {isColleagueDestination && (
                   <>
                     <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Selecionar colega</label>
-                    <select
+                    <SelectModerno
                       className="stop-note-select"
                       value={analysisDestinationUserId}
                       onChange={(e) => {
@@ -623,14 +624,14 @@ export default function StopTimerNoteModal({
                           {profile.nome || profile.email || String(profile.id).slice(0, 8)}
                         </option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </>
                 )}
 
                 {isClientDestination && (
                   <>
                     <label style={{ color: "#334155", fontSize: "0.8rem", fontWeight: 700 }}>Pessoa do cliente</label>
-                    <select
+                    <SelectModerno
                       className="stop-note-select"
                       value={analysisDestinationContactId}
                       onChange={(e) => {
@@ -666,7 +667,7 @@ export default function StopTimerNoteModal({
                           </option>
                         );
                       })}
-                    </select>
+                    </SelectModerno>
                   </>
                 )}
 

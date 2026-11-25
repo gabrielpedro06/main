@@ -18,7 +18,9 @@ import SegurancaMFA from "../components/admin/SegurancaMFA";
 import AdminVisaoGeral from "../components/admin/AdminVisaoGeral";
 import { postAutenticado } from "../utils/apiAutenticada";
 import "../styles/admin.css";
-import { clicavel } from "../utils/clicavel";
+import "../styles/admin-separadores.css";
+import Janela from "../components/Janela";
+import SelectModerno from "../components/SelectModerno";
 
 
 // Papéis que se podem escolher na "Tag de Perfil". O servidor aceita também
@@ -184,42 +186,40 @@ function MiniPieChart({ title, data, palette }) {
   });
 
   return (
-    <div style={{ width: "100%", background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "20px", display: "flex", flexDirection: "column", flex: 1, boxSizing: "border-box" }}>
-      <h3 style={{ margin: 0, marginBottom: "16px", color: "var(--color-textPrimary)", fontSize: "0.95rem" }}>{title}</h3>
-      {data.length === 0 && <p style={{ margin: 0, color: "var(--color-textSecondary)", fontSize: "0.88rem", flex: 1 }}>Sem dados para este filtro.</p>}
-      
+    <section className="adm-card adm-pie">
+      <div className="adm-card-head"><div><h3>{title}</h3><p>{data.length ? `${formatHours(total)} no período` : "Sem dados para este filtro"}</p></div></div>
       {data.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px", flex: 1 }}>
-          <div style={{ position: "relative", width: `${size}px`, height: `${size}px`, margin: "0 auto" }}>
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-              {slices.map((s) => s.isFull ? <circle key={s.label} cx={center} cy={center} r={radius} fill={s.color} /> : <path key={s.label} d={s.pathData} fill={s.color} stroke="#ffffff" strokeWidth="1.5" />)}
-              <circle cx={center} cy={center} r="32" fill="#ffffff" />
-              <text x={center} y={center - 4} textAnchor="middle" style={{ fontSize: "10px", fill: "var(--color-textSecondary)", fontWeight: 700 }}>TOTAL</text>
-              <text x={center} y={center + 12} textAnchor="middle" style={{ fontSize: "11px", fill: "var(--color-textPrimary)", fontWeight: 800 }}>{formatHours(total)}</text>
+        <>
+          <div className="adm-pie-chart">
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${title}: ${formatHours(total)}`}>
+              {slices.map((s) => s.isFull ? <circle key={s.label} cx={center} cy={center} r={radius} fill={s.color} /> : <path key={s.label} d={s.pathData} fill={s.color} stroke="#ffffff" strokeWidth="2" />)}
+              <circle cx={center} cy={center} r="40" fill="#ffffff" />
+              <text x={center} y={center - 5} textAnchor="middle" className="adm-pie-total-label">TOTAL</text>
+              <text x={center} y={center + 13} textAnchor="middle" className="adm-pie-total">{formatHours(total)}</text>
             </svg>
           </div>
-          <div style={{ display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", marginTop: "auto" }}>
+          <ul className="adm-pie-legend">
             {slices.map((slice) => (
-              <div key={slice.label} style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
-                <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: slice.color, flexShrink: 0, marginTop: "4px" }} />
-                <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                  <span title={slice.label} style={{ color: "var(--color-textPrimary)", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{slice.label}</span>
-                  <span style={{ color: "var(--color-textSecondary)", fontSize: "0.7rem" }}>{formatHours(slice.value)} ({Math.round(slice.fraction * 100)}%)</span>
-                </div>
-              </div>
+              <li key={slice.label}>
+                <i style={{ background: slice.color }} />
+                <span title={slice.label}>{slice.label}</span>
+                <b>{formatHours(slice.value)}</b>
+                <em>{Math.round(slice.fraction * 100)}%</em>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </>
       )}
-    </div>
+    </section>
   );
 }
 
 const Icons = {
+  Relogio: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg>,
   Analytics: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>,
   Equipa: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
   Gestao: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
-  Pulse: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
+  Pulse: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
   Finance: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
 };
 
@@ -543,11 +543,11 @@ export default function AdminDashboard() {
       {mostraFiltros && (
         <div className="adm-filters">
           <span>Período</span>
-          <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Tipo de período">
+          <SelectModerno value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Tipo de período">
             <option value="day">Dia</option>
             <option value="month">Mês</option>
             <option value="interval">Intervalo</option>
-          </select>
+          </SelectModerno>
           {mode === "day" && <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} aria-label="Dia" />}
           {mode === "month" && <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} aria-label="Mês" />}
           {mode === "interval" && (
@@ -562,18 +562,18 @@ export default function AdminDashboard() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
           {activeTab === "analytics" && (
-            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} aria-label="Colaborador">
+            <SelectModerno value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} aria-label="Colaborador">
               <option value="all">Todos os colaboradores</option>
               {profiles.map(p => <option key={p.id} value={p.id}>{p.nome || p.email}</option>)}
-            </select>
+            </SelectModerno>
           )}
         </div>
       )}
 
       {loading ? (
-        <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "16px", color: "var(--color-textSecondary)" }}>A carregar dados de administração…</div>
+        <p className="adm-empty">A carregar dados de administração…</p>
       ) : errorMessage ? (
-        <div style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: "14px", padding: "16px", color: "#b91c1c" }}>{errorMessage}</div>
+        <p className="adm-empty is-erro">{errorMessage}</p>
       ) : (
         <>
           {activeTab === "geral" && (
@@ -592,308 +592,262 @@ export default function AdminDashboard() {
           )}
           {activeTab === "seguranca" && <SegurancaMFA profiles={profiles} />}
 
-          {/* TAB 1: VISÃO GLOBAL (ANALYTICS) */}
+          {/* TAB 1: ANÁLISE DE TEMPO */}
           {activeTab === "analytics" && (
-            <div className="bz-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-              
-              {/* KPIs GLOBAIS */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-                <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "16px" }}>
-                  <div style={{ color: "var(--color-textSecondary)", fontSize: "0.85rem", fontWeight: 600 }}>Total de Registos</div>
-                  <div style={{ color: "var(--color-textPrimary)", fontSize: "1.6rem", fontWeight: 800 }}>{logsFiltered.length}</div>
+            <div className="bz-tab-panel adm-panel">
+
+              {/* Indicadores */}
+              <div className="adm-kpis">
+                <div className="adm-kpi" style={{ "--k": "var(--adm-accent)" }}>
+                  <span className="adm-kpi-ico has-cor">{Icons.Analytics}</span>
+                  <span className="adm-kpi-label">Registos no período</span>
+                  <span className="adm-kpi-value">{logsFiltered.length}</span>
                 </div>
-                <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "16px" }}>
-                  <div style={{ color: "var(--color-textSecondary)", fontSize: "0.85rem", fontWeight: 600 }}>Tempo no Filtro</div>
-                  <div style={{ color: "var(--color-btnPrimary)", fontSize: "1.6rem", fontWeight: 800 }}>{formatHours(totalMinutesFiltered)}</div>
+                <div className="adm-kpi" style={{ "--k": "#7c3aed" }}>
+                  <span className="adm-kpi-ico has-cor">{Icons.Relogio}</span>
+                  <span className="adm-kpi-label">Tempo no filtro</span>
+                  <span className="adm-kpi-value">{formatHours(totalMinutesFiltered)}</span>
                 </div>
-                <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "16px" }}>
-                  <div style={{ color: "var(--color-textSecondary)", fontSize: "0.85rem", fontWeight: 600 }}>Cronómetros Ativos</div>
-                  <div style={{ color: "#059669", fontSize: "1.6rem", fontWeight: 800 }}>{activeLogsByUser.size}</div>
+                <div className="adm-kpi" style={{ "--k": "#059669" }}>
+                  <span className="adm-kpi-ico has-cor">{Icons.Pulse}</span>
+                  <span className="adm-kpi-label">Cronómetros ativos</span>
+                  <span className="adm-kpi-value">{activeLogsByUser.size}{activeLogsByUser.size > 0 && <span className="adm-live" aria-hidden="true" />}</span>
                 </div>
-                <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "16px" }}>
-                  <div style={{ color: "var(--color-textSecondary)", fontSize: "0.85rem", fontWeight: 600 }}>Colaboradores Totais</div>
-                  <div style={{ color: "var(--color-textPrimary)", fontSize: "1.6rem", fontWeight: 800 }}>{profiles.length}</div>
+                <div className="adm-kpi" style={{ "--k": "#0284c7" }}>
+                  <span className="adm-kpi-ico has-cor">{Icons.Equipa}</span>
+                  <span className="adm-kpi-label">Colaboradores</span>
+                  <span className="adm-kpi-value">{profiles.length}</span>
                 </div>
               </div>
 
-              {/* GRÁFICOS PIE + WIDGET EQUIPA ONLINE ("O BURACO") */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "stretch" }}>
-                <div style={{ flex: "1 1 260px", minWidth: 0, display: "flex" }}><MiniPieChart title="Horas por Utilizador" data={chartsData.byUser} palette={["#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#1d4ed8"]} /></div>
-                <div style={{ flex: "1 1 260px", minWidth: 0, display: "flex" }}><MiniPieChart title="Horas por Projeto" data={chartsData.byProject} palette={["#059669", "#10b981", "#34d399", "#6ee7b7", "#047857"]} /></div>
-                <div style={{ flex: "1 1 260px", minWidth: 0, display: "flex" }}><MiniPieChart title="Horas por Atividade" data={chartsData.byActivity} palette={["#ea580c", "#f97316", "#fb923c", "#fdba74", "#c2410c"]} /></div>
-                <div style={{ flex: "1 1 260px", minWidth: 0, display: "flex" }}><MiniPieChart title="Horas por Tarefa" data={chartsData.byTask} palette={["#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#6d28d9"]} /></div>
-                
-                {/* WIDGET: EQUIPA ONLINE */}
-                <div style={{ flex: "2 1 540px", minWidth: 0, display: "flex", flexDirection: "column" }}>
-                  <div style={{ background: "#fff", borderRadius: "14px", border: "1px solid var(--color-borderColor)", overflow: "hidden", display: "flex", flexDirection: "column", flex: 1 }}>
-                    <div style={{ borderTop: "4px solid #0f766e", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--color-borderColor)" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        {Icons.Pulse}
-                        <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.15rem", fontWeight: 800 }}>Equipa Online</h3>
+              {/* Gráficos */}
+              <div className="adm-pies">
+                <MiniPieChart title="Horas por utilizador" data={chartsData.byUser} palette={["#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#1d4ed8"]} />
+                <MiniPieChart title="Horas por projeto" data={chartsData.byProject} palette={["#059669", "#10b981", "#34d399", "#6ee7b7", "#047857"]} />
+                <MiniPieChart title="Horas por atividade" data={chartsData.byActivity} palette={["#ea580c", "#f97316", "#fb923c", "#fdba74", "#c2410c"]} />
+                <MiniPieChart title="Horas por tarefa" data={chartsData.byTask} palette={["#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#6d28d9"]} />
+              </div>
+
+              {/* Equipa online */}
+              <section className="adm-card">
+                <div className="adm-card-head">
+                  <div><h3>Equipa online</h3><p>Quem já picou o ponto hoje</p></div>
+                  <span className="adm-badge is-online"><i className="adm-live" aria-hidden="true" /> {onlineUsers.length} online</span>
+                </div>
+                {onlineUsers.length === 0 ? (
+                  <p className="adm-empty">Nenhum colaborador online de momento.</p>
+                ) : (
+                  <div className="adm-online">
+                    {onlineUsers.map(user => (
+                      <div key={user.id} className="adm-online-pessoa">
+                        <span className="adm-av is-lg">
+                          {user.avatar_url ? <img src={user.avatar_url} alt="" /> : getInitials(user.nome)}
+                          <i aria-hidden="true" />
+                        </span>
+                        <strong>{getSafeFirstName(user.nome, "Colaborador")}</strong>
+                        <small>desde {user.hora_entrada}</small>
                       </div>
-                      <div style={{ background: "var(--color-bgTertiary)", border: "1px solid var(--color-borderColor)", color: "var(--color-textPrimary)", padding: "4px 12px", borderRadius: "99px", fontSize: "0.85rem", fontWeight: 700 }}>
-                        {onlineUsers.length} online
-                      </div>
-                    </div>
-                    
-                    <div style={{ padding: "20px", background: "#f8fafc", flex: 1, overflowY: "auto", maxHeight: "250px" }}>
-                      {onlineUsers.length === 0 ? (
-                        <p style={{ margin: 0, color: "var(--color-textSecondary)", fontSize: "0.9rem", textAlign: "center", padding: "20px 0" }}>Nenhum colaborador online de momento.</p>
-                      ) : (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "14px" }}>
-                          {onlineUsers.map(user => (
-                            <div key={user.id} style={{ background: "#fff", borderRadius: "16px", padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", border: "1px solid var(--color-borderColor)", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
-                              <div style={{ position: "relative", marginBottom: "12px" }}>
-                                <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: "1.2rem", overflow: "hidden" }}>
-                                  {user.avatar_url ? <img src={user.avatar_url} alt={user.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : getInitials(user.nome)}
-                                </div>
-                                <div style={{ position: "absolute", bottom: "0", right: "0", width: "14px", height: "14px", background: "#0f766e", border: "2px solid #fff", borderRadius: "50%" }}></div>
-                              </div>
-                              <div style={{ fontWeight: 800, color: "var(--color-textPrimary)", fontSize: "0.95rem", textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {getSafeFirstName(user.nome, "Colaborador")}
-                              </div>
-                              <div style={{ color: "var(--color-textSecondary)", fontSize: "0.8rem", marginTop: "4px", fontWeight: 600 }}>
-                                {user.hora_entrada}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                </div>
-              </div>
+                )}
+              </section>
 
-              {/* RENTABILIDADE / FINANCEIRO DOS PROJETOS */}
-              <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", overflow: "hidden" }}>
-                <div style={{ borderTop: "4px solid #ca8a04", padding: "16px 20px", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--color-borderColor)" }}>
-                  <span style={{ color: "#ca8a04" }}>{Icons.Finance}</span>
-                  <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.15rem", fontWeight: 800 }}>Financiamento de Projetos</h3>
+              {/* Financiamento dos projetos */}
+              <section className="adm-card">
+                <div className="adm-card-head">
+                  <div><h3>Financiamento de projetos</h3><p>Investimento, incentivo e taxa de financiamento</p></div>
+                  <span className="adm-kpi-ico has-cor" style={{ "--k": "#ca8a04" }}>{Icons.Finance}</span>
                 </div>
-                <div style={{ padding: "20px", background: "#fafafa" }}>
-                  {projetosFinanceiros.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "30px 20px", color: "var(--color-textSecondary)" }}>
-                      <p style={{ margin: "0 0 8px 0", fontWeight: 600, fontSize: "1rem", color: "var(--color-textPrimary)" }}>Sem dados financeiros disponíveis.</p>
-                      <p style={{ margin: 0, fontSize: "0.9rem" }}>Para ver o desempenho financeiro, preencha os campos <b>investimento</b> e <b>incentivo</b> nos projetos.</p>
-                    </div>
-                  ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: "800px" }}>
-                        <thead>
-                          <tr>
-                            <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontSize: "0.8rem", borderBottom: "1px solid var(--color-borderColor)" }}>Projeto</th>
-                            <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontSize: "0.8rem", borderBottom: "1px solid var(--color-borderColor)" }}>Investimento Global</th>
-                            <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontSize: "0.8rem", borderBottom: "1px solid var(--color-borderColor)" }}>Incentivo Aprovado</th>
-                            <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontSize: "0.8rem", borderBottom: "1px solid var(--color-borderColor)" }}>Auto-financiamento</th>
-                            <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontSize: "0.8rem", borderBottom: "1px solid var(--color-borderColor)" }}>Taxa de Financiamento</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {projetosFinanceiros.map((p) => {
-                            const taxa = p.investimento > 0 ? ((p.incentivo / p.investimento) * 100).toFixed(2) : 0;
-                            return (
-                              <tr key={p.id} style={{ background: "#fff", borderBottom: "1px solid var(--color-borderColor)" }}>
-                                <td style={{ padding: "12px", fontWeight: 700, color: "var(--color-textPrimary)" }}>{p.titulo}</td>
-                                <td style={{ padding: "12px", color: "#b45309", fontWeight: 600 }}>{formatCurrency(p.investimento)}</td>
-                                <td style={{ padding: "12px", color: "#059669", fontWeight: 600 }}>{formatCurrency(p.incentivo)}</td>
-                                <td style={{ padding: "12px", color: "#d97706", fontWeight: 600 }}>{formatCurrency(p.autoFinanciamento)}</td>
-                                <td style={{ padding: "12px", color: "#2563eb", fontWeight: 800 }}>{taxa}%</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-
+                {projetosFinanceiros.length === 0 ? (
+                  <p className="adm-empty">Sem dados financeiros. Preenche o <b>investimento</b> e o <b>incentivo</b> nos projetos para os ver aqui.</p>
+                ) : (
+                  <div className="adm-tabela-wrap">
+                    <table className="adm-tabela">
+                      <thead>
+                        <tr>
+                          <th>Projeto</th>
+                          <th className="is-num">Investimento</th>
+                          <th className="is-num">Incentivo</th>
+                          <th className="is-num">Autofinanciamento</th>
+                          <th className="is-num">Taxa</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {projetosFinanceiros.map((p) => {
+                          const taxa = p.investimento > 0 ? (p.incentivo / p.investimento) * 100 : 0;
+                          return (
+                            <tr key={p.id}>
+                              <td className="is-forte">{p.titulo}</td>
+                              <td className="is-num">{formatCurrency(p.investimento)}</td>
+                              <td className="is-num is-verde">{formatCurrency(p.incentivo)}</td>
+                              <td className="is-num">{formatCurrency(p.autoFinanciamento)}</td>
+                              <td className="is-num">
+                                <span className="adm-taxa"><span className="adm-taxa-barra"><i style={{ width: `${Math.min(100, taxa)}%` }} /></span><b>{taxa.toFixed(1)}%</b></span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             </div>
           )}
 
           {/* TAB 2: EQUIPA & ASSIDUIDADE */}
           {activeTab === "equipa" && (
-            <div className="bz-tab-panel" style={{ overflowX: "auto", background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "980px" }}>
-                <thead>
-                  <tr style={{ background: "var(--color-bgTertiary)", textAlign: "left" }}>
-                    <th style={{ padding: "12px 16px", color: "var(--color-textSecondary)", fontSize: "0.8rem" }}>Colaborador</th>
-                    <th style={{ padding: "12px 16px", color: "var(--color-textSecondary)", fontSize: "0.8rem" }}>{mode === "day" ? "Entrada (Hoje)" : "Dias Presentes"}</th>
-                    <th style={{ padding: "12px 16px", color: "var(--color-textSecondary)", fontSize: "0.8rem" }}>Presença (Assiduidade)</th>
-                    <th style={{ padding: "12px 16px", color: "var(--color-textSecondary)", fontSize: "0.8rem" }}>Tempo em Tarefas</th>
-                    <th style={{ padding: "12px 16px", color: "var(--color-textSecondary)", fontSize: "0.8rem" }}>A fazer agora</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {profiles.map((profile) => {
-                    const active = activeLogsByUser.get(String(profile.id));
-                    
-                    const tempoTarefas = logsFiltered.filter(l => String(l.user_id) === String(profile.id)).reduce((acc, log) => {
-                      if (log.end_time) return acc + getMinutesFromLog(log);
-                      const start = new Date(log.start_time || log.created_at);
-                      const diffMinutos = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-                      return acc + (diffMinutos > 0 ? diffMinutos : 0);
-                    }, 0);
+            <section className="bz-tab-panel adm-card">
+              <div className="adm-card-head">
+                <div><h3>Equipa e assiduidade</h3><p>Presença, tempo em tarefas e o que cada pessoa está a fazer agora</p></div>
+              </div>
+              <div className="adm-tabela-wrap">
+                <table className="adm-tabela">
+                  <thead>
+                    <tr>
+                      <th>Colaborador</th>
+                      <th>{mode === "day" ? "Entrada hoje" : "Dias presentes"}</th>
+                      <th className="is-num">Presença</th>
+                      <th className="is-num">Tempo em tarefas</th>
+                      <th>A fazer agora</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profiles.map((profile) => {
+                      const active = activeLogsByUser.get(String(profile.id));
 
-                    const userAssid = assiduidadeFiltered.filter((r) => String(r.user_id) === String(profile.id));
-                    let primeiraEntradaStr = "-", totalPresencaMinutos = 0;
-                    
-                    if (userAssid.length > 0) {
-                      if (mode === "day") {
-                        const prim = [...userAssid].sort((a, b) => a.hora_entrada.localeCompare(b.hora_entrada))[0];
-                        if (prim?.hora_entrada) primeiraEntradaStr = prim.hora_entrada.slice(0, 5);
+                      const tempoTarefas = logsFiltered.filter(l => String(l.user_id) === String(profile.id)).reduce((acc, log) => {
+                        if (log.end_time) return acc + getMinutesFromLog(log);
+                        const start = new Date(log.start_time || log.created_at);
+                        const diffMinutos = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+                        return acc + (diffMinutos > 0 ? diffMinutos : 0);
+                      }, 0);
+
+                      const userAssid = assiduidadeFiltered.filter((r) => String(r.user_id) === String(profile.id));
+                      let primeiraEntradaStr = "-", totalPresencaMinutos = 0;
+
+                      if (userAssid.length > 0) {
+                        if (mode === "day") {
+                          const prim = [...userAssid].sort((a, b) => a.hora_entrada.localeCompare(b.hora_entrada))[0];
+                          if (prim?.hora_entrada) primeiraEntradaStr = prim.hora_entrada.slice(0, 5);
+                        }
+                        userAssid.forEach((reg) => {
+                          if (!reg.hora_entrada) return;
+                          const dStart = new Date(`${reg.data_registo}T${reg.hora_entrada}`);
+                          let dEnd;
+                          if (reg.hora_saida) dEnd = new Date(`${reg.data_registo}T${reg.hora_saida}`);
+                          else if (reg.ultima_pausa_inicio) dEnd = new Date(reg.ultima_pausa_inicio);
+                          else dEnd = (reg.data_registo === dateKeyLocal(currentTime)) ? currentTime : dStart;
+
+                          let workSecs = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000) - (Number(reg.tempo_pausa_acumulado) || 0);
+                          if (workSecs > 0) totalPresencaMinutos += Math.floor(workSecs / 60);
+                        });
                       }
-                      userAssid.forEach((reg) => {
-                        if (!reg.hora_entrada) return;
-                        const dStart = new Date(`${reg.data_registo}T${reg.hora_entrada}`);
-                        let dEnd;
-                        if (reg.hora_saida) dEnd = new Date(`${reg.data_registo}T${reg.hora_saida}`);
-                        else if (reg.ultima_pausa_inicio) dEnd = new Date(reg.ultima_pausa_inicio);
-                        else dEnd = (reg.data_registo === dateKeyLocal(currentTime)) ? currentTime : dStart;
 
-                        let workSecs = Math.floor((dEnd.getTime() - dStart.getTime()) / 1000) - (Number(reg.tempo_pausa_acumulado) || 0);
-                        if (workSecs > 0) totalPresencaMinutos += Math.floor(workSecs / 60);
-                      });
-                    }
-
-                    return (
-                      <tr key={profile.id} style={{ borderTop: "1px solid var(--color-borderColor)" }}>
-                        <td style={{ padding: "12px 16px" }}>
-                          <div style={{ fontWeight: 700, color: "var(--color-textPrimary)" }}>{profile.nome || "Sem nome"}</div>
-                          <div style={{ color: "var(--color-textSecondary)", fontSize: "0.78rem", textTransform: "capitalize" }}>{profile.role || profile.tipo || "Colaborador"}</div>
-                        </td>
-                        <td style={{ padding: "12px 16px", color: "var(--color-textSecondary)", fontWeight: 600 }}>{mode === "day" ? primeiraEntradaStr : `${userAssid.length} dias`}</td>
-                        <td style={{ padding: "12px 16px", color: "#0ea5e9", fontWeight: 800 }}>{formatHours(totalPresencaMinutos)}</td>
-                        <td style={{ padding: "12px 16px", color: "var(--color-textPrimary)", fontWeight: 800 }}>{formatHours(tempoTarefas)}</td>
-                        <td style={{ padding: "12px 16px", fontSize: "0.85rem", color: active ? "#166534" : "var(--color-textSecondary)" }}>
-                          {active ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#dcfce7", padding: "4px 8px", borderRadius: "6px", fontWeight: 700 }}>
-                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a" }} /> {resolveActiveLabel(active)}
+                      return (
+                        <tr key={profile.id}>
+                          <td>
+                            <span className="adm-pessoa">
+                              <span className="adm-av is-sm">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : getInitials(profile.nome)}{active && <i aria-hidden="true" />}</span>
+                              <span><strong>{profile.nome || "Sem nome"}</strong><small>{profile.role || profile.tipo || "Colaborador"}</small></span>
                             </span>
-                          ) : "Sem cronómetro ativo"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          </td>
+                          <td className="is-suave">{mode === "day" ? primeiraEntradaStr : `${userAssid.length} dias`}</td>
+                          <td className="is-num is-azul">{formatHours(totalPresencaMinutos)}</td>
+                          <td className="is-num is-forte">{formatHours(tempoTarefas)}</td>
+                          <td>
+                            {active ? (
+                              <span className="adm-badge is-online" title={resolveActiveLabel(active)}><i className="adm-live" aria-hidden="true" /> {resolveActiveLabel(active)}</span>
+                            ) : <span className="is-suave">Sem cronómetro ativo</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           )}
 
           {/* TAB 3: GESTÃO INDIVIDUAL */}
           {activeTab === "gestao" && (
-            <div className="bz-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              
-              <div style={{ display: "flex", gap: "10px", alignItems: "center", background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "16px" }}>
-                <span style={{ color: "var(--color-textPrimary)", fontWeight: 700, fontSize: "0.95rem" }}>Selecionar Colaborador:</span>
-                
-                <button
-                  onClick={() => setUserModalOpen(true)}
-                  style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 12px", minWidth: "250px", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none", textAlign: "left", fontWeight: 600, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {selectedUserId === "all" ? "-- Escolha um colaborador --" : selectedProfile?.nome || selectedProfile?.email}
-                  </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "8px" }}><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </button>
+            <div className="bz-tab-panel adm-panel">
 
+              {/* Escolher colaborador */}
+              <div className="adm-filters">
+                <span>Colaborador</span>
+                <button type="button" className="adm-filter-btn" onClick={() => setUserModalOpen(true)}>
+                  <span>{selectedUserId === "all" ? "Escolher um colaborador…" : selectedProfile?.nome || selectedProfile?.email}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
               </div>
 
-              {selectedUserId !== "all" && selectedProfile && (
-                <div style={{ background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "14px", padding: "14px", display: "grid", gap: "12px" }}>
-                  
-                  {/* SECCAO 1: CABECALHO DO USER E MUDAR ROLE */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div style={{ width: "40px", height: "40px", borderRadius: "999px", background: "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, overflow: "hidden" }}>
-                        {selectedProfile.avatar_url ? (
-                          <img src={selectedProfile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        ) : (
-                          getInitials(selectedProfile.nome)
-                        )}
-                      </div>
-                      <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.1rem" }}>Painel de Gestão: {selectedProfile.nome}</h3>
-                    </div>
-                    
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "var(--color-bgTertiary)", border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "8px 12px" }}>
-                      <span style={{ fontSize: "0.82rem", color: "var(--color-textSecondary)", fontWeight: 700 }}>Tag de Perfil:</span>
-                      <select
+              {selectedUserId === "all" || !selectedProfile ? (
+                <p className="adm-empty">Escolhe um colaborador para ver o trabalho dele, o que tem por fazer e mudar o perfil.</p>
+              ) : (
+                <>
+                  {/* Cabeçalho do colaborador + perfil */}
+                  <section className="adm-card adm-gestao-topo">
+                    <span className="adm-pessoa is-grande">
+                      <span className="adm-av is-lg">{selectedProfile.avatar_url ? <img src={selectedProfile.avatar_url} alt="" /> : getInitials(selectedProfile.nome)}</span>
+                      <span><strong>{selectedProfile.nome}</strong><small>{selectedProfile.email}</small></span>
+                    </span>
+                    <div className="adm-perfil">
+                      <span>Perfil</span>
+                      <SelectModerno
                         value={normalizeRole(selectedProfile.role || selectedProfile.tipo || "colaborador")}
                         onChange={(e) => setProfileTagModal({ open: true, nextTag: e.target.value, password: "", error: "" })}
                         disabled={profileTagSaving}
-                        style={{ border: "1px solid var(--color-borderColor)", borderRadius: "8px", padding: "4px 8px", fontWeight: 700, color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none", cursor: "pointer" }}
+                        aria-label="Perfil do colaborador"
+                        menuWidth={220}
                       >
                         {PROFILE_TAG_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                      </select>
-                      <span style={{ fontSize: "0.78rem", color: profileTagSaving ? "var(--color-btnPrimary)" : "var(--color-textSecondary)", fontWeight: 700 }}>
-                        {profileTagSaving ? "A guardar…" : profileTagFeedback}
-                      </span>
+                      </SelectModerno>
+                      {(profileTagSaving || profileTagFeedback) && <em>{profileTagSaving ? "A guardar…" : profileTagFeedback}</em>}
                     </div>
+                  </section>
+
+                  {/* Por fazer */}
+                  <div className="adm-listas">
+                    {[
+                      { titulo: "Atividades por fazer", itens: focusedAssignments.atividades, vazio: "Sem atividades.", cor: "#2563eb" },
+                      { titulo: "Tarefas por fazer", itens: focusedAssignments.tarefas, vazio: "Sem tarefas.", cor: "#059669" },
+                      { titulo: "Passos por fazer", itens: focusedAssignments.subtarefas, vazio: "Sem passos.", cor: "#7c3aed" },
+                    ].map((lista) => (
+                      <section key={lista.titulo} className="adm-card adm-lista" style={{ "--k": lista.cor }}>
+                        <div className="adm-card-head"><div><h3>{lista.titulo}</h3></div><span className="adm-contador">{lista.itens.length}</span></div>
+                        <ul>
+                          {focusedAssignmentsLoading && <li className="is-vazio">A carregar…</li>}
+                          {!focusedAssignmentsLoading && lista.itens.length === 0 && <li className="is-vazio">{lista.vazio}</li>}
+                          {lista.itens.map(item => (
+                            <li key={item.id} title={item.titulo}>
+                              <span>{item.titulo}</span>
+                              <em>{String(item.estado || "").replace(/_/g, " ")}</em>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
                   </div>
 
-                  {/* SECCAO 2: TAREFAS PENDENTES (CAIXAS) */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
-                    <div style={{ border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "10px" }}>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#2563eb", marginBottom: "8px" }}>Atividades por fazer ({focusedAssignments.atividades.length})</div>
-                      <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
-                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar…</span>}
-                        {focusedAssignments.atividades.length === 0 && <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Sem atividades.</span>}
-                        {focusedAssignments.atividades.map(item => (
-                          <div key={item.id} style={{ fontSize: "0.8rem", color: "var(--color-textPrimary)", background: "var(--color-bgTertiary)", borderRadius: "8px", padding: "6px 8px", display: "flex", justifyContent: "space-between" }} title={item.titulo}>
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titulo}</span>
-                            <span style={{ fontSize: "0.72rem", color: "#0f766e", fontWeight: 700 }}>{item.estado}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "10px" }}>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#059669", marginBottom: "8px" }}>Tarefas por fazer ({focusedAssignments.tarefas.length})</div>
-                      <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
-                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar…</span>}
-                        {focusedAssignments.tarefas.length === 0 && <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Sem tarefas.</span>}
-                        {focusedAssignments.tarefas.map(item => (
-                          <div key={item.id} style={{ fontSize: "0.8rem", color: "var(--color-textPrimary)", background: "var(--color-bgTertiary)", borderRadius: "8px", padding: "6px 8px", display: "flex", justifyContent: "space-between" }} title={item.titulo}>
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titulo}</span>
-                            <span style={{ fontSize: "0.72rem", color: "#0f766e", fontWeight: 700 }}>{item.estado}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ border: "1px solid var(--color-borderColor)", borderRadius: "12px", padding: "10px" }}>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#7c3aed", marginBottom: "8px" }}>Subtarefas por fazer ({focusedAssignments.subtarefas.length})</div>
-                      <div style={{ display: "grid", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
-                        {focusedAssignmentsLoading && <span style={{ fontSize: "0.78rem", color: "var(--color-textSecondary)" }}>A carregar…</span>}
-                        {focusedAssignments.subtarefas.length === 0 && <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Sem subtarefas.</span>}
-                        {focusedAssignments.subtarefas.map(item => (
-                          <div key={item.id} style={{ fontSize: "0.8rem", color: "var(--color-textPrimary)", background: "var(--color-bgTertiary)", borderRadius: "8px", padding: "6px 8px", display: "flex", justifyContent: "space-between" }} title={item.titulo}>
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.titulo}</span>
-                            <span style={{ fontSize: "0.72rem", color: "#0f766e", fontWeight: 700 }}>{item.estado}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SECCAO 3: TRABALHO EXECUTADO NESTE PERIODO */}
-                  <div style={{ borderTop: "1px solid var(--color-borderColor)", margin: "16px -14px -14px -14px", padding: "16px 14px", background: "var(--color-bgTertiary)", borderRadius: "0 0 14px 14px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                      <h4 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "0.95rem", fontWeight: 800 }}>Trabalho Executado neste período ({logsFiltered.length} registos)</h4>
-                      <span style={{ fontSize: "0.85rem", color: "#059669", fontWeight: 800 }}>Total investido: {formatHours(logsFiltered.reduce((acc, log) => acc + getMinutesFromLog(log), 0))}</span>
+                  {/* Trabalho executado no período */}
+                  <section className="adm-card">
+                    <div className="adm-card-head">
+                      <div><h3>Trabalho executado no período</h3><p>{logsFiltered.length} registo{logsFiltered.length === 1 ? "" : "s"}</p></div>
+                      <span className="adm-card-big">{formatHours(logsFiltered.reduce((acc, log) => acc + getMinutesFromLog(log), 0))}</span>
                     </div>
 
                     {logsFiltered.length === 0 ? (
-                      <p style={{ margin: 0, color: "var(--color-textSecondary)", fontSize: "0.85rem" }}>Nenhum registo de tempo encontrado.</p>
+                      <p className="adm-empty">Nenhum registo de tempo neste período.</p>
                     ) : (
-                      <div style={{ maxHeight: "280px", overflowY: "auto", background: "#fff", border: "1px solid var(--color-borderColor)", borderRadius: "10px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.82rem" }}>
-                          <thead style={{ background: "var(--color-bgTertiary)", position: "sticky", top: 0 }}>
+                      <div className="adm-tabela-wrap is-alta">
+                        <table className="adm-tabela">
+                          <thead>
                             <tr>
-                              <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontWeight: 700 }}>Data</th>
-                              <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontWeight: 700 }}>Tarefa / Subtarefa executada</th>
-                              <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontWeight: 700 }}>Estado</th>
-                              <th style={{ padding: "8px 12px", color: "var(--color-textSecondary)", fontWeight: 700 }}>Duração</th>
+                              <th>Data</th>
+                              <th>Tarefa / passo</th>
+                              <th>Estado</th>
+                              <th className="is-num">Duração</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -903,24 +857,20 @@ export default function AdminDashboard() {
                               const tree = getLogTree(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
                               const taskLabel = getTabelaTaskLabel(log, projectById, activityById, taskById, subtaskById, focusedAssignments);
                               const mins = getMinutesFromLog(log);
-                              
+
                               const rawEstado = String(tree.estado || "").trim().toLowerCase();
                               let labelEstado = tree.estado || "Desconhecido";
-                              let bgEstado = "var(--color-bgTertiary)";
-                              let corEstado = "var(--color-textSecondary)";
-                              
-                              if (rawEstado === "concluido" || rawEstado === "concluído") { labelEstado = "Concluído"; bgEstado = "#dcfce7"; corEstado = "#166534"; } 
-                              else if (rawEstado === "em curso" || rawEstado === "fazendo") { labelEstado = "Em curso"; bgEstado = "#e0f2fe"; corEstado = "#0369a1"; } 
-                              else if (rawEstado === "pendente" || rawEstado === "a fazer") { labelEstado = "Pendente"; bgEstado = "#fef3c7"; corEstado = "#b45309"; }
+                              let tomEstado = "";
+                              if (rawEstado === "concluido" || rawEstado === "concluído") { labelEstado = "Concluído"; tomEstado = "is-ok"; }
+                              else if (rawEstado === "em curso" || rawEstado === "em_curso" || rawEstado === "fazendo") { labelEstado = "Em curso"; tomEstado = "is-curso"; }
+                              else if (rawEstado === "pendente" || rawEstado === "a fazer") { labelEstado = "Pendente"; tomEstado = "is-late"; }
 
                               return (
-                                <tr key={log.id} style={{ borderTop: "1px solid var(--color-borderColor)" }}>
-                                  <td style={{ padding: "8px 12px", color: "var(--color-textSecondary)", whiteSpace: "nowrap" }}>{dateFormatted}</td>
-                                  <td style={{ padding: "8px 12px", color: "var(--color-textPrimary)", fontWeight: 600 }}>{taskLabel}</td>
-                                  <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
-                                    {tree.estado ? <span style={{ background: bgEstado, color: corEstado, padding: "2px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700, textTransform: "capitalize" }}>{labelEstado}</span> : <span style={{ color: "#64748b" }}>-</span>}
-                                  </td>
-                                  <td style={{ padding: "8px 12px", color: "#059669", fontWeight: 700 }}>{formatHours(mins)}</td>
+                                <tr key={log.id}>
+                                  <td className="is-suave is-nowrap">{dateFormatted}</td>
+                                  <td className="is-forte">{taskLabel}</td>
+                                  <td>{tree.estado ? <span className={`adm-badge ${tomEstado}`}>{labelEstado}</span> : <span className="is-suave">-</span>}</td>
+                                  <td className="is-num is-verde">{formatHours(mins)}</td>
                                 </tr>
                               );
                             })}
@@ -928,121 +878,84 @@ export default function AdminDashboard() {
                         </table>
                       </div>
                     )}
-                  </div>
-                </div>
+                  </section>
+                </>
               )}
             </div>
           )}
         </>
       )}
 
-      {/* MODAL DE SELEÇÃO DE PROJETOS (CARDS) */}
-      {projectModalOpen && (
-        <div 
-          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "24px" }} 
-          onClick={(e) => e.target === e.currentTarget && setProjectModalOpen(false)}
-        >
-          <div style={{ width: "100%", maxWidth: "800px", maxHeight: "calc(80 * var(--bz-vh, 1vh))", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
-            
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid var(--color-borderColor)" }}>
-              <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.2rem", fontWeight: 800 }}>Filtrar por Projeto</h3>
-              <button aria-label="Fechar" onClick={() => setProjectModalOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-textSecondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            </div>
-
-            <div style={{ padding: "20px", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px" }}>
-              <div
-                {...clicavel(() => { setSelectedProjectId("all"); setProjectModalOpen(false); })}
-                style={{ border: selectedProjectId === "all" ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)", background: selectedProjectId === "all" ? "var(--color-bgTertiary)" : "#fff", borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s" }}
-              >
-                <div style={{ fontWeight: 800, color: "var(--color-textPrimary)" }}>Todos os Projetos</div>
-                <div style={{ fontSize: "0.8rem", color: "var(--color-textSecondary)", marginTop: "4px" }}>Ver métricas globais</div>
-              </div>
-              {projects.map(p => (
-                <div
-                  key={p.id}
-                  {...clicavel(() => { setSelectedProjectId(p.id); setProjectModalOpen(false); })}
-                  style={{ border: selectedProjectId === p.id ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)", background: selectedProjectId === p.id ? "var(--color-bgTertiary)" : "#fff", borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s" }}
-                >
-                  <div style={{ fontWeight: 800, color: "var(--color-textPrimary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.titulo}>{p.titulo}</div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--color-textSecondary)", marginTop: "4px" }}>Selecionar projeto</div>
-                </div>
-              ))}
-            </div>
-
-          </div>
+      {/* JANELA: FILTRAR POR PROJETO */}
+      <Janela
+        aberta={projectModalOpen}
+        aoFechar={() => setProjectModalOpen(false)}
+        titulo="Filtrar por projeto"
+        subtitulo="As métricas passam a contar só o tempo desse projeto."
+        icone={Icons.Analytics}
+        largura={820}
+      >
+        <div className="adm-escolhas">
+          <button type="button" className={`adm-escolha ${selectedProjectId === "all" ? "is-on" : ""}`} onClick={() => { setSelectedProjectId("all"); setProjectModalOpen(false); }}>
+            <strong>Todos os projetos</strong>
+            <small>Métricas globais</small>
+          </button>
+          {projects.map(p => (
+            <button key={p.id} type="button" className={`adm-escolha ${selectedProjectId === p.id ? "is-on" : ""}`} onClick={() => { setSelectedProjectId(p.id); setProjectModalOpen(false); }} title={p.titulo}>
+              <strong>{p.titulo}</strong>
+              <small>{p.codigo_projeto || "Projeto"}</small>
+            </button>
+          ))}
         </div>
-      )}
+      </Janela>
 
-      {/* MODAL DE SELEÇÃO DE COLABORADOR (CARDS COM AVATAR) */}
-      {userModalOpen && (
-        <div 
-          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "24px" }} 
-          onClick={(e) => e.target === e.currentTarget && setUserModalOpen(false)}
-        >
-          <div style={{ width: "100%", maxWidth: "800px", maxHeight: "calc(80 * var(--bz-vh, 1vh))", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
-            
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid var(--color-borderColor)" }}>
-              <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.2rem", fontWeight: 800 }}>Selecionar Colaborador</h3>
-              <button aria-label="Fechar" onClick={() => setUserModalOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-textSecondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            </div>
-
-            <div style={{ padding: "20px", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px" }}>
-              {profiles.map(p => (
-                <div
-                  key={p.id}
-                  {...clicavel(() => { setSelectedUserId(p.id); setUserModalOpen(false); })}
-                  style={{
-                    border: selectedUserId === p.id ? "2px solid var(--color-btnPrimary)" : "1px solid var(--color-borderColor)",
-                    background: selectedUserId === p.id ? "var(--color-bgTertiary)" : "#fff",
-                    borderRadius: "12px", padding: "16px", cursor: "pointer", transition: "background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s",
-                    display: "flex", alignItems: "center", gap: "12px"
-                  }}
-                >
-                  <div style={{ width: "42px", height: "42px", borderRadius: "999px", background: "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, overflow: "hidden", flexShrink: 0 }}>
-                    {p.avatar_url ? <img src={p.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : getInitials(p.nome)}
-                  </div>
-                  <div style={{ overflow: "hidden" }}>
-                    <div style={{ fontWeight: 800, color: "var(--color-textPrimary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.nome}>{p.nome || p.email}</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--color-textSecondary)", textTransform: "capitalize", marginTop: "2px" }}>{p.role || p.tipo || "Colaborador"}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* JANELA: ESCOLHER COLABORADOR */}
+      <Janela
+        aberta={userModalOpen}
+        aoFechar={() => setUserModalOpen(false)}
+        titulo="Escolher colaborador"
+        icone={Icons.Equipa}
+        largura={820}
+      >
+        <div className="adm-escolhas">
+          {profiles.map(p => (
+            <button key={p.id} type="button" className={`adm-escolha is-pessoa ${selectedUserId === p.id ? "is-on" : ""}`} onClick={() => { setSelectedUserId(p.id); setUserModalOpen(false); }} title={p.nome}>
+              <span className="adm-av">{p.avatar_url ? <img src={p.avatar_url} alt="" /> : getInitials(p.nome)}</span>
+              <span>
+                <strong>{p.nome || p.email}</strong>
+                <small>{p.role || p.tipo || "Colaborador"}</small>
+              </span>
+            </button>
+          ))}
         </div>
-      )}
+      </Janela>
 
       {/* MODAL DE MUDANÇA DE PERFIL */}
-      {profileTagModal.open && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "16px" }} onClick={(e) => e.target === e.currentTarget && setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })}>
-          <div style={{ width: "100%", maxWidth: "420px", background: "#fff", borderRadius: "14px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)", padding: "20px", display: "grid", gap: "12px" }}>
-            <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.1rem" }}>Confirmar alteração de perfil</h3>
-            <p style={{ margin: 0, color: "var(--color-textSecondary)", fontSize: "0.9rem" }}>Confirma com a <b>tua</b> palavra-passe do Bizin para alterar o papel do colaborador para <b>{PROFILE_TAG_OPTIONS.find((opt) => opt.value === profileTagModal.nextTag)?.label || profileTagModal.nextTag}</b>.</p>
-            <label style={{ display: "grid", gap: "6px", fontSize: "0.85rem", color: "var(--color-textPrimary)", fontWeight: 700, marginTop: "8px" }}>
-              A tua palavra-passe
-              <input
-                type="password"
-                value={profileTagModal.password}
-                onChange={(e) => setProfileTagModal((prev) => ({ ...prev, password: e.target.value, error: "" }))}
-                onKeyDown={(e) => e.key === "Enter" && handleUpdateRole()}
-                autoFocus
-                style={{ border: "1px solid var(--color-borderColor)", borderRadius: "10px", padding: "10px 12px", fontSize: "0.95rem", color: "var(--color-textSecondary)", background: "var(--color-textWhite)", outline: "none" }}
-              />
-            </label>
-            {profileTagModal.error && <div style={{ color: "#b91c1c", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: "8px", padding: "8px 10px", fontSize: "0.8rem", fontWeight: 700 }}>{profileTagModal.error}</div>}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
-              <button type="button" onClick={() => setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })} disabled={profileTagSaving} style={{ border: "1px solid var(--color-borderColor)", background: "var(--color-bgTertiary)", color: "var(--color-textSecondary)", borderRadius: "10px", padding: "8px 14px", fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
-              <button type="button" onClick={handleUpdateRole} disabled={profileTagSaving} style={{ border: "none", background: "linear-gradient(135deg, var(--color-btnPrimary) 0%, var(--color-btnPrimaryDark) 100%)", color: "var(--color-textWhite)", borderRadius: "10px", padding: "8px 14px", fontWeight: 700, cursor: "pointer" }}>
-                {profileTagSaving ? "A guardar…" : "Confirmar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Janela
+        aberta={profileTagModal.open}
+        aoFechar={() => setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })}
+        bloquear={profileTagSaving}
+        variante="confirmacao"
+        icone={Icons.Gestao}
+        titulo="Confirmar alteração de perfil"
+        subtitulo={<>Confirma com a <b>tua</b> palavra-passe do Bizin para mudar o perfil do colaborador para <b>{PROFILE_TAG_OPTIONS.find((opt) => opt.value === profileTagModal.nextTag)?.label || profileTagModal.nextTag}</b>.</>}
+        rodape={<>
+          <button type="button" onClick={() => setProfileTagModal({ open: false, nextTag: "", password: "", error: "" })} disabled={profileTagSaving}>Cancelar</button>
+          <button type="button" className="is-primary" onClick={handleUpdateRole} disabled={profileTagSaving}>{profileTagSaving ? "A guardar…" : "Confirmar"}</button>
+        </>}
+      >
+        <label className="adm-campo">
+          <span>A tua palavra-passe</span>
+          <input
+            type="password"
+            value={profileTagModal.password}
+            onChange={(e) => setProfileTagModal((prev) => ({ ...prev, password: e.target.value, error: "" }))}
+            onKeyDown={(e) => e.key === "Enter" && handleUpdateRole()}
+            autoComplete="current-password"
+          />
+        </label>
+        {profileTagModal.error && <p className="adm-empty is-erro">{profileTagModal.error}</p>}
+      </Janela>
     </div>
   );
 }

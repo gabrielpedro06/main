@@ -266,6 +266,41 @@ path()` ao vidro e às duas `<svg>` (sombra e contorno). O deslizar é uma mola 
 `requestAnimationFrame`. O conteúdo passa por baixo: `.dashboard-main` tem `padding-bottom` em
 mobile. `--bz-bottomnav-h` (76px) é usado pelos avisos e barras fixas para ficarem por cima.
 
+### Tokens de design e componentes base
+
+- `styles/tokens.css` (importado primeiro em `main.jsx`) define os valores base: cantos (`--raio-*`),
+  sombras (`--sombra-1…5`, `--sombra-foco`), letra (`--texto-*`, `--peso-*`), espaçamentos (`--esp-*`),
+  cores derivadas do tema (`--cor-acento`, `--cor-tinta`, `--cor-suave`, `--cor-linha`, `--cor-perigo`…),
+  movimento (`--mola`, `--suave`) e alturas de controlos. **Código novo usa sempre estes tokens.**
+- `styles/componentes-base.css`:
+  - `.bz-btn` é o botão para código novo (`is-primary`, `is-danger`, `is-ok`, `is-soft`, `is-ghost`, `is-sm`,
+    `is-lg`, `is-block`).
+  - Os 21 botões antigos (`tk-btn`, `rh-btn`, `mk-btn`…) recebem a mesma forma. As cores só são
+    uniformizadas nas variantes fortes (principal/perigo/aprovar).
+  - Os campos `input/select/textarea` sem classe ficam com o mesmo aspeto, com foco na cor do tema.
+  - Ficam de fora: `vc-btn` (videochamada), `wa-btn` (assiduidade), `au-btn` (login).
+- Formulários (`componentes-base.css`, secção 4):
+  - `bz-rotulo` é o rótulo e `bz-secao` o título de secção (`is-primeira` sem margem em cima).
+  - `bz-campo` é o input/textarea. Modificadores: `is-compacto`, `is-forte`, `is-titulo`, `is-leitura`,
+    `is-nota`, `is-fixo`, `is-cortado`, `is-espaco`.
+  - Peças: `bz-grelha-2`, `bz-dica`, `bz-erro`, `bz-vazio`.
+  - Já usados nos formulários do Projetos (assistente) e do Detalhe do projeto, que deixaram de ter os
+    objetos `labelStyle`/`inputStyle`/`sectionTitleStyle`.
+- Listas de escolha: usar `components/SelectModerno.jsx` (mesmas `<option>` do `<select>`). 60 dos 75
+  `<select>` já foram trocados. Ficam os não controlados (`defaultValue`), com `ref`, e os das Leads e
+  Atividades. Estilos por contexto (filtros da Administração, Agenda, Projetos, Ativos TI, anexos do
+  Marketing) estão no fim de `styles/fancy-select.css`.
+
+### Cabeçalho de página comum
+
+`components/PageHero.jsx` (estilos `styles/page-hero.css`) é o cabeçalho para páginas novas. Props:
+`icon`, `kicker`, `title`, `subtitle`, `stats` (`[{ valor, label }]`), `side` (botões `page-hero-btn`
+e `page-hero-btn is-vidro`) e `tools` (linha de pesquisa/filtros; `page-hero-busca` é a pesquisa em vidro).
+Usado em Ajuda, Cursos e TransferGest. Os cabeçalhos antigos (`tk-`, `rh-`, `po-`, `ti-`, `ag-`, `en-`,
+`af-`, `gm-`, `pa-`, `mk-`, `adm-`, `rg-hero`) recebem o mesmo aspeto via `styles/cabecalhos.css`: moldura,
+ícone, título, chips (`*-stat`), botão branco (`*-cta`), botões de vidro e linha de ferramentas. Ficam de fora
+os especiais (Início, Fórum, Detalhe do projeto, Perfil, Ausências). O Marketing mantém a cor da marca.
+
 ### Janelas (design único, vidro)
 
 `styles/janelas.css` (importado por último em `main.jsx`) aplica a mesma moldura a todas as janelas
@@ -275,6 +310,11 @@ existentes, sem mudar o JSX: cortina desfocada, caixa em vidro (cantos 24px, are
 formulários abrem como folha que sobe de baixo, com pega. As listas de classes estão no ficheiro,
 por família: confirmações, formulários e painéis laterais (estes só herdam a cortina). Os seletores
 usam `:not(#jn)` para ganharem aos estilos antigos sem `!important`.
+Janelas que eram feitas à mão (estilos inline) também já usam este design: no Detalhe do projeto,
+Projetos, Início, Entidades, TransferGest, Administração, Cursos e WidgetAssiduidade. Ficam de fora,
+de propósito, as Leads (vão ser o CRM novo), as Atividades (não usadas) e o visualizador de imagens.
+Listas de escolha antigas (`<select>`): `components/SelectModerno.jsx` aceita as mesmas `<option>` e
+mostra o `FancySelect` (já usado no Detalhe do projeto e na Administração).
 **Janelas novas:** `components/Janela.jsx` (`variante="formulario"|"confirmacao"`), que já nasce com
 este design. Para "Tens a certeza?" simples, usar `confirmar()` (`utils/dialogo.js`).
 

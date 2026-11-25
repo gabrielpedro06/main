@@ -67,6 +67,7 @@ import { lerCache, guardarCache } from "../utils/cachePaginas";
 import { toastDesfazer } from "../utils/toast";
 import { ListaSkeleton } from "../components/Skeleton";
 import { rectCss } from "../utils/tamanhoInterface";
+import SelectModerno from "../components/SelectModerno";
 
 // Stale-while-revalidate: os RH abrem logo com os últimos dados (utils/cachePaginas.js)
 const cacheRh = () => lerCache("rh") || {};
@@ -4047,9 +4048,9 @@ export default function RecursosHumanos() {
                                       <div className="rh-field"><label>Validade CC</label><input type="date" className="rh-input" value={tempUserProfile.validade_cc || ''} onChange={setTemp('validade_cc')} /></div>
                                       <div className="rh-field"><label>Data Nasc.</label><input type="date" className="rh-input" value={tempUserProfile.data_nascimento || ''} onChange={setTemp('data_nascimento')} /></div>
                                       <div className="rh-field"><label>Data Admissão</label><input type="date" className="rh-input" value={tempUserProfile.data_admissao || ''} onChange={mudarDataAdmissao} /></div>
-                                      <div className="rh-field"><label>Estado Civil</label><select className="rh-input" value={tempUserProfile.estado_civil || ''} onChange={setTemp('estado_civil')}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></select></div>
+                                      <div className="rh-field"><label>Estado Civil</label><SelectModerno className="rh-input" value={tempUserProfile.estado_civil || ''} onChange={setTemp('estado_civil')}><option value="">-</option><option value="Solteiro">Solteiro</option><option value="Casado">Casado</option><option value="Divorciado">Divorciado</option><option value="União Facto">União Facto</option></SelectModerno></div>
                                       <div className="rh-field"><label>Dependentes</label><input type="number" className="rh-input" value={tempUserProfile.nr_dependentes || 0} onChange={setTemp('nr_dependentes')} /></div>
-                                      <div className="rh-field"><label>Sexo</label><select className="rh-input" value={tempUserProfile.sexo || ''} onChange={setTemp('sexo')}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></select></div>
+                                      <div className="rh-field"><label>Sexo</label><SelectModerno className="rh-input" value={tempUserProfile.sexo || ''} onChange={setTemp('sexo')}><option value="">-</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option><option value="Outro">Outro</option></SelectModerno></div>
                                       <div className="rh-field"><label>Nacionalidade</label><input type="text" className="rh-input" value={tempUserProfile.nacionalidade || ''} onChange={setTemp('nacionalidade')} /></div>
                                   </div>
                               </section>
@@ -4088,9 +4089,9 @@ export default function RecursosHumanos() {
                                   </div>
                                   <div className="rh-field">
                                       <label>Contrato</label>
-                                      <select className="rh-input" value={tempUserProfile.tipo_contrato || ''} onChange={setTemp('tipo_contrato')}>
+                                      <SelectModerno className="rh-input" value={tempUserProfile.tipo_contrato || ''} onChange={setTemp('tipo_contrato')}>
                                           <option value="">Selecione…</option><option value="Termo Certo">Termo Certo</option><option value="Sem Termo">Sem Termo</option><option value="Termo Incerto">Termo Incerto</option><option value="Estágio Profissional">Estágio Profissional</option><option value="Estágio Curricular">Estágio Curricular</option><option value="Prestação de Serviços">Prestação de Serviços</option><option value="N/a">N/a</option>
-                                      </select>
+                                      </SelectModerno>
                                   </div>
                               </section>
 
@@ -4103,7 +4104,7 @@ export default function RecursosHumanos() {
                                   <div className="rh-fgrid is-temp">
                                       <div className="rh-field">
                                           <label>Tipo</label>
-                                          <select
+                                          <SelectModerno
                                               className="rh-input"
                                               value={tempUserProfile.estado_temporario_tipo || ''}
                                               onChange={(e) => setTempUserProfile((prev) => ({
@@ -4118,7 +4119,7 @@ export default function RecursosHumanos() {
                                               {COLLABORATOR_STATUS_TYPES.map((estado) => (
                                                   <option key={estado} value={estado}>{estado}</option>
                                               ))}
-                                          </select>
+                                          </SelectModerno>
                                       </div>
                                       <div className="rh-field"><label>Início</label><input type="date" className="rh-input" value={tempUserProfile.estado_temporario_inicio || ''} onChange={setTemp('estado_temporario_inicio')} /></div>
                                       <div className="rh-field"><label>Fim</label><input type="date" className="rh-input" value={tempUserProfile.estado_temporario_fim || ''} onChange={setTemp('estado_temporario_fim')} /></div>
@@ -4574,10 +4575,10 @@ export default function RecursosHumanos() {
                               {newTolerancia.tipo === 'individual' && (
                                   <div className="rh-field">
                                       <label>Colaborador</label>
-                                      <select required className="rh-input" value={newTolerancia.user_id} onChange={e => setNewTolerancia({...newTolerancia, user_id: e.target.value})}>
+                                      <SelectModerno required className="rh-input" value={newTolerancia.user_id} onChange={e => setNewTolerancia({...newTolerancia, user_id: e.target.value})}>
                                           <option value="">Selecione Colaborador…</option>
                                           {colaboradoresAtivos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                                      </select>
+                                      </SelectModerno>
                                   </div>
                               )}
                           </div>

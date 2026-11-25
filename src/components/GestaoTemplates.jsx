@@ -6,6 +6,7 @@ import "../styles/templates.css";
 import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "./AvisoToast";
+import SelectModerno from "./SelectModerno";
 // --- ÍCONES SVG (Premium & Minimalistas) ---
 const Icons = {
     Folder: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>,
@@ -821,7 +822,7 @@ export default function GestaoTemplates() {
                           {modalConfig.tipo === 'atividade' && (
                               <div className="gm-field">
                                   <label>Depende da Etapa</label>
-                                  <select className="gm-input" value={inputDepAtividadeId} onChange={(e) => setInputDepAtividadeId(e.target.value)}>
+                                  <SelectModerno className="gm-input" value={inputDepAtividadeId} onChange={(e) => setInputDepAtividadeId(e.target.value)}>
                                       <option value="">Sem dependência</option>
                                       {atividades
                                           .filter((a) => String(a.id) !== String(modalConfig.itemId || ''))
@@ -829,14 +830,14 @@ export default function GestaoTemplates() {
                                           .map((a) => (
                                               <option key={a.id} value={a.id}>{a.ordem}. {a.nome}</option>
                                           ))}
-                                  </select>
+                                  </SelectModerno>
                               </div>
                           )}
 
                           {modalConfig.tipo === 'tarefa' && (
                               <div className="gm-field">
                                   <label>Depende da Tarefa (mesma etapa)</label>
-                                  <select className="gm-input" value={inputDepTarefaId} onChange={(e) => setInputDepTarefaId(e.target.value)}>
+                                  <SelectModerno className="gm-input" value={inputDepTarefaId} onChange={(e) => setInputDepTarefaId(e.target.value)}>
                                       <option value="">Sem dependência</option>
                                       {tarefas
                                           .filter((t) => String(t.id) !== String(modalConfig.itemId || ''))
@@ -844,7 +845,7 @@ export default function GestaoTemplates() {
                                           .map((t) => (
                                               <option key={t.id} value={t.id}>{t.ordem}. {t.nome}</option>
                                           ))}
-                                  </select>
+                                  </SelectModerno>
                               </div>
                           )}
 

@@ -32,6 +32,7 @@ import NotificationsPanel from "../components/NotificationsPanel";
 import AprovacaoModal from "../components/marketing/AprovacaoModal";
 import { TIPOS_NOTIF_MK } from "../components/marketing/mkAprovacao";
 import { clicavel } from "../utils/clicavel";
+import Janela from "../components/Janela";
 import { lerCache, guardarCache } from "../utils/cachePaginas";
 import { ListaSkeleton } from "../components/Skeleton";
 
@@ -1813,14 +1814,14 @@ export default function DashboardHome() {
       {/* ========================================================================= */}
       {showHistoryModal && (
         <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}} onClick={(e) => { if(e.target === e.currentTarget) setShowHistoryModal(false); }}>
-                <div style={{background: '#fff', width: '95%', maxWidth: '900px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(90 * var(--bz-vh, 1vh))', animation: 'fadeIn 0.2s ease-out'}}>
+            <div className="jn-fundo" style={{zIndex: "calc(var(--z-modal) + 13)"}} onMouseDown={(e) => { if(e.target === e.currentTarget) setShowHistoryModal(false); }}>
+                <div className="jn-caixa is-folha" role="dialog" aria-modal="true" aria-label="Histórico de assiduidade" style={{maxWidth: '900px'}}>
                     
-                    <div style={{padding: '20px 30px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
+                    <div className="jn-cabecalho" style={{justifyContent: 'space-between', flexWrap: 'wrap'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
-                            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '10px', borderRadius: '10px', display: 'flex'}}><Icons.Calendar size={24} /></div>
+                            <div className="jn-cabecalho-ico"><Icons.Calendar size={22} /></div>
                             <div>
-                                <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem'}}>Histórico de Assiduidade</h3>
+                                <h3>Histórico de assiduidade</h3>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginTop: '5px'}}>
                                     <button aria-label="Mês anterior" className="btn-small hover-shadow" onClick={() => { const d = new Date(historyDate); d.setMonth(d.getMonth() - 1); setHistoryDate(d); }}><Icons.ChevronLeft /></button>
                                     <span style={{fontWeight: 'bold', color: '#475569', minWidth: '120px', textAlign: 'center'}}>
@@ -1841,11 +1842,11 @@ export default function DashboardHome() {
                                 <Icons.Plus /> Inserir Registo
                             </button>
                             
-                            <button aria-label="Fechar" onClick={() => setShowHistoryModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b', marginLeft: '10px'}} className="hover-red-text"><Icons.Close size={20} /></button>
+                            <button type="button" aria-label="Fechar" onClick={() => setShowHistoryModal(false)} className="jn-fechar"><Icons.Close size={18} /></button>
                         </div>
                     </div>
 
-                    <div style={{padding: '20px 30px', overflowY: 'auto', background: '#f8fafc', flex: 1}} className="custom-scrollbar">
+                    <div className="jn-corpo custom-scrollbar" style={{padding: '18px 22px'}}>
                         <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
                             <thead style={{background: '#f1f5f9'}}>
                                 <tr style={{textAlign: 'left', color: '#475569'}}>
@@ -1985,20 +1986,22 @@ export default function DashboardHome() {
       )}
 
       {/* --- POP-UP AVISO CC EXPIRAR --- */}
-      {ccWarning.show && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                  <div style={{background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '450px', padding: '24px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'fadeIn 0.3s ease-out'}}>
-                      
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}>
-                          <div style={{background: '#fef2f2', padding: '15px', borderRadius: '50%', color: '#ef4444'}}>
-                              <Icons.IdCard size={36} />
-                          </div>
-                      </div>
-                      
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.3rem'}}>Aviso: Cartão de Cidadão</h3>
-                      
-                      <div style={{color: '#475569', marginBottom: '25px', fontSize: '0.95rem', lineHeight: '1.5', textAlign: 'left', background: '#f8fafc', padding: '15px', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
+      <Janela
+          aberta={ccWarning.show}
+          camada="calc(var(--z-modal) + 13)"
+          aoFechar={() => setCcWarning({ show: false, type: '', users: [] })}
+          variante="confirmacao"
+          tom="danger"
+          icone={<Icons.IdCard size={26} />}
+          titulo="Aviso: Cartão de Cidadão"
+          rodape={<>
+              <button type="button" onClick={() => setCcWarning({ show: false, type: '', users: [] })}>Fechar</button>
+              {ccWarning.type === 'user' && (
+                  <button type="button" className="is-primary" onClick={() => { setCcWarning({ show: false, type: '', users: [] }); navigate("/dashboard/perfil"); }}>Atualizar agora</button>
+              )}
+          </>}
+      >
+                      <div className="jn-caixa-nota">
                           {ccWarning.type === 'gestor' ? (
                               <>
                                   <p style={{margin: '0 0 10px 0'}}>Os seguintes colaboradores estão com a validade do CC quase a expirar ou já expirada. Peça que atualizem os dados:</p>
@@ -2015,27 +2018,14 @@ export default function DashboardHome() {
                           )}
                       </div>
 
-                      <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setCcWarning({ show: false, type: '', users: [] })} className="btn-small hover-shadow" style={{flex: 1, padding: '12px', background: 'white', border: '1px solid #cbd5e1', color: '#475569', fontWeight: 'bold'}}>
-                              Fechar
-                          </button>
-                          {ccWarning.type === 'user' && (
-                              <button onClick={() => { setCcWarning({ show: false, type: '', users: [] }); navigate("/dashboard/perfil"); }} className="btn-primary hover-shadow" style={{flex: 1, padding: '12px', border: 'none'}}>
-                                  Atualizar Agora
-                              </button>
-                          )}
-                      </div>
-                  </div>
-              </div>
-          </ModalPortal>
-      )}
+      </Janela>
 
       {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
 
       {/* --- POP-UP DE PARABÉNS 🎉 --- */}
       {showBirthdayPopup && (
         <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
+            <div className="jn-fundo" style={{zIndex: "calc(var(--z-modal) + 13)"}}>
                 <div style={{background: 'linear-gradient(135deg, #ffffff, #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
                     <div style={{display: 'flex', justifyContent: 'center', color: '#f59e0b', marginBottom: '15px', animation: 'bounce 2s infinite'}}><Icons.Gift /></div>
                     <h2 style={{margin: '0 0 10px 0', color: '#b45309', fontSize: '2rem'}}>Parabéns, {userFirstName}!</h2>
@@ -2055,20 +2045,17 @@ export default function DashboardHome() {
       )}
 
       {/* --- MODAL DE ALERTA --- */}
-      {alertModal.show && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                  <div style={{background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '400px', padding: '24px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: '#ef4444'}}><Icons.AlertTriangle size={48} /></div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b'}}>Atenção</h3>
-                      <p style={{color: '#64748b', marginBottom: '25px', fontSize: '0.95rem', lineHeight: '1.5'}}>
-                          {alertModal.message}
-                      </p>
-                      <button onClick={() => setAlertModal({ show: false, message: "" })} className="btn-primary hover-shadow" style={{width: '100%', padding: '12px'}}>Entendido</button>
-                  </div>
-              </div>
-          </ModalPortal>
-      )}
+      <Janela
+          aberta={alertModal.show}
+          camada="calc(var(--z-modal) + 13)"
+          aoFechar={() => setAlertModal({ show: false, message: "" })}
+          variante="confirmacao"
+          tom="danger"
+          icone={<Icons.AlertTriangle size={26} />}
+          titulo="Atenção"
+          subtitulo={alertModal.message}
+          rodape={<button type="button" className="is-primary" onClick={() => setAlertModal({ show: false, message: "" })}>Entendido</button>}
+      />
 
       <TimerSwitchModal
         open={timerSwitchModal.show}

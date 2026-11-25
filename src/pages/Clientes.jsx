@@ -28,6 +28,7 @@ import * as XLSX from "xlsx";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { toastDesfazer } from "../utils/toast";
+import Janela from "../components/Janela";
 import { lerCache, guardarCache } from "../utils/cachePaginas";
 import PaginaSkeleton from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
@@ -43,6 +44,7 @@ import { clicavel } from "../utils/clicavel";
 import AvisoToast from "../components/AvisoToast";
 import { registarEvento } from "../utils/registarEvento";
 import { zoomUI } from "../utils/tamanhoInterface";
+import SelectModerno from "../components/SelectModerno";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
@@ -2445,25 +2447,27 @@ export default function Clientes() {
       {projectTimerModal.show && (
         <ModalPortal>
           <div
-            onClick={closeProjectTimerModal}
-            style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(15, 23, 42, 0.72)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal-topo) + 1)", padding:'20px'}}
+            className="jn-fundo"
+            onMouseDown={(e) => { if (e.target === e.currentTarget) closeProjectTimerModal(); }}
+            style={{zIndex:"calc(var(--z-modal-topo) + 1)"}}
           >
             <div
-              onClick={(e) => e.stopPropagation()}
-              style={{width:'min(980px, calc(96 * var(--bz-vw, 1vw)))', maxHeight:'calc(86 * var(--bz-vh, 1vh))', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid var(--color-borderColorLight)', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
+              className="jn-caixa is-folha"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Iniciar cronómetro"
+              style={{maxWidth:'980px'}}
             >
-              <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, var(--color-bgSecondary), #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
-                <div>
-                  <p style={{margin:'0 0 4px 0', fontSize:'0.75rem', fontWeight:'800', letterSpacing:'0.07em', color:'var(--color-btnPrimary)', textTransform:'uppercase'}}>Iniciar Cronómetro</p>
-                  <h3 style={{margin:0, color:'#0f172a', fontSize:'1.35rem', fontWeight:'900'}}>{projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
-                  <p style={{margin:'6px 0 0 0', color:'#475569', fontSize:'0.9rem'}}>Escolhe primeiro a atividade e, se quiseres, uma tarefa específica.</p>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico is-ok"><Icons.Play /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>Iniciar cronómetro · {projectTimerModal.project?.titulo || 'Projeto selecionado'}</h3>
+                  <p>Escolhe primeiro a atividade e, se quiseres, uma tarefa específica.</p>
                 </div>
-                <button aria-label="Fechar" onClick={closeProjectTimerModal} style={{background:'#fff', border:'1px solid #cbd5e1', width:'36px', height:'36px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#475569'}} className="hover-shadow">
-                  <Icons.Close size={18} />
-                </button>
-              </div>
+                <button type="button" aria-label="Fechar" onClick={closeProjectTimerModal} className="jn-fechar"><Icons.Close size={18} /></button>
+              </header>
 
-              <div style={{padding:'20px', overflowY:'auto', display:'grid', gap:'14px'}}>
+              <div className="jn-corpo" style={{display:'grid', gap:'14px'}}>
                 {projectTimerModal.loading ? (
                   <div style={{padding:'32px', textAlign:'center', color:'#64748b', fontWeight:'600'}}>A carregar atividades e tarefas…</div>
                 ) : projectTimerModal.atividades.length === 0 ? (
@@ -2541,14 +2545,13 @@ export default function Clientes() {
                 )}
               </div>
 
-              <div style={{padding:'16px 20px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'flex-end', gap:'10px', background:'#f8fafc'}}>
-                <button type="button" onClick={closeProjectTimerModal} style={{padding:'10px 16px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
+              <div className="jn-rodape">
+                <button type="button" onClick={closeProjectTimerModal}>Cancelar</button>
                 <button
                   type="button"
+                  className="is-ok"
                   onClick={handleStartTimerFromProjectSelection}
                   disabled={projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido'}
-                  style={{padding:'10px 18px', borderRadius:'10px', border:'none', background:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido' ? '#94a3b8' : 'linear-gradient(135deg, #16a34a, #15803d)', color:'white', fontWeight:'800', cursor:projectTimerModal.loading || projectTimerModal.atividades.length === 0 || projectTimerModal.project?.estado === 'concluido' ? 'not-allowed' : 'pointer', display:'inline-flex', alignItems:'center', gap:'6px'}}
-                  className="hover-shadow"
                 >
                   <Icons.Play /> Iniciar
                 </button>
@@ -2999,7 +3002,7 @@ export default function Clientes() {
                           </div>
                           <div className="en-field">
                               <label>Cargo</label>
-                              <select
+                              <SelectModerno
                                 className="en-input"
                                 value={getCargoSelectValue(novoContacto.cargo)}
                                 onChange={(e) => {
@@ -3020,7 +3023,7 @@ export default function Clientes() {
                                   <option key={cargo} value={cargo}>{cargo}</option>
                                 ))}
                                 <option value={OUTRO_CARGO_VALUE}>Outro</option>
-                              </select>
+                              </SelectModerno>
                               {isOutroCargo && (
                                 <input aria-label="Escreve o cargo"
                                   type="text"
@@ -3576,58 +3579,61 @@ export default function Clientes() {
       )}
 
       {/* --- MODAL DE CONFIRMAÇÃO GLOBAL --- */}
-      {confirmDialog.show && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal-max) + 1)"}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert size={48} color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
-                      <h3 style={{margin: '0 0 10px 0', color: '#1e293b', fontSize: '1.25rem'}}>Confirmação</h3>
-                      <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
-                      <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                          <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">{confirmDialog.confirmText}</button>
-                      </div>
-                  </div>
-              </div>
-          </ModalPortal>
-      )}
+      <Janela
+          aberta={!!confirmDialog.show}
+          aoFechar={() => setConfirmDialog({show: false})}
+          camada="calc(var(--z-modal-max) + 1)"
+          variante="confirmacao"
+          tom={confirmDialog.isDanger ? "danger" : undefined}
+          icone={<Icons.Alert size={26} />}
+          titulo="Confirmação"
+          rodape={<>
+              <button type="button" onClick={() => setConfirmDialog({show: false})}>Cancelar</button>
+              <button type="button" className={confirmDialog.isDanger ? "is-danger" : "is-primary"} onClick={confirmDialog.onConfirm}>{confirmDialog.confirmText || "Confirmar"}</button>
+          </>}
+      >
+          <p style={{whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
+      </Janela>
 
       {/* --- MODAL DE ACESSO (ADICIONAR / EDITAR) --- */}
       {showModal && showAddAcesso && activeTab === 'acessos' && podeVerAcessos && !isViewOnly && (
         <ModalPortal>
           <div
-            style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "var(--z-modal-max)"}}
-            onClick={() => {
+            className="jn-fundo"
+            style={{zIndex: "var(--z-modal-max)"}}
+            onMouseDown={(e) => {
+              if (e.target !== e.currentTarget) return;
               setShowAddAcesso(false);
               setNovoAcesso(initAcesso);
             }}
           >
             <div
-              style={{background:'white', width:'92%', maxWidth:'680px', borderRadius:'16px', border:'1px solid #e2e8f0', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)', overflow:'hidden', animation: 'fadeIn 0.2s ease-out'}}
-              onClick={(e) => e.stopPropagation()}
+              className="jn-caixa is-folha"
+              role="dialog"
+              aria-modal="true"
+              aria-label={novoAcesso.id ? 'Editar credencial' : 'Nova credencial'}
+              style={{maxWidth:'680px'}}
             >
-              <div style={{background: 'var(--color-bgSecondary)', padding: '20px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: '1px solid var(--color-borderColor)'}}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                  <div style={{background: 'var(--color-borderColorLight)', padding: '8px', borderRadius: '8px', display: 'flex', color: 'var(--color-btnPrimary)'}}><Icons.Lock size={20} /></div>
-                  <h5 style={{margin:0, fontSize:'1.2rem', fontWeight: '800', color: 'var(--color-btnPrimaryDark)'}}>{novoAcesso.id ? 'Editar Credencial' : 'Nova Credencial'}</h5>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><Icons.Lock size={20} /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>{novoAcesso.id ? 'Editar credencial' : 'Nova credencial'}</h3>
+                  <p>A password fica guardada no cofre encriptado.</p>
                 </div>
-                <button aria-label="Fechar"
+                <button type="button" aria-label="Fechar" className="jn-fechar"
                   onClick={() => {
                     setShowAddAcesso(false);
                     setNovoAcesso(initAcesso);
                   }}
-                  style={{background:'#f1f5f9', border:'1px solid #e2e8f0', width:'36px', height:'36px', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#1e293b', transition: '0.2s'}}
-                  className="hover-shadow"
-                  title="Fechar"
                 >
-                  <Icons.Close size={20} />
+                  <Icons.Close size={18} />
                 </button>
-              </div>
+              </header>
 
-              <div style={{padding:'24px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+              <div className="jn-corpo" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
                 <div>
                   <label style={labelStyle}>Tipo de Acesso *</label>
-                  <select
+                  <SelectModerno
                     value={novoAcesso.tipo_acesso_id || ""}
                     onChange={e => setNovoAcesso({...novoAcesso, tipo_acesso_id: e.target.value})}
                     required
@@ -3638,7 +3644,7 @@ export default function Clientes() {
                     {tiposAcessosCatalogo.map((tipo) => (
                       <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>
                     ))}
-                  </select>
+                  </SelectModerno>
                 </div>
 
                 <div>
@@ -3667,23 +3673,22 @@ export default function Clientes() {
                 </div>
               </div>
 
-              <div style={{display:'flex', gap:'12px', marginTop:'24px', justifyContent:'flex-end', padding: '0 24px 24px 24px', borderTop: '1px solid #e2e8f0', paddingTop: '24px'}}>
+              <div className="jn-rodape">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowAddAcesso(false);
                     setNovoAcesso(initAcesso);
                   }}
-                  style={{background:'#f8fafc', border:'1px solid #cbd5e1', borderRadius: '8px', color:'#64748b', cursor:'pointer', padding: '12px 24px', fontWeight: '600', fontSize: '0.95rem', transition: '0.2s'}}
-                  className="hover-shadow"
                 >
                   Cancelar
                 </button>
                 <button
+                  type="button"
+                  className="is-primary"
                   onClick={() => saveSubItem('acessos_cliente', novoAcesso, setAcessos, acessos, setNovoAcesso, initAcesso, setShowAddAcesso)}
-                  style={{background: 'var(--color-btnPrimary)', color: 'white', border: 'none', borderRadius: '8px', cursor:'pointer', padding: '12px 24px', fontWeight: '600', fontSize: '0.95rem', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'}}
-                  className="hover-shadow"
                 >
-                  {novoAcesso.id ? <><Icons.Save size={16} /> Atualizar</> : <><Icons.Plus size={16} /> Guardar Acesso</>}
+                  {novoAcesso.id ? <><Icons.Save size={16} /> Atualizar</> : <><Icons.Plus size={16} /> Guardar acesso</>}
                 </button>
               </div>
             </div>

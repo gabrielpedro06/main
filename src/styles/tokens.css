@@ -1,0 +1,83 @@
+/* =====================================================================
+   TOKENS DE DESIGN — os valores base de toda a app.
+   ---------------------------------------------------------------------
+   Em vez de cada página inventar sombras, tamanhos de letra, cantos e
+   cores, usa-se SEMPRE um destes valores. Assim a app parece feita "pela
+   mesma mão" e os temas (cores) e o modo escuro funcionam em todo o lado.
+
+     border-radius: var(--raio-md);
+     box-shadow:    var(--sombra-2);
+     font-size:     var(--texto-sm);
+     padding:       var(--esp-3) var(--esp-4);
+     color:         var(--cor-suave);
+
+   As cores vêm do tema ativo (ThemeContext põe as --color-* no :root);
+   aqui só se dá nomes curtos e se derivam tons a partir delas.
+   Código novo: usar estes tokens. Código antigo: ir trocando aos poucos.
+   ===================================================================== */
+:root {
+  /* ---------- Cantos ---------- */
+  --raio-xs: 8px;     /* etiquetas, kbd, pequenos ícones */
+  --raio-sm: 12px;    /* botões, campos */
+  --raio-md: 16px;    /* cartões pequenos, listas */
+  --raio-lg: 22px;    /* cartões, painéis */
+  --raio-xl: 26px;    /* janelas, sidebar */
+  --raio-pilula: 999px;
+
+  /* ---------- Sombras (da mais leve à mais forte) ---------- */
+  --sombra-1: 0 1px 2px rgba(15, 23, 42, 0.05);                                          /* cartão em repouso */
+  --sombra-2: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 20px -14px rgba(15, 23, 42, 0.28);  /* cartão destacado */
+  --sombra-3: 0 14px 30px -18px rgba(15, 23, 42, 0.4);                                   /* hover / elevação */
+  --sombra-4: 0 24px 48px -20px rgba(15, 23, 42, 0.45);                                  /* menus, popovers */
+  --sombra-5: 0 50px 100px -30px rgba(15, 23, 42, 0.55), 0 16px 36px -18px rgba(15, 23, 42, 0.25); /* janelas */
+  --sombra-foco: 0 0 0 4px color-mix(in srgb, var(--cor-acento) 16%, transparent);
+
+  /* ---------- Letra ---------- */
+  --texto-2xs: 0.68rem;  /* sobretítulos em maiúsculas */
+  --texto-xs: 0.75rem;   /* legendas, ajudas */
+  --texto-sm: 0.82rem;   /* texto secundário, tabelas */
+  --texto-base: 0.9rem;  /* texto normal, campos, botões */
+  --texto-md: 1rem;      /* títulos de cartão */
+  --texto-lg: 1.15rem;   /* títulos de janela / secção */
+  --texto-xl: 1.45rem;   /* títulos de página */
+  --texto-2xl: 1.9rem;   /* números grandes (indicadores) */
+  --peso-normal: 500;
+  --peso-medio: 650;
+  --peso-forte: 800;
+
+  /* ---------- Espaçamentos (múltiplos de 4) ---------- */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 20px;
+  --esp-6: 24px;
+  --esp-8: 32px;
+  --esp-10: 40px;
+
+  /* ---------- Cores (a partir do tema) ---------- */
+  --cor-acento: var(--color-btnPrimary, #2563eb);
+  --cor-tinta: var(--color-textPrimary, #0f172a);
+  --cor-suave: color-mix(in srgb, var(--cor-tinta) 62%, transparent);
+  --cor-tenue: color-mix(in srgb, var(--cor-tinta) 42%, transparent);
+  --cor-linha: color-mix(in srgb, var(--cor-tinta) 10%, transparent);
+  --cor-linha-forte: color-mix(in srgb, var(--cor-tinta) 16%, transparent);
+  --cor-superficie: var(--color-bgSecondary, #ffffff);
+  --cor-campo: color-mix(in srgb, var(--color-bgSecondary, #ffffff) 50%, #ffffff);
+  --cor-suave-fundo: color-mix(in srgb, var(--cor-tinta) 4%, transparent);
+  --cor-perigo: #dc2626;
+  --cor-sucesso: #16a34a;
+  --cor-aviso: #d97706;
+  --cor-info: #0284c7;
+
+  /* ---------- Movimento ---------- */
+  --mola: cubic-bezier(0.2, 0.9, 0.3, 1.12);
+  --suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --rapido: 150ms;
+  --normal: 260ms;
+
+  /* ---------- Tamanhos de controlos ---------- */
+  --altura-controlo: 40px;
+  --altura-controlo-sm: 32px;
+  --altura-controlo-lg: 46px;
+}

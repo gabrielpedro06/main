@@ -12,12 +12,25 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { checkTransfergestApiHealth, sendTransfergestCampaign } from "../services/transfergestSender";
 import "./../styles/dashboard.css";
-import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
+import Janela from "../components/Janela";
 import { Globe, Megaphone } from "lucide-react";
 import { registarEvento } from "../utils/registarEvento";
+import SelectModerno from "../components/SelectModerno";
+import PageHero from "../components/PageHero";
 const ModalPortal = ({ children }) => createPortal(children, document.body);
+
+// Ícones das janelas (design comum: styles/janelas.css)
+const IcoJanela = ({ children }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+const IcoFechar = () => <IcoJanela><path d="M18 6 6 18M6 6l12 12" /></IcoJanela>;
+const IcoEditar = () => <IcoJanela><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></IcoJanela>;
+const IcoFicha = () => <IcoJanela><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M15 8h2M15 12h2M7 16h10" /></IcoJanela>;
+const IcoImportar = () => <IcoJanela><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></IcoJanela>;
+const IcoEstado = () => <IcoJanela><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></IcoJanela>;
+const IcoAlerta = () => <IcoJanela><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></IcoJanela>;
 
 const STATUS_OPTIONS = [
   { value: "novo", label: "NOVO" },
@@ -878,66 +891,44 @@ export default function TransferGest() {
   return (
     <div className="page-container transfergest-page" style={{ maxWidth: "100%", paddingBottom: "36px" }}>
 
-      <div className="page-header" style={{ background: "white", padding: "20px 25px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "20px", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-          <div
-            style={{ background: "var(--color-bgSecondary)", color: "var(--color-btnPrimary)", padding: "12px", borderRadius: "12px", display: "flex", cursor: "pointer" }}
-            {...clicavel(() => setSelectedCampanha(""))}
-            title="Voltar ao menu de campanhas"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7"></rect>
-              <rect x="14" y="3" width="7" height="7"></rect>
-              <rect x="14" y="14" width="7" height="7"></rect>
-              <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-          </div>
-          <div>
-            <h1 style={{ margin: 0, color: "#0f172a", fontSize: "1.8rem", fontWeight: "900", letterSpacing: "-0.02em" }}>TransferGest</h1>
-            {/* Menu de seleção de campanha mais bonito */}
-            {selectedCampanha ? (
-              <select
-                value={selectedCampanha}
-                onChange={e => setSelectedCampanha(e.target.value)}
-                style={{
-                  marginTop: 4,
-                  padding: "6px 16px",
-                  borderRadius: 8,
-                  border: "1px solid #cbd5e1",
-                  fontWeight: 700,
-                  fontSize: "1rem",
-                  background: "#f8fafc",
-                  color: "#222", // preto para visibilidade
-                  outline: "none",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-                  cursor: "pointer"
-                }}
-              >
-                {campanhasDisponiveis.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            ) : (
-              <p style={{ color: "#64748b", margin: 0, fontWeight: "500", fontSize: "0.9rem" }}>
-                Seleção de Campanha
-              </p>
+      <PageHero
+        icon={
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        }
+        kicker={selectedCampanha
+          ? <button type="button" className="page-hero-crumb" onClick={() => setSelectedCampanha("")} title="Voltar ao menu de campanhas">← Campanhas</button>
+          : "Marketing"}
+        title="TransferGest"
+        subtitle={selectedCampanha ? "Contactos e envios da campanha escolhida." : "Escolhe uma campanha para ver os registos."}
+        side={
+          <>
+            <button type="button" className="page-hero-btn is-vidro" onClick={() => setShowImportModal(true)}>Importar CSV</button>
+            <button type="button" className="page-hero-btn is-vidro" onClick={exportCsv}>Exportar CSV</button>
+            {selectedCampanha && (
+              <>
+                <button type="button" className="page-hero-btn is-vidro" onClick={() => setShowBulkStatusModal(true)} disabled={!selectedIds.length}>Alterar estado</button>
+                <button type="button" className="page-hero-btn is-vidro" onClick={() => setShowSendModal(true)} disabled={!selectedIds.length}>Campanha email</button>
+              </>
             )}
-          </div>
-        </div>
-
-        <div className="tg-header-actions" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <button className="btn-outline" onClick={() => setShowImportModal(true)}>Importar CSV</button>
-          <button className="btn-outline" onClick={exportCsv}>Exportar CSV</button>
-          {/* Botões de ação principais no header */}
-          {selectedCampanha && (
-            <>
-              <button className="btn-outline" onClick={() => setShowBulkStatusModal(true)} disabled={!selectedIds.length}>Alterar Estado</button>
-              <button className="btn-outline" onClick={() => setShowSendModal(true)} disabled={!selectedIds.length}>Campanha Email</button>
-            </>
-          )}
-          <button className="btn-cta" onClick={openCreateModal}>+ Novo Registo</button>
-        </div>
-      </div>
+            <button type="button" className="page-hero-btn" onClick={openCreateModal}>+ Novo registo</button>
+          </>
+        }
+        tools={selectedCampanha ? (
+          <>
+            <span className="page-hero-kicker">Campanha</span>
+            <SelectModerno value={selectedCampanha} onChange={e => setSelectedCampanha(e.target.value)} aria-label="Campanha" menuWidth={280}>
+              {campanhasDisponiveis.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </SelectModerno>
+          </>
+        ) : null}
+      />
 
       {/* 💡 TABS DE CAMPANHA */}
       {!selectedCampanha ? (
@@ -1164,14 +1155,25 @@ export default function TransferGest() {
 
       {showFormModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "960px", maxHeight: "calc(90 * var(--bz-vh, 1vh))", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                <h3 style={{ margin: 0 }}>{isEditForm ? "Editar registo TransferGest" : "Novo registo TransferGest"}</h3>
-                <button className="tg-modal-btn" onClick={() => setShowFormModal(false)}>Fechar</button>
-              </div>
+          <div className="jn-fundo" style={{ zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <div
+              className="jn-caixa is-folha"
+              role="dialog"
+              aria-modal="true"
+              aria-label={isEditForm ? "Editar registo TransferGest" : "Novo registo TransferGest"}
+              style={{ width: "100%", maxWidth: "960px", maxHeight: "calc(90 * var(--bz-vh, 1vh))" }}
+            >
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><IcoEditar /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>{isEditForm ? "Editar registo TransferGest" : "Novo registo TransferGest"}</h3>
+                  <p>Os campos com * são obrigatórios.</p>
+                </div>
+                <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setShowFormModal(false)}><IcoFechar /></button>
+              </header>
 
-              <form onSubmit={saveForm}>
+              <div className="jn-corpo">
+              <form id="tg-form-registo" onSubmit={saveForm}>
                 <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
                   
                   {/* 💡 INPUT PARA CAMPANHA NO FORMULÁRIO */}
@@ -1266,11 +1268,11 @@ export default function TransferGest() {
                   </div>
                   <div>
                     <label style={labelStyle}>Estado</label>
-                    <select value={formData.estado || "novo"} onChange={(e) => setFormData((prev) => ({ ...prev, estado: e.target.value }))} style={inputStyle}>
+                    <SelectModerno value={formData.estado || "novo"} onChange={(e) => setFormData((prev) => ({ ...prev, estado: e.target.value }))} style={inputStyle}>
                       {STATUS_OPTIONS.map((status) => (
                         <option key={status.value} value={status.value}>{status.label}</option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
 
                   <div style={{ gridColumn: "span 2" }}>
@@ -1287,12 +1289,13 @@ export default function TransferGest() {
                     Interesse para a campanha email marketing
                   </label>
                 </div>
-
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}>
-                  <button type="button" className="tg-modal-btn" onClick={() => setShowFormModal(false)}>Cancelar</button>
-                  <button type="submit" className="tg-modal-btn tg-modal-btn-primary">Guardar</button>
-                </div>
               </form>
+              </div>
+
+              <div className="jn-rodape">
+                <button type="button" onClick={() => setShowFormModal(false)}>Cancelar</button>
+                <button type="submit" form="tg-form-registo" className="is-primary">Guardar</button>
+              </div>
             </div>
           </div>
         </ModalPortal>
@@ -1300,22 +1303,27 @@ export default function TransferGest() {
 
       {showDetailModal && detailItem && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "980px", maxHeight: "calc(90 * var(--bz-vh, 1vh))", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
-                <div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--color-btnPrimary)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
-                     {formatDisplayValue(detailItem.campanha)}
-                  </div>
-                  <h3 style={{ margin: 0, color: "#0f172a", fontSize: "1.25rem", fontWeight: 900 }}>{formatDisplayValue(detailItem.denominacao)}</h3>
-                  <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "0.9rem" }}>{formatDisplayValue(detailItem.nome)}</p>
+          <div className="jn-fundo" style={{ zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <div
+              className="jn-caixa is-folha"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Detalhe: ${formatDisplayValue(detailItem.denominacao)}`}
+              style={{ width: "100%", maxWidth: "980px", maxHeight: "calc(90 * var(--bz-vh, 1vh))" }}
+            >
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><IcoFicha /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>{formatDisplayValue(detailItem.denominacao)}</h3>
+                  <p>
+                    <span style={{ fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--jn-acento)" }}>{formatDisplayValue(detailItem.campanha)}</span>
+                    {" · "}{formatDisplayValue(detailItem.nome)}
+                  </p>
                 </div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button className="tg-modal-btn" onClick={() => { setShowDetailModal(false); openEditModal(detailItem); }}>Editar</button>
-                  <button className="tg-modal-btn" onClick={() => setShowDetailModal(false)}>Fechar</button>
-                </div>
-              </div>
+                <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setShowDetailModal(false)}><IcoFechar /></button>
+              </header>
 
+              <div className="jn-corpo">
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
                 <div style={{ padding: "12px", borderRadius: "12px", border: "1px solid var(--color-borderColor)", background: "#f8fafc" }}>
                   <div style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Identificação</div>
@@ -1362,6 +1370,12 @@ export default function TransferGest() {
                   <div style={{ marginTop: "8px", color: "#334155", fontSize: "0.9rem", whiteSpace: "pre-wrap" }}>{formatDisplayValue(detailItem.observacoes)}</div>
                 </div>
               </div>
+              </div>
+
+              <div className="jn-rodape">
+                <button onClick={() => setShowDetailModal(false)}>Fechar</button>
+                <button className="is-primary" onClick={() => { setShowDetailModal(false); openEditModal(detailItem); }}>Editar</button>
+              </div>
             </div>
           </div>
         </ModalPortal>
@@ -1369,10 +1383,19 @@ export default function TransferGest() {
 
       {showImportModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "760px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
-              <h3 style={{ marginTop: 0 }}>Importar CSV TransferGest</h3>
-              
+          <div className="jn-fundo" style={{ zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <div className="jn-caixa is-folha" role="dialog" aria-modal="true" aria-label="Importar CSV TransferGest" style={{ width: "100%", maxWidth: "760px" }}>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><IcoImportar /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>Importar CSV TransferGest</h3>
+                  <p>Escolhe a campanha e o ficheiro a importar.</p>
+                </div>
+                <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setShowImportModal(false)} disabled={importing}><IcoFechar /></button>
+              </header>
+
+              <div className="jn-corpo">
+
               {/* 💡 INPUT PARA CAMPANHA NO IMPORT (Livre + Sugestões) */}
               <div style={{ background: "var(--color-bgSecondary)", padding: "12px", borderRadius: "8px", border: "1px solid var(--color-btnPrimary)", marginBottom: "14px" }}>
                 <label style={{...labelStyle, color: "var(--color-btnPrimaryDark)"}}>Para que campanha vai este ficheiro?</label>
@@ -1398,10 +1421,11 @@ export default function TransferGest() {
 
               <label style={{ display: "block", marginBottom: "10px", ...labelStyle }}>Ficheiro CSV</label>
               <input type="file" accept=".csv" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "14px" }}>
-                <button className="tg-modal-btn" onClick={() => setShowImportModal(false)} disabled={importing}>Cancelar</button>
-                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleImport} disabled={importing}>{importing ? "A importar…" : "Importar"}</button>
+              <div className="jn-rodape">
+                <button onClick={() => setShowImportModal(false)} disabled={importing}>Cancelar</button>
+                <button className="is-primary" onClick={handleImport} disabled={importing}>{importing ? "A importar…" : "Importar"}</button>
               </div>
             </div>
           </div>
@@ -1410,24 +1434,32 @@ export default function TransferGest() {
 
       {showBulkStatusModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "520px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
-              <h3 style={{ marginTop: 0 }}>Alterar estado em massa</h3>
-              <p style={{ color: "var(--color-textSecondary)" }}>Registos selecionados: {selectedIds.length}</p>
+          <div className="jn-fundo" style={{ zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <div className="jn-caixa is-folha" role="dialog" aria-modal="true" aria-label="Alterar estado em massa" style={{ width: "100%", maxWidth: "520px" }}>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><IcoEstado /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>Alterar estado em massa</h3>
+                  <p>Registos selecionados: {selectedIds.length}</p>
+                </div>
+                <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setShowBulkStatusModal(false)} disabled={bulkUpdating}><IcoFechar /></button>
+              </header>
 
+              <div className="jn-corpo">
               <label style={labelStyle}>Novo estado</label>
-              <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} style={{ ...inputStyle, marginBottom: "10px" }}>
+              <SelectModerno value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} style={{ ...inputStyle, marginBottom: "10px" }}>
                 {STATUS_OPTIONS.map((status) => (
                   <option key={status.value} value={status.value}>{status.label}</option>
                 ))}
-              </select>
+              </SelectModerno>
 
               <label style={labelStyle}>Data do estado</label>
               <input type="date" value={bulkStatusDate} onChange={(e) => setBulkStatusDate(e.target.value)} style={inputStyle} />
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "14px" }}>
-                <button className="tg-modal-btn" onClick={() => setShowBulkStatusModal(false)} disabled={bulkUpdating}>Cancelar</button>
-                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleBulkStatusUpdate} disabled={bulkUpdating}>{bulkUpdating ? "A atualizar…" : "Aplicar"}</button>
+              <div className="jn-rodape">
+                <button onClick={() => setShowBulkStatusModal(false)} disabled={bulkUpdating}>Cancelar</button>
+                <button className="is-primary" onClick={handleBulkStatusUpdate} disabled={bulkUpdating}>{bulkUpdating ? "A atualizar…" : "Aplicar"}</button>
               </div>
             </div>
           </div>
@@ -1436,12 +1468,18 @@ export default function TransferGest() {
 
       {showSendModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "760px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                <h3 style={{ margin: 0 }}>Enviar campanha TransferGest</h3>
-                <button className="tg-modal-btn" onClick={() => setShowSendModal(false)}>Fechar</button>
-              </div>
+          <div className="jn-fundo" style={{ zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <div className="jn-caixa is-folha" role="dialog" aria-modal="true" aria-label="Enviar campanha TransferGest" style={{ width: "100%", maxWidth: "760px" }}>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><Megaphone size={20} /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>Enviar campanha TransferGest</h3>
+                  <p>Envio por email aos registos selecionados.</p>
+                </div>
+                <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setShowSendModal(false)}><IcoFechar /></button>
+              </header>
+
+              <div className="jn-corpo">
 
               <div style={{ background: "var(--color-bgSecondary)", border: "1px solid var(--color-borderColor)", borderRadius: "8px", padding: "10px", marginBottom: "10px", color: "var(--color-textSecondary)" }}>
                 Destinatarios validos selecionados: <b>{getSelectedRecipients().length}</b>
@@ -1495,30 +1533,31 @@ export default function TransferGest() {
                   <b>Resumo:</b> enviados {lastCampaignSummary.sentRecipients}/{lastCampaignSummary.acceptedRecipients} | invalidos {lastCampaignSummary.invalidEmails?.length || 0} | repetidos {lastCampaignSummary.duplicates?.length || 0} | falhados {lastCampaignSummary.failedRecipients?.length || 0}
                 </div>
               )}
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                <button className="tg-modal-btn" onClick={() => setShowSendModal(false)} disabled={sendingCampaign}>Cancelar</button>
-                <button className="tg-modal-btn tg-modal-btn-primary" onClick={handleSendCampaign} disabled={sendingCampaign}>{sendingCampaign ? "A enviar…" : "Enviar"}</button>
+              <div className="jn-rodape">
+                <button onClick={() => setShowSendModal(false)} disabled={sendingCampaign}>Cancelar</button>
+                <button className="is-primary" onClick={handleSendCampaign} disabled={sendingCampaign}>{sendingCampaign ? "A enviar…" : "Enviar"}</button>
               </div>
             </div>
           </div>
         </ModalPortal>
       )}
 
-      {confirmDialog.show && (
-        <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal-max) + 1)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "420px", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
-              <h3 style={{ marginTop: 0 }}>Confirmacao</h3>
-              <p style={{ color: "var(--color-textSecondary)" }}>{confirmDialog.message}</p>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                <button className="tg-modal-btn" onClick={() => setConfirmDialog((prev) => ({ ...prev, show: false }))}>Cancelar</button>
-                <button className={`tg-modal-btn ${confirmDialog.isDanger ? "tg-modal-btn-danger" : "tg-modal-btn-primary"}`} onClick={confirmDialog.onConfirm}>{confirmDialog.confirmText}</button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      <Janela
+        aberta={!!confirmDialog.show}
+        aoFechar={() => setConfirmDialog((prev) => ({ ...prev, show: false }))}
+        camada="calc(var(--z-modal-max) + 1)"
+        variante="confirmacao"
+        tom={confirmDialog.isDanger ? "danger" : undefined}
+        icone={<IcoAlerta />}
+        titulo="Confirmação"
+        subtitulo={confirmDialog.message}
+        rodape={<>
+          <button type="button" onClick={() => setConfirmDialog((prev) => ({ ...prev, show: false }))}>Cancelar</button>
+          <button type="button" className={confirmDialog.isDanger ? "is-danger" : "is-primary"} onClick={confirmDialog.onConfirm}>{confirmDialog.confirmText}</button>
+        </>}
+      />
 
       {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
 

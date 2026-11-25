@@ -9,12 +9,16 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
+import './styles/tokens.css' // valores base do design (cantos, sombras, letra, cores)
 import './styles/camadas.css'
 import './styles/main.css'
 import './styles/motion.css'
+import './styles/sidebar-vidro.css' // sidebar em vidro (computador)
 import './styles/acessibilidade.css'
 import './styles/refinamentos.css'
 import './styles/tamanho-interface.css'
+import './styles/componentes-base.css' // botões e campos iguais em toda a app
+import './styles/cabecalhos.css' // cabeçalho de página igual em todas as páginas
 import './styles/janelas.css' // design único das janelas (por último: ganha aos estilos antigos)
 import { instalarAberturaSegura } from './utils/ficheirosPrivados'
 import { instalarPlaceholders } from './utils/placeholderImagem'

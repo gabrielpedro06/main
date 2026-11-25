@@ -51,6 +51,8 @@ import AvisoToast from "../components/AvisoToast";
 import FancySelect from "../components/FancySelect";
 import { Lock, TriangleAlert } from "lucide-react";
 import { registarEvento } from "../utils/registarEvento";
+import Janela from "../components/Janela";
+import SelectModerno from "../components/SelectModerno";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Grid: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>,
@@ -2103,8 +2105,6 @@ export default function Projetos() {
       );
   };
 
-  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '15px', marginTop: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' };
-  const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
   const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
 
   const entidadesProjeto = [...new Set(
@@ -2120,8 +2120,8 @@ export default function Projetos() {
         type="text"
         value={fmtEUR(value)}
         onChange={(e) => { const d = e.target.value.replace(/\D/g, ""); onChange(d ? Number(d) / 100 : 0); }}
-        style={{ ...inputStyle, textAlign: 'right' }}
-        className="input-focus"
+        style={{textAlign: 'right'}}
+        className="bz-campo"
     />
     );
 
@@ -2873,11 +2873,11 @@ const exportCurrentOverviewPdf = () => {
           <div className="po-vg-pager">
               <label className="po-vg-perpage">
                   <span>Mostrar:</span>
-                  <select value={overviewItemsPerPage} onChange={(e) => setOverviewItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                  <SelectModerno value={overviewItemsPerPage} onChange={(e) => setOverviewItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
                       <option value={10}>10 projetos</option>
                       <option value={20}>20 projetos</option>
                       <option value="all">Todos</option>
-                  </select>
+                  </SelectModerno>
               </label>
               {totalOverviewPages > 1 && (
                   <div className="po-vg-pages">
@@ -2931,9 +2931,9 @@ const exportCurrentOverviewPdf = () => {
                   {isMonthlyTab && (
                       <label className="po-vg-field is-inline">
                           <span>Ano</span>
-                          <select value={anualYear} onChange={(e) => setAnualYear(Number(e.target.value))}>
+                          <SelectModerno value={anualYear} onChange={(e) => setAnualYear(Number(e.target.value))}>
                               {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
-                          </select>
+                          </SelectModerno>
                       </label>
                   )}
                   <div className="po-vg-exports">
@@ -2946,36 +2946,36 @@ const exportCurrentOverviewPdf = () => {
                   <span className="po-vg-count">{overviewProjectsCount} projeto{overviewProjectsCount === 1 ? '' : 's'}</span>
                   <label className="po-vg-field">
                       <span>Tipo de projeto</span>
-                      <select value={overviewTypeFilter} onChange={(event) => setOverviewTypeFilter(event.target.value)}>
+                      <SelectModerno value={overviewTypeFilter} onChange={(event) => setOverviewTypeFilter(event.target.value)}>
                           <option value="">Todos os tipos</option>
                           {[...tipos].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" })).map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>)}
                           <option value="sem-tipo">Sem tipo de projeto</option>
-                      </select>
+                      </SelectModerno>
                   </label>
                   <label className="po-vg-field">
                       <span>Programa</span>
-                      <select value={overviewProgramFilter} onChange={(event) => setOverviewProgramFilter(event.target.value)}>
+                      <SelectModerno value={overviewProgramFilter} onChange={(event) => setOverviewProgramFilter(event.target.value)}>
                           <option value="">Todos os programas</option>
                           {[...programas].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-PT", { sensitivity: "base" })).map((program) => <option key={program.id} value={program.id}>{program.codigo ? `${program.codigo} - ${program.nome}` : program.nome}</option>)}
                           <option value="sem-programa">Sem programa associado</option>
-                      </select>
+                      </SelectModerno>
                   </label>
                   <label className="po-vg-field">
                       <span>Estado</span>
-                      <select value={overviewStateFilter} onChange={(event) => setOverviewStateFilter(event.target.value)}>
+                      <SelectModerno value={overviewStateFilter} onChange={(event) => setOverviewStateFilter(event.target.value)}>
                           <option value="">Todos os estados</option>
                           {estadosProjeto.map((est) => <option key={est.id} value={est.id}>{est.nome}</option>)}
-                      </select>
+                      </SelectModerno>
                   </label>
                   <label className="po-vg-field">
                       <span>Entidade</span>
-                      <select value={overviewEntityFilter} onChange={(event) => setOverviewEntityFilter(event.target.value)}>
+                      <SelectModerno value={overviewEntityFilter} onChange={(event) => setOverviewEntityFilter(event.target.value)}>
                           <option value="">Todas as entidades</option>
                           {[...clientes]
                               .filter((c) => !c.eh_organismo)
                               .sort((a, b) => String(getClientDisplayName(a) || a.marca || "").localeCompare(String(getClientDisplayName(b) || b.marca || ""), "pt-PT", { sensitivity: "base" }))
                               .map((client) => <option key={client.id} value={client.id}>{getClientDisplayName(client) || client.marca}</option>)}
-                      </select>
+                      </SelectModerno>
                   </label>
                   {isMonthlyTab && (
                       <button type="button" onClick={() => setHideEmptyProjects((v) => !v)} className={`po-toggle ${hideEmptyProjects ? 'is-on' : ''}`} aria-pressed={hideEmptyProjects}>
@@ -3469,89 +3469,84 @@ const exportCurrentOverviewPdf = () => {
       })()}
 
 {/* --- MODAL RÁPIDO "NOVA ENTIDADE" (por cima do wizard; líder / parceira / organismo) --- */}
-      {showModal && quickOrganismoModal.show && (
-        <ModalPortal>
-          <div style={{position:'fixed', inset:0, backgroundColor:'rgba(15, 23, 42, 0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 30)", padding: '16px'}} onClick={closeQuickOrganismoModal}>
-            <form onSubmit={createQuickOrganismo} role="dialog" aria-label="Nova entidade" style={{background:'#fff', width:'100%', maxWidth:'520px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.35)', overflow:'hidden', animation:'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
-              <div style={{padding:'18px 22px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                  <span style={{background:'var(--color-bgSecondary)', color:'var(--color-btnPrimary)', padding:'8px', borderRadius:'10px', display:'flex'}}><Icons.Building /></span>
-                  <div>
-                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.1rem', fontWeight:'800'}}>{quickPapel === "organismo" ? "Novo organismo" : quickPapel === "parceiro" ? "Nova entidade parceira" : "Nova entidade"}</h3>
-                    <p style={{margin:'2px 0 0', fontSize:'0.8rem', color:'#64748b'}}>Fica logo selecionada no projeto. Os restantes dados completam-se depois em Entidades.</p>
-                  </div>
-                </div>
-                <button type="button" aria-label="Fechar" onClick={closeQuickOrganismoModal} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b', display:'flex'}} className="hover-red-text"><Icons.Close size={20} /></button>
-              </div>
-              <div style={{padding:'20px 22px', display:'grid', gap:'14px'}}>
+      <Janela
+          aberta={showModal && quickOrganismoModal.show}
+          camada="calc(var(--z-modal) + 30)"
+          aoFechar={closeQuickOrganismoModal}
+          bloquear={quickOrganismoModal.isSubmitting}
+          titulo={quickPapel === "organismo" ? "Novo organismo" : quickPapel === "parceiro" ? "Nova entidade parceira" : "Nova entidade"}
+          subtitulo="Fica logo selecionada no projeto. Os restantes dados completam-se depois em Entidades."
+          icone={<Icons.Building />}
+          largura={540}
+          rodape={<>
+              <button type="button" onClick={closeQuickOrganismoModal}>Cancelar</button>
+              <button type="submit" form="pj-form-entidade" className="is-primary" disabled={quickOrganismoModal.isSubmitting}>
+                {quickOrganismoModal.isSubmitting ? "A criar…" : "Criar e selecionar"}
+              </button>
+          </>}
+      >
+            <form id="pj-form-entidade" onSubmit={createQuickOrganismo}>
+              <div style={{display:'grid', gap:'14px'}}>
                 <div>
-                  <label style={labelStyle} htmlFor="qe-nif">NIF</label>
-                  <input id="qe-nif" type="text" inputMode="numeric" value={quickOrganismoModal.nif} onChange={handleQuickOrganismoNifChange} placeholder="9 dígitos — preenche o resto automaticamente" style={inputStyle} className="input-focus" autoFocus />
-                  <div style={{marginTop:'5px', fontSize:'0.76rem', color:'#64748b'}}>Se o NIF já existir no Bizin, a entidade é selecionada em vez de duplicada.</div>
+                  <label className="bz-rotulo" htmlFor="qe-nif">NIF</label>
+                  <input id="qe-nif" type="text" inputMode="numeric" value={quickOrganismoModal.nif} onChange={handleQuickOrganismoNifChange} placeholder="9 dígitos — preenche o resto automaticamente"  className="bz-campo" autoFocus />
+                  <div className="bz-dica">Se o NIF já existir no Bizin, a entidade é selecionada em vez de duplicada.</div>
                 </div>
                 <div>
-                  <label style={labelStyle} htmlFor="qe-marca">Nome *</label>
-                  <input id="qe-marca" type="text" value={quickOrganismoModal.marca} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, marca: e.target.value }))} required style={inputStyle} className="input-focus" />
+                  <label className="bz-rotulo" htmlFor="qe-marca">Nome *</label>
+                  <input id="qe-marca" type="text" value={quickOrganismoModal.marca} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, marca: e.target.value }))} required  className="bz-campo" />
                 </div>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'12px'}}>
                   <div>
-                    <label style={labelStyle} htmlFor="qe-sigla">Sigla</label>
-                    <input id="qe-sigla" type="text" value={quickOrganismoModal.sigla} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, sigla: e.target.value }))} style={inputStyle} className="input-focus" />
+                    <label className="bz-rotulo" htmlFor="qe-sigla">Sigla</label>
+                    <input id="qe-sigla" type="text" value={quickOrganismoModal.sigla} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, sigla: e.target.value }))}  className="bz-campo" />
                   </div>
                   <div>
-                    <label style={labelStyle} htmlFor="qe-entidade">Designação legal</label>
-                    <input id="qe-entidade" type="text" value={quickOrganismoModal.entidade} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, entidade: e.target.value }))} placeholder="Igual ao nome, se vazio" style={inputStyle} className="input-focus" />
+                    <label className="bz-rotulo" htmlFor="qe-entidade">Designação legal</label>
+                    <input id="qe-entidade" type="text" value={quickOrganismoModal.entidade} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, entidade: e.target.value }))} placeholder="Igual ao nome, se vazio"  className="bz-campo" />
                   </div>
                 </div>
                 <div>
-                  <label style={labelStyle} htmlFor="qe-web">Website</label>
-                  <input id="qe-web" type="text" value={quickOrganismoModal.website} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, website: e.target.value }))} placeholder="https://" style={inputStyle} className="input-focus" />
+                  <label className="bz-rotulo" htmlFor="qe-web">Website</label>
+                  <input id="qe-web" type="text" value={quickOrganismoModal.website} onChange={e => setQuickOrganismoModal(prev => ({ ...prev, website: e.target.value }))} placeholder="https://"  className="bz-campo" />
                 </div>
               </div>
-              <div style={{padding:'14px 22px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'flex-end', gap:'10px', background:'#f8fafc'}}>
-                <button type="button" onClick={closeQuickOrganismoModal} style={{padding:'10px 16px', borderRadius:'8px', border:'1px solid #cbd5e1', background:'#fff', color:'#475569', fontWeight:'700', cursor:'pointer'}}>Cancelar</button>
-                <button type="submit" disabled={quickOrganismoModal.isSubmitting} style={{padding:'10px 18px', borderRadius:'8px', border:'none', background:'var(--color-btnPrimary)', color:'#fff', fontWeight:'800', cursor: quickOrganismoModal.isSubmitting ? 'progress' : 'pointer', opacity: quickOrganismoModal.isSubmitting ? 0.7 : 1}}>
-                  {quickOrganismoModal.isSubmitting ? "A criar…" : "Criar e selecionar"}
-                </button>
-              </div>
             </form>
-          </div>
-        </ModalPortal>
-      )}
+      </Janela>
 
 {/* --- MODAIS RÁPIDOS DO PASSO 3: NOVO PROGRAMA / NOVO AVISO --- */}
       {showModal && quickPrograma && (
         <ModalPortal>
-          <div style={{position:'fixed', inset:0, backgroundColor:'rgba(15, 23, 42, 0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 30)", padding:'16px'}} onClick={() => setQuickPrograma(null)}>
-            <form onSubmit={createQuickPrograma} role="dialog" aria-label="Novo programa" className="pj-quick" onClick={e => e.stopPropagation()}>
-              <div className="pj-quick-head">
-                <span className="pj-quick-ico"><Icons.Building /></span>
+          <div className="jn-fundo" style={{zIndex:"calc(var(--z-modal) + 30)"}} onClick={() => setQuickPrograma(null)}>
+            <form onSubmit={createQuickPrograma} role="dialog" aria-label="Novo programa" className="pj-quick jn-caixa is-folha" onClick={e => e.stopPropagation()}>
+              <div className="pj-quick-head jn-cabecalho">
+                <span className="pj-quick-ico jn-cabecalho-ico"><Icons.Building /></span>
                 <div>
                   <h3>Novo programa</h3>
                   <p>Fica logo selecionado no projeto. Os restantes dados (taxa, região, objetivos…) completam-se em Programas/Avisos.</p>
                 </div>
-                <button type="button" aria-label="Fechar" onClick={() => setQuickPrograma(null)} className="pj-quick-x hover-red-text"><Icons.Close size={20} /></button>
+                <button type="button" aria-label="Fechar" onClick={() => setQuickPrograma(null)} className="pj-quick-x jn-fechar"><Icons.Close size={20} /></button>
               </div>
-              <div className="pj-quick-body">
+              <div className="pj-quick-body jn-corpo">
                 <div style={{display:'grid', gridTemplateColumns:'1fr 2fr', gap:'12px'}}>
                   <div>
-                    <label style={labelStyle} htmlFor="qp-codigo">Sigla *</label>
-                    <input id="qp-codigo" type="text" value={quickPrograma.codigo} onChange={e => setQuickPrograma(prev => ({ ...prev, codigo: e.target.value }))} placeholder="Ex.: SI2E" required style={inputStyle} className="input-focus" autoFocus />
+                    <label className="bz-rotulo" htmlFor="qp-codigo">Sigla *</label>
+                    <input id="qp-codigo" type="text" value={quickPrograma.codigo} onChange={e => setQuickPrograma(prev => ({ ...prev, codigo: e.target.value }))} placeholder="Ex.: SI2E" required  className="bz-campo" autoFocus />
                   </div>
                   <div>
-                    <label style={labelStyle} htmlFor="qp-nome">Nome *</label>
-                    <input id="qp-nome" type="text" value={quickPrograma.nome} onChange={e => setQuickPrograma(prev => ({ ...prev, nome: e.target.value }))} required style={inputStyle} className="input-focus" />
+                    <label className="bz-rotulo" htmlFor="qp-nome">Nome *</label>
+                    <input id="qp-nome" type="text" value={quickPrograma.nome} onChange={e => setQuickPrograma(prev => ({ ...prev, nome: e.target.value }))} required  className="bz-campo" />
                   </div>
                 </div>
                 <div>
-                  <label style={labelStyle} htmlFor="qp-aviso">Código do primeiro aviso (opcional)</label>
-                  <input id="qp-aviso" type="text" value={quickPrograma.avisoCodigo} onChange={e => setQuickPrograma(prev => ({ ...prev, avisoCodigo: e.target.value }))} placeholder="Ex.: ALGARVE-2026-01" style={inputStyle} className="input-focus" />
+                  <label className="bz-rotulo" htmlFor="qp-aviso">Código do primeiro aviso (opcional)</label>
+                  <input id="qp-aviso" type="text" value={quickPrograma.avisoCodigo} onChange={e => setQuickPrograma(prev => ({ ...prev, avisoCodigo: e.target.value }))} placeholder="Ex.: ALGARVE-2026-01"  className="bz-campo" />
                   <div className="pj-quick-hint">Para indicar os prazos das fases, cria o aviso depois com <strong>+ Novo aviso</strong>.</div>
                 </div>
               </div>
-              <div className="pj-quick-foot">
+              <div className="pj-quick-foot jn-rodape">
                 <button type="button" onClick={() => setQuickPrograma(null)} className="pj-quick-cancel">Cancelar</button>
-                <button type="submit" disabled={quickPrograma.isSubmitting} className="pj-quick-ok">{quickPrograma.isSubmitting ? "A criar…" : "Criar e selecionar"}</button>
+                <button type="submit" disabled={quickPrograma.isSubmitting} className="pj-quick-ok is-primary">{quickPrograma.isSubmitting ? "A criar…" : "Criar e selecionar"}</button>
               </div>
             </form>
           </div>
@@ -3560,28 +3555,28 @@ const exportCurrentOverviewPdf = () => {
 
       {showModal && quickAviso && (
         <ModalPortal>
-          <div style={{position:'fixed', inset:0, backgroundColor:'rgba(15, 23, 42, 0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 30)", padding:'16px'}} onClick={() => setQuickAviso(null)}>
-            <form onSubmit={createQuickAviso} role="dialog" aria-label="Novo aviso" className="pj-quick" onClick={e => e.stopPropagation()}>
-              <div className="pj-quick-head">
-                <span className="pj-quick-ico"><Icons.Calendar /></span>
+          <div className="jn-fundo" style={{zIndex:"calc(var(--z-modal) + 30)"}} onClick={() => setQuickAviso(null)}>
+            <form onSubmit={createQuickAviso} role="dialog" aria-label="Novo aviso" className="pj-quick jn-caixa is-folha" onClick={e => e.stopPropagation()}>
+              <div className="pj-quick-head jn-cabecalho">
+                <span className="pj-quick-ico jn-cabecalho-ico"><Icons.Calendar /></span>
                 <div>
                   <h3>Novo aviso</h3>
                   <p>Fica ligado a <strong>{getProgramaById(form.programa_id)?.nome || "este programa"}</strong> e selecionado no projeto, com as fases abaixo.</p>
                 </div>
-                <button type="button" aria-label="Fechar" onClick={() => setQuickAviso(null)} className="pj-quick-x hover-red-text"><Icons.Close size={20} /></button>
+                <button type="button" aria-label="Fechar" onClick={() => setQuickAviso(null)} className="pj-quick-x jn-fechar"><Icons.Close size={20} /></button>
               </div>
-              <div className="pj-quick-body">
+              <div className="pj-quick-body jn-corpo">
                 <div>
-                  <label style={labelStyle} htmlFor="qa-codigo">Código do aviso *</label>
-                  <input id="qa-codigo" type="text" value={quickAviso.codigo} onChange={e => setQuickAviso(prev => ({ ...prev, codigo: e.target.value }))} placeholder="Ex.: ALGARVE-2026-01" required style={inputStyle} className="input-focus" autoFocus />
+                  <label className="bz-rotulo" htmlFor="qa-codigo">Código do aviso *</label>
+                  <input id="qa-codigo" type="text" value={quickAviso.codigo} onChange={e => setQuickAviso(prev => ({ ...prev, codigo: e.target.value }))} placeholder="Ex.: ALGARVE-2026-01" required  className="bz-campo" autoFocus />
                 </div>
                 <div>
-                  <label style={labelStyle}>Fases e prazos</label>
+                  <label className="bz-rotulo">Fases e prazos</label>
                   <div className="pj-quick-fases">
                     {quickAviso.fases.map((f, i) => (
                       <div key={i} className="pj-quick-fase">
-                        <input type="text" aria-label={`Nome da fase ${i + 1}`} value={f.nome} onChange={e => setQuickAviso(prev => ({ ...prev, fases: prev.fases.map((x, k) => k === i ? { ...x, nome: e.target.value } : x) }))} style={inputStyle} className="input-focus" />
-                        <input type="date" aria-label={`Prazo da fase ${i + 1}`} value={f.prazo} onChange={e => setQuickAviso(prev => ({ ...prev, fases: prev.fases.map((x, k) => k === i ? { ...x, prazo: e.target.value } : x) }))} style={inputStyle} className="input-focus" />
+                        <input type="text" aria-label={`Nome da fase ${i + 1}`} value={f.nome} onChange={e => setQuickAviso(prev => ({ ...prev, fases: prev.fases.map((x, k) => k === i ? { ...x, nome: e.target.value } : x) }))}  className="bz-campo" />
+                        <input type="date" aria-label={`Prazo da fase ${i + 1}`} value={f.prazo} onChange={e => setQuickAviso(prev => ({ ...prev, fases: prev.fases.map((x, k) => k === i ? { ...x, prazo: e.target.value } : x) }))}  className="bz-campo" />
                         <button type="button" aria-label={`Remover fase ${i + 1}`} onClick={() => setQuickAviso(prev => ({ ...prev, fases: prev.fases.filter((_, k) => k !== i) }))} className="pj-quick-x hover-red-text"><Icons.Close size={16} /></button>
                       </div>
                     ))}
@@ -3589,9 +3584,9 @@ const exportCurrentOverviewPdf = () => {
                   </div>
                 </div>
               </div>
-              <div className="pj-quick-foot">
+              <div className="pj-quick-foot jn-rodape">
                 <button type="button" onClick={() => setQuickAviso(null)} className="pj-quick-cancel">Cancelar</button>
-                <button type="submit" disabled={quickAviso.isSubmitting} className="pj-quick-ok">{quickAviso.isSubmitting ? "A criar…" : "Criar e selecionar"}</button>
+                <button type="submit" disabled={quickAviso.isSubmitting} className="pj-quick-ok is-primary">{quickAviso.isSubmitting ? "A criar…" : "Criar e selecionar"}</button>
               </div>
             </form>
           </div>
@@ -3601,20 +3596,21 @@ const exportCurrentOverviewPdf = () => {
 {/* --- MODAL CRIAR/EDITAR PROJETO (WIZARD 5 PASSOS) --- */}
       {showModal && (
         <ModalPortal>
-          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 13)"}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'95%', maxWidth:'1000px', minHeight: '650px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(92 * var(--bz-vh, 1vh))', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+          <div className="jn-fundo" style={{zIndex:"calc(var(--z-modal) + 13)"}} onMouseDown={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+            <div className="jn-caixa is-folha pj-wizard" role="dialog" aria-modal="true" aria-label={isViewOnly ? "Ver projeto" : (editId ? "Editar projeto" : "Novo projeto")} style={{maxWidth:'1000px'}}>
               
               {/* --- CABEÇALHO --- */}
-              <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>
-                <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                    <span style={{background:'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding:'10px', borderRadius:'10px', display: 'flex'}}><Icons.Rocket size={24} /></span>
-                    <h3 style={{margin:0, color:'#1e293b', fontSize:'1.25rem', fontWeight: '800'}}>{isViewOnly ? "Ver Projeto" : (editId ? "Editar Projeto" : "Novo Projeto")}</h3>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><Icons.Rocket size={22} /></span>
+                <div className="jn-cabecalho-txt">
+                  <h2>{isViewOnly ? "Ver projeto" : (editId ? "Editar projeto" : "Novo projeto")}</h2>
+                  <p>Passo {currentStep} de 5</p>
                 </div>
-                <button aria-label="Fechar" onClick={() => setShowModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center'}} className="hover-red-text"><Icons.Close size={20} /></button>
-              </div>
+                <button type="button" aria-label="Fechar" onClick={() => setShowModal(false)} className="jn-fechar"><Icons.Close size={18} /></button>
+              </header>
 
               {/* --- STEPPER VISUAL --- */}
-              <div style={{padding: '20px 30px', background: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <div className="pj-wizard-passos">
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center', width: '100%'}}>
                   {[
                     { num: 1, label: 'Base & Entidade' },
@@ -3642,7 +3638,7 @@ const exportCurrentOverviewPdf = () => {
               </div>
 
               {/* --- CORPO DO FORMULÁRIO --- */}
-              <div style={{padding:'30px', overflowY:'auto', background:'white', flex: 1}} className="custom-scrollbar">
+              <div className="jn-corpo custom-scrollbar" style={{padding:'24px 26px'}}>
                 <form id="project-form" onSubmit={handleSubmit}>
                   <fieldset disabled={isViewOnly} style={{border:'none', padding:0, margin: 0}}>
                     
@@ -3656,11 +3652,11 @@ const exportCurrentOverviewPdf = () => {
                                 {/* ========== PASSO 1: BASE E ENTIDADE DO PROJETO ========== */}
                                 {currentStep === 1 && (
                                   <div className="fade-in">
-                                    <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Building /> Enquadramento Base</div>
+                                    <div className="bz-secao is-primeira"><Icons.Building /> Enquadramento Base</div>
                                     
                                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
                                       <div>
-                                          <label style={labelStyle}>Tipo de Projeto (Modelo) *</label>
+                                          <label className="bz-rotulo">Tipo de Projeto (Modelo) *</label>
                                           <FancySelect
                                               className="pj-fs is-destaque"
                                               ariaLabel="Tipo de Projeto (Modelo)"
@@ -3672,7 +3668,7 @@ const exportCurrentOverviewPdf = () => {
                                           />
                                       </div>
                                       <div>
-                                          <label style={labelStyle}>Responsável Global *</label>
+                                          <label className="bz-rotulo">Responsável Global *</label>
                                           <FancySelect
                                               className="pj-fs"
                                               ariaLabel="Responsável Global"
@@ -3693,15 +3689,15 @@ const exportCurrentOverviewPdf = () => {
                                     </div>
 
                                     <div style={{marginBottom: '30px'}}>
-                                        <label style={labelStyle}>Título do Projeto *</label>
-                                        <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required style={{...inputStyle, fontSize:'1.1rem', padding:'12px', fontWeight: 'bold'}} className="input-focus" />
+                                        <label className="bz-rotulo">Título do Projeto *</label>
+                                        <input type="text" value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} required  className="bz-campo is-titulo" />
                                     </div>
 
-                                    <div style={sectionTitleStyle}><Icons.Users /> Entidade(s) do Projeto</div>
+                                    <div className="bz-secao"><Icons.Users /> Entidade(s) do Projeto</div>
                                     
                                     <div style={{display: 'grid', gridTemplateColumns: form.is_parceria ? '1fr 1fr' : '1fr 1fr', gap: '15px', marginBottom: form.is_parceria ? '10px' : '20px'}}>
                                         <div>
-                                            <label style={labelStyle}>Tipologia</label>
+                                            <label className="bz-rotulo">Tipologia</label>
                                             <FancySelect
                                                 className="pj-fs"
                                                 ariaLabel="Tipologia"
@@ -3718,7 +3714,7 @@ const exportCurrentOverviewPdf = () => {
                                         </div>
 
                                         <div>
-                                            <label style={labelStyle}>Entidade Lider *</label>
+                                            <label className="bz-rotulo">Entidade Lider *</label>
                                             <FancySelect
                                                 className="pj-fs"
                                                 ariaLabel="Entidade Lider"
@@ -3743,9 +3739,9 @@ const exportCurrentOverviewPdf = () => {
                                     </div>
 
                                     {form.is_parceria && (
-                                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                        <div className="bz-grelha-2">
                                             <div>
-                                                <label style={labelStyle}>Entidades Parceiras</label>
+                                                <label className="bz-rotulo">Entidades Parceiras</label>
                                                 <FancySelect
                                                     className="pj-fs"
                                                     ariaLabel="Adicionar entidade parceira"
@@ -3773,9 +3769,9 @@ const exportCurrentOverviewPdf = () => {
                                             </div>
                                             
                                             <div>
-                                                <label style={labelStyle}>Entidades Selecionadas</label>
+                                                <label className="bz-rotulo">Entidades Selecionadas</label>
                                                 <div className="pill-container" style={{width: '100%', boxSizing: 'border-box'}}>
-                                                    {(form.parceiros_ids || []).length === 0 && <span style={{color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem parceiros selecionados.</span>}
+                                                    {(form.parceiros_ids || []).length === 0 && <span className="bz-dica">Sem parceiros selecionados.</span>}
                                                     {(form.parceiros_ids || []).map(pid => {
                                                         const parceiro = clientes.find(c => String(c.id) === String(pid));
                                                         if (!parceiro) return null;
@@ -3804,11 +3800,11 @@ const exportCurrentOverviewPdf = () => {
                                     {/* Esconde a Entidade Financiadora se for Formação */}
                                     {!isProjetoFormacao && (
                                         <>
-                                            <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Building /> Entidade Financiadora</div>
+                                            <div className="bz-secao is-primeira"><Icons.Building /> Entidade Financiadora</div>
                                             
                                             <div style={{display: 'grid', gridTemplateColumns: form.has_organismo ? '1fr 1fr' : '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
                                                 <div>
-                                                    <label style={labelStyle}>Envolve Entidade Financiadora?</label>
+                                                    <label className="bz-rotulo">Envolve Entidade Financiadora?</label>
                                                     <FancySelect
                                                         className="pj-fs"
                                                         ariaLabel="Envolve Entidade Financiadora?"
@@ -3824,7 +3820,7 @@ const exportCurrentOverviewPdf = () => {
 
                                                 {form.has_organismo && (
                                                     <div>
-                                                        <label style={labelStyle}>Organismo Lider / Principal *</label>
+                                                        <label className="bz-rotulo">Organismo Lider / Principal *</label>
                                                         <FancySelect
                                                             className="pj-fs is-destaque"
                                                             ariaLabel="Organismo Lider / Principal"
@@ -3850,7 +3846,7 @@ const exportCurrentOverviewPdf = () => {
 
                                             {form.has_organismo && form.organismo_id && (
                                                 <div style={{marginBottom: '30px', maxWidth: '50%', paddingRight: '7.5px'}}>
-                                                    <label style={labelStyle}>Pessoa do Organismo</label>
+                                                    <label className="bz-rotulo">Pessoa do Organismo</label>
                                                     <FancySelect
                                                         className="pj-fs"
                                                         ariaLabel="Pessoa do Organismo"
@@ -3864,18 +3860,18 @@ const exportCurrentOverviewPdf = () => {
                                                         ]}
                                                     />
                                                     {organismoPessoas.length === 0 && (
-                                                        <div style={{marginTop: '6px', color: '#64748b', fontSize: '0.8rem', fontStyle: 'italic'}}>Este organismo ainda não tem contactos registados.</div>
+                                                        <div className="bz-dica">Este organismo ainda não tem contactos registados.</div>
                                                     )}
                                                 </div>
                                             )}
                                         </>
                                     )}
 
-                                    <div style={{...sectionTitleStyle, marginTop: isProjetoFormacao ? 0 : 30}}><Icons.Users /> Equipa Envolvida no Projeto</div>
+                                    <div className="bz-secao" style={{marginTop: isProjetoFormacao ? 0 : 30}}><Icons.Users /> Equipa Envolvida no Projeto</div>
                                     <div style={{marginBottom: '10px'}}>
                                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                                             <div>
-                                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Colaboradores Internos</div>
+                                                <div className="bz-rotulo">Colaboradores Internos</div>
                                                 <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
                                                     {staff
                                                         .filter(s => String(s.id) !== String(form.responsavel_id || ''))
@@ -3893,13 +3889,13 @@ const exportCurrentOverviewPdf = () => {
                                                             )
                                                         })}
                                                     {staff.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
-                                                        <span style={{color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem pessoas internas disponíveis.</span>
+                                                        <span className="bz-dica">Sem pessoas internas disponíveis.</span>
                                                     )}
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <div style={{fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Contactos das Entidades</div>
+                                                <div className="bz-rotulo">Contactos das Entidades</div>
                                                 <div className="pill-container" style={{minHeight: '60px', padding: '15px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0'}}>
                                                     {entidadePessoas
                                                         .filter(s => String(s.id) !== String(form.responsavel_id || ''))
@@ -3919,7 +3915,7 @@ const exportCurrentOverviewPdf = () => {
                                                             )
                                                         })}
                                                     {entidadePessoas.filter(s => String(s.id) !== String(form.responsavel_id || '')).length === 0 && (
-                                                        <span style={{color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic'}}>Sem contactos das entidades selecionadas.</span>
+                                                        <span className="bz-dica">Sem contactos das entidades selecionadas.</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -3931,13 +3927,13 @@ const exportCurrentOverviewPdf = () => {
                                 {/* ========== PASSO 3: PLANEAMENTO ========== */}
                                 {currentStep === 3 && (
                                   <div className="fade-in">
-                                    <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Calendar /> Planeamento & Enquadramento</div>
+                                    <div className="bz-secao is-primeira"><Icons.Calendar /> Planeamento & Enquadramento</div>
                                     
                                     {!isProjetoFormacao && (
                                         <>
                                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '18px'}}>
                                                 <div>   
-                                                    <label style={labelStyle}>Programa</label>
+                                                    <label className="bz-rotulo">Programa</label>
                                                     <FancySelect
                                                         className="pj-fs"
                                                         ariaLabel="Programa"
@@ -3965,7 +3961,7 @@ const exportCurrentOverviewPdf = () => {
                                                     
                                                     return (
                                                         <div>
-                                                            <label style={labelStyle}>Aviso</label>
+                                                            <label className="bz-rotulo">Aviso</label>
                                                             <FancySelect
                                                                 className="pj-fs"
                                                                 ariaLabel="Aviso"
@@ -3989,26 +3985,26 @@ const exportCurrentOverviewPdf = () => {
                                                 })()}
                                             </div>
 
-                                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                            <div className="bz-grelha-2">
                                                 <div>
-                                                    <label style={labelStyle}>Código de Projeto</label>
-                                                    <input aria-label="Código de Projeto" type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: ALGARVE-FEDER-03107000" style={inputStyle} className="input-focus" />
+                                                    <label className="bz-rotulo">Código de Projeto</label>
+                                                    <input aria-label="Código de Projeto" type="text" value={form.codigo_projeto} onChange={e => setForm({...form, codigo_projeto: e.target.value})} placeholder="Ex: ALGARVE-FEDER-03107000"  className="bz-campo" />
                                                 </div>
                                                 <div>
-                                                    <label style={labelStyle}>Número do Projeto</label>
-                                                    <input aria-label="Número do Projeto" type="text" value={form.numero_projeto || ""} onChange={e => setForm({...form, numero_projeto: e.target.value})} placeholder="Ex: 12345" style={inputStyle} className="input-focus" />
+                                                    <label className="bz-rotulo">Número do Projeto</label>
+                                                    <input aria-label="Número do Projeto" type="text" value={form.numero_projeto || ""} onChange={e => setForm({...form, numero_projeto: e.target.value})} placeholder="Ex: 12345"  className="bz-campo" />
                                                 </div>
                                             </div>
                                         </>
                                     )}
 
-                                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px'}}>
+                                    <div className="bz-grelha-2">
                                         <div>
-                                            <label style={labelStyle}>Data Início Base</label>
-                                            <input type="date" value={form.data_inicio || ''} max={form.data_fim || undefined} onChange={e => setForm({...form, data_inicio: e.target.value})} style={{...inputStyle, border: form.data_inicio && form.data_fim && form.data_inicio > form.data_fim ? '1px solid #ef4444' : inputStyle.border}} className="input-focus" required />
+                                            <label className="bz-rotulo">Data Início Base</label>
+                                            <input type="date" value={form.data_inicio || ''} max={form.data_fim || undefined} onChange={e => setForm({...form, data_inicio: e.target.value})} style={{border: form.data_inicio && form.data_fim && form.data_inicio > form.data_fim ? '1px solid #ef4444' : inputStyle.border}} className="bz-campo" required />
                                         </div>
                                         <div>
-                                            <label style={labelStyle}>Data Fim</label>
+                                            <label className="bz-rotulo">Data Fim</label>
                                             <input
                                                 type="date"
                                                 value={form.data_fim || ''}
@@ -4016,8 +4012,8 @@ const exportCurrentOverviewPdf = () => {
                                                 onChange={e => {
                                                     setForm({...form, data_fim: e.target.value});
                                                 }}
-                                                style={{...inputStyle, border: form.data_inicio && form.data_fim && form.data_inicio > form.data_fim ? '1px solid #ef4444' : inputStyle.border}}
-                                                className="input-focus"
+                                                style={{border: form.data_inicio && form.data_fim && form.data_inicio > form.data_fim ? '1px solid #ef4444' : inputStyle.border}}
+                                                className="bz-campo"
                                             />
                                         </div>
                                     </div>
@@ -4061,21 +4057,21 @@ const exportCurrentOverviewPdf = () => {
                                                                 {/* Inputs de Descrição da Fase */}
                                                                 <div style={{display: 'grid', gridTemplateColumns: '1fr 180px', gap: '12px', flex: 1, alignItems: 'end'}}>
                                                                     <div>
-                                                                        <label style={labelStyle}>Nome da fase</label>
+                                                                        <label className="bz-rotulo">Nome da fase</label>
                                                                         <input
                                                                             type="text"
                                                                             value={fase.nome || ''}
                                                                             readOnly
-                                                                            style={{...inputStyle, background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed', borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
+                                                                            className="bz-campo is-leitura" style={{borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
                                                                         />
                                                                     </div>
                                                                     <div>
-                                                                        <label style={labelStyle}>Data de término</label>
+                                                                        <label className="bz-rotulo">Data de término</label>
                                                                         <input
                                                                             type="date"
                                                                             value={fase.prazo || ''}
                                                                             readOnly
-                                                                            style={{...inputStyle, cursor: 'not-allowed', background: '#f1f5f9', borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
+                                                                            className="bz-campo is-leitura" style={{borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -4083,7 +4079,7 @@ const exportCurrentOverviewPdf = () => {
                                                         );
                                                     })
                                                 ) : (
-                                                    <div style={{padding: '20px', textAlign: 'center', color: '#64748b', background: 'white', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '0.9rem', fontStyle: 'italic'}}>
+                                                    <div className="bz-vazio">
                                                         Sem fases definidas. Seleciona um programa/aviso para carregar as fases.
                                                     </div>
                                                 )}
@@ -4096,7 +4092,7 @@ const exportCurrentOverviewPdf = () => {
                                 {/* ========== PASSO 4: ATIVIDADES ========== */}
                                 {currentStep === 4 && (
                                   <div className="fade-in">
-                                    <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.ListTree /> Pré-visualização de Atividades</div>
+                                    <div className="bz-secao is-primeira"><Icons.ListTree /> Pré-visualização de Atividades</div>
                                     
                                     {!editId && templateTree.length > 0 ? (
                                         <div style={{background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '10px'}}>
@@ -4156,7 +4152,7 @@ const exportCurrentOverviewPdf = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div style={{padding: '30px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1'}}>
+                                        <div className="bz-vazio">
                                             {editId ? 
                                                 "A estrutura do projeto já foi gerada e está em curso. Edições nas atividades devem ser feitas na página de Detalhe do Projeto." : 
                                                 "Por favor seleciona um 'Tipo de Projeto (Modelo)' no Passo 1 para ver a estrutura a ser gerada."
@@ -4171,7 +4167,7 @@ const exportCurrentOverviewPdf = () => {
                                 <div className="fade-in">
                                     {!isProjetoFormacao && (
                                         <>
-                                            <div style={{...sectionTitleStyle, marginTop: 0}}><Icons.Dollar /> Valores de Investimento</div>
+                                            <div className="bz-secao is-primeira"><Icons.Dollar /> Valores de Investimento</div>
 
                                             {!isMultiEntidade && !editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0) && (
                                                 <div style={{
@@ -4240,7 +4236,7 @@ const exportCurrentOverviewPdf = () => {
                                                     marginBottom: '30px'
                                                 }}>
                                                     <div>
-                                                        <label style={labelStyle}>
+                                                        <label className="bz-rotulo">
                                                             Investimento Elegível (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
                                                         </label>
                                                         <input
@@ -4263,13 +4259,13 @@ const exportCurrentOverviewPdf = () => {
                                                             className="input-focus"
                                                         />
                                                         {!editId && Number(form.investimento || 0) <= 0 && (
-                                                            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                                                            <span className="bz-erro">
                                                                 <TriangleAlert size={14} aria-hidden="true" /> Insira o valor do investimento elegível (superior a 0,00 €)
                                                             </span>
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <label style={labelStyle}>
+                                                        <label className="bz-rotulo">
                                                             Incentivo Atribuído (€) {!editId && <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>}
                                                         </label>
                                                         <input
@@ -4292,7 +4288,7 @@ const exportCurrentOverviewPdf = () => {
                                                             className="input-focus"
                                                         />
                                                         {!editId && Number(form.incentivo || 0) <= 0 && (
-                                                            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                                                            <span className="bz-erro">
                                                                 <TriangleAlert size={14} aria-hidden="true" /> Insira o valor do incentivo atribuído (superior a 0,00 €)
                                                             </span>
                                                         )}
@@ -4313,19 +4309,19 @@ const exportCurrentOverviewPdf = () => {
                                         </>
                                     )}
 
-                                    <div style={{...sectionTitleStyle, marginTop: isProjetoFormacao ? 0 : 30}}><Icons.FileText /> Notas Adicionais</div>
+                                    <div className="bz-secao" style={{marginTop: isProjetoFormacao ? 0 : 30}}><Icons.FileText /> Notas Adicionais</div>
                                     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px'}}>
                                         <div>
-                                            <label style={labelStyle}>Descrição Geral</label>
-                                            <textarea aria-label="Descrição Geral" rows="6" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})} style={{...inputStyle, resize:'none'}} placeholder="Resumo do projeto…" className="input-focus" />
+                                            <label className="bz-rotulo">Descrição Geral</label>
+                                            <textarea aria-label="Descrição Geral" rows="6" value={form.descricao || ''} onChange={e => setForm({...form, descricao: e.target.value})}  placeholder="Resumo do projeto…" className="bz-campo is-fixo" />
                                         </div>
                                         <div>
-                                            <label style={labelStyle}>Observações Internas</label>
-                                            <textarea aria-label="Observações Internas" rows="6" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fde68a'}} placeholder="Notas importantes…" className="input-focus-alert" />
+                                            <label className="bz-rotulo">Observações Internas</label>
+                                            <textarea aria-label="Observações Internas" rows="6" value={form.observacoes || ''} onChange={e => setForm({...form, observacoes: e.target.value})}  placeholder="Notas importantes…" className="bz-campo is-fixo is-nota" />
                                         </div>
                                     </div>
 
-                                    <div style={sectionTitleStyle}><Icons.Check /> Estado do Projeto</div>
+                                    <div className="bz-secao"><Icons.Check /> Estado do Projeto</div>
                                     <div style={{display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap'}}>
                                         {[
                                             {val: 'pendente', label: 'Pendente'},
@@ -4361,28 +4357,15 @@ const exportCurrentOverviewPdf = () => {
 
               {/* --- RODAPÉ / NAVEGAÇÃO DO WIZARD --- */}
               {!isViewOnly && (
-                <div style={{padding:'20px 30px', background:'#f8fafc', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems: 'center'}}>
-                  
-                  <div>
-                    <button 
-                      type="button" 
-                      onClick={() => setShowModal(false)} 
-                      style={{background:'transparent', border:'none', color:'#64748b', fontWeight:'600', cursor:'pointer'}} 
-                      className="hover-red-text"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-
-                  <div style={{display: 'flex', gap: '15px'}}>
+                <div className="jn-rodape">
+                    <button type="button" onClick={() => setShowModal(false)}>Cancelar</button>
+                    <span style={{flex: 1}} aria-hidden="true" />
                     {currentStep > 1 && (
                       <button 
                         type="button" 
-                        onClick={() => setCurrentStep(prev => prev - 1)} 
-                        style={{padding:'12px 24px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', color:'#475569', fontWeight:'700', cursor:'pointer', transition: '0.2s', display: 'flex', alignItems: 'center'}} 
-                        className="hover-shadow"
+                        onClick={() => setCurrentStep(prev => prev - 1)}
                       >
-                        <Icons.ArrowLeft size={16} style={{marginRight: '8px'}}/> Anterior
+                        <Icons.ArrowLeft size={16} /> Anterior
                       </button>
                     )}
 
@@ -4404,10 +4387,9 @@ const exportCurrentOverviewPdf = () => {
                           }
                           setCurrentStep(prev => prev + 1);
                         }} 
-                        className="btn-primary hover-shadow" 
-                        style={{padding:'12px 24px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', transition: '0.2s', display: 'flex', alignItems: 'center'}}
+                        className="is-primary"
                       >
-                        Seguinte <Icons.ArrowRight size={16} style={{marginLeft: '8px'}}/>
+                        Seguinte <Icons.ArrowRight size={16} />
                       </button>
                     ) : (
                       <button 
@@ -4441,13 +4423,11 @@ const exportCurrentOverviewPdf = () => {
                           document.getElementById('project-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
                         }}
                         disabled={isSubmitting} 
-                        className="btn-primary hover-shadow" 
-                        style={{padding:'12px 30px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s'}}
+                        className="is-primary"
                       >
                         {isSubmitting ? "A guardar…" : (editId ? <><Icons.Save /> Guardar Alterações</> : <><Icons.Rocket /> Concluir e Criar</>)}
                       </button>
                     )}
-                  </div>
                 </div>
               )}
             </div>

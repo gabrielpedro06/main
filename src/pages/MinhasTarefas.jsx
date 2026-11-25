@@ -31,6 +31,7 @@ import "../styles/agenda.css";
 import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
+import SelectModerno from "../components/SelectModerno";
 
 /** Stale-while-revalidate da Agenda: junta uma parte aos dados guardados. */
 const guardarAgenda = (parte) => guardarCache("agenda", { ...(lerCache("agenda") || {}), ...parte });
@@ -1287,7 +1288,7 @@ export default function MinhasTarefas() {
                                   <span className="ag-prop-label"><Icons.Users size={14} /> Responsável</span>
                                   <label className="ag-prop-value ag-person-select">
                                       <span className="ag-avatar">{responsavel?.avatar_url ? <img src={responsavel.avatar_url} alt="" /> : getSafeFirstName(responsavel?.nome, responsavel?.email).slice(0, 1)}</span>
-                                      <select
+                                      <SelectModerno
                                           value={d.responsavel_id || ''}
                                           onChange={e => {
                                               const newResp = e.target.value;
@@ -1302,7 +1303,7 @@ export default function MinhasTarefas() {
                                               .map(s => (
                                                   <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>
                                               ))}
-                                      </select>
+                                      </SelectModerno>
                                       <span className="ag-caret" aria-hidden="true">▾</span>
                                   </label>
                               </div>
@@ -1455,19 +1456,19 @@ export default function MinhasTarefas() {
                               <div className="ag-time-grid">
                                   <label className="ag-field">
                                       <span>Colaborador</span>
-                                      <select value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} required className="ag-input">
+                                      <SelectModerno value={timeLogForm.user_id} onChange={e => setTimeLogForm(prev => ({...prev, user_id: e.target.value}))} required className="ag-input">
                                           <option value="">Selecionar…</option>
                                           {staff
                                               .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
                                               .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
-                                      </select>
+                                      </SelectModerno>
                                   </label>
                                   <label className="ag-field">
                                       <span>Tarefa</span>
-                                      <select value={timeLogForm.task_id} onChange={e => setTimeLogForm(prev => ({...prev, task_id: e.target.value}))} required className="ag-input">
+                                      <SelectModerno value={timeLogForm.task_id} onChange={e => setTimeLogForm(prev => ({...prev, task_id: e.target.value}))} required className="ag-input">
                                           <option value="">Selecionar…</option>
                                           {uniqueTaskOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                                      </select>
+                                      </SelectModerno>
                                   </label>
                               </div>
 

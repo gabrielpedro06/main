@@ -29,6 +29,7 @@ import * as XLSX from "xlsx";
 
 import AvisoToast from "../components/AvisoToast";
 import { registarEvento } from "../utils/registarEvento";
+import SelectModerno from "../components/SelectModerno";
 // Nome do tipo de projeto cujo modelo define as colunas do checklist (tem de existir com este nome exato).
 const MODEL_NAME = "Formação Profissional";
 
@@ -1967,16 +1968,16 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                         <input className="af-input" value={form.nome_formador} onChange={(event) => setForm({ ...form, nome_formador: event.target.value })} required />
                       </Field>
                       <Field label="Área de Formação *">
-                        <select className="af-input" value={form.area_formacao_id} onChange={(event) => setForm({ ...form, area_formacao_id: event.target.value })} required>
+                        <SelectModerno className="af-input" value={form.area_formacao_id} onChange={(event) => setForm({ ...form, area_formacao_id: event.target.value })} required>
                           <option value="">-- Selecione --</option>
                           {visibleAreasForForm.map((area) => <option key={area.id} value={area.id}>{area.nome}{area.ativo ? "" : " (Inativa)"}</option>)}
-                        </select>
+                        </SelectModerno>
                       </Field>
                       <Field label="Homologação *">
-                        <select className="af-input" value={form.homologacao_id} onChange={(event) => setForm({ ...form, homologacao_id: event.target.value })} required>
+                        <SelectModerno className="af-input" value={form.homologacao_id} onChange={(event) => setForm({ ...form, homologacao_id: event.target.value })} required>
                           <option value="">-- Selecione --</option>
                           {visibleHomologacoesForForm.map((item) => <option key={item.id} value={item.id}>{item.codigo} - {item.nome}{item.ativo ? "" : " (Inativa)"}</option>)}
-                        </select>
+                        </SelectModerno>
                       </Field>
                     </div>
 
@@ -2021,14 +2022,14 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                             </div>
                           </Field>
                           <Field label="Status do Curso *">
-                            <select className="af-input" value={form.status_curso} onChange={(event) => setForm({ ...form, status_curso: event.target.value })} required>
+                            <SelectModerno className="af-input" value={form.status_curso} onChange={(event) => setForm({ ...form, status_curso: event.target.value })} required>
                               {COURSE_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                            </select>
+                            </SelectModerno>
                           </Field>
                           <Field label="Status DTP *">
-                            <select className="af-input" value={form.status_dtp} onChange={(event) => setForm({ ...form, status_dtp: event.target.value })} required>
+                            <SelectModerno className="af-input" value={form.status_dtp} onChange={(event) => setForm({ ...form, status_dtp: event.target.value })} required>
                               {DTP_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                            </select>
+                            </SelectModerno>
                           </Field>
                           <Field label="Homologação rápida">
                             <div className="af-input is-readonly af-readout">
@@ -2119,17 +2120,17 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                           </div>
                           <div className="af-grid is-4">
                             <Field label="Pagamento Exame">
-                              <select className="af-input" value={form.ccdr_pag_exame} onChange={(event) => setForm({ ...form, ccdr_pag_exame: event.target.value })}>
+                              <SelectModerno className="af-input" value={form.ccdr_pag_exame} onChange={(event) => setForm({ ...form, ccdr_pag_exame: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
+                              </SelectModerno>
                             </Field>
                             <Field label="Homologação certificados - Data envio">
                               <input className="af-input" type="date" value={form.ccdr_cert_data_envio} onChange={(event) => setForm({ ...form, ccdr_cert_data_envio: event.target.value })} />
                             </Field>
                             <Field label="Dados para faturação">
-                              <select className="af-input" value={form.ccdr_cert_faturacao} onChange={(event) => setForm({ ...form, ccdr_cert_faturacao: event.target.value })}>
+                              <SelectModerno className="af-input" value={form.ccdr_cert_faturacao} onChange={(event) => setForm({ ...form, ccdr_cert_faturacao: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
+                              </SelectModerno>
                             </Field>
                             <Field label="Data de receção dos certificados">
                               <input className="af-input" type="date" value={form.ccdr_data_rececao} onChange={(event) => setForm({ ...form, ccdr_data_rececao: event.target.value })} />
@@ -2168,17 +2169,17 @@ const checklistBodyColumns = useMemo(() => checklistGrid.flatMap((atividade) => 
                               <input className="af-input" type="date" value={form.dgadr_data_comunicacao} onChange={(event) => setForm({ ...form, dgadr_data_comunicacao: event.target.value })} />
                             </Field>
                             <Field label="Pagamento Exame">
-                              <select className="af-input" value={form.dgadr_pag_exame} onChange={(event) => setForm({ ...form, dgadr_pag_exame: event.target.value })}>
+                              <SelectModerno className="af-input" value={form.dgadr_pag_exame} onChange={(event) => setForm({ ...form, dgadr_pag_exame: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
+                              </SelectModerno>
                             </Field>
                             <Field label="Homologação certificados - Data envio">
                               <input className="af-input" type="date" value={form.dgadr_cert_data_envio} onChange={(event) => setForm({ ...form, dgadr_cert_data_envio: event.target.value })} />
                             </Field>
                             <Field label="Dados para faturação">
-                              <select className="af-input" value={form.dgadr_cert_faturacao} onChange={(event) => setForm({ ...form, dgadr_cert_faturacao: event.target.value })}>
+                              <SelectModerno className="af-input" value={form.dgadr_cert_faturacao} onChange={(event) => setForm({ ...form, dgadr_cert_faturacao: event.target.value })}>
                                 {SIM_NAO_NA_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                              </select>
+                              </SelectModerno>
                             </Field>
                           </div>
                           <div className="af-grid is-3">

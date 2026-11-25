@@ -11,6 +11,7 @@ import {
   SECCOES_ESTRATEGIA, ESTADOS_RESULTADO, ETAPAS_FUNIL, etapasDoConteudo,
   dadosNovoCiclo, dadosDuplicados, trimestreSugerido, frentesDoCiclo,
 } from "./estrategiaModelo";
+import SelectModerno from "../SelectModerno";
 
 const DIAS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 const vazio = (v) => v == null || v === "" || (Array.isArray(v) && v.length === 0);
@@ -217,9 +218,9 @@ function UtmBuilder() {
       <div className="mk-utm-grid">
         <input className="mk-input" placeholder="https://site.pt/pagina" value={u.url} onChange={set("url")} />
         <input aria-label="source (ex.: instagram)" className="mk-input" placeholder="source (ex.: instagram)" value={u.source} onChange={set("source")} />
-        <select className="mk-input" value={u.medium} onChange={set("medium")}>
+        <SelectModerno className="mk-input" value={u.medium} onChange={set("medium")}>
           {["social_organico", "social_pago", "email", "cpc", "referral", "qr"].map((m) => <option key={m}>{m}</option>)}
-        </select>
+        </SelectModerno>
         <input aria-label="campaign (frente_tema_data)" className="mk-input" placeholder="campaign (frente_tema_data)" value={u.campaign} onChange={set("campaign")} />
         <input aria-label="content (ex.: carrossel_x)" className="mk-input" placeholder="content (ex.: carrossel_x)" value={u.content} onChange={set("content")} />
       </div>

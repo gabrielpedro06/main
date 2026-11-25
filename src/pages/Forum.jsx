@@ -28,6 +28,7 @@ import { clicavel } from "../utils/clicavel";
 import { useChamadas, useChamadaEmCurso } from "../context/ChamadasContext";
 import { MSG_CHAMADA, MSG_CHAMADA_FIM } from "../utils/chamadas";
 import { confirmar } from "../utils/dialogo";
+import SelectModerno from "../components/SelectModerno";
 
 // Publicações apagadas há segundos, à espera do fim do Desfazer (não voltam a aparecer ao recarregar)
 const postsAApagar = new Set();
@@ -3063,17 +3064,17 @@ async function sendChatMessage(rawContent) {
                                                     <span className="fx-pm-grip" title="Arrastar para reordenar"><Icons.GripVertical size={13} /></span>
                                                 )}
                                                 {block.type === 'text' ? (
-                                                    <select value={block.align || 'left'} onChange={(e) => updateTextBlockAlignment(block.id, e.target.value)} className="fx-pm-select" title="Alinhamento">
+                                                    <SelectModerno value={block.align || 'left'} onChange={(e) => updateTextBlockAlignment(block.id, e.target.value)} className="fx-pm-select" title="Alinhamento">
                                                         {TEXT_ALIGNMENT_OPTIONS.map((option) => (
                                                             <option key={option.value} value={option.value}>{option.label}</option>
                                                         ))}
-                                                    </select>
+                                                    </SelectModerno>
                                                 ) : (
-                                                    <select value={block.size || 'lg'} onChange={(e) => updateImageBlockSize(block.id, e.target.value)} className="fx-pm-select" title="Tamanho">
+                                                    <SelectModerno value={block.size || 'lg'} onChange={(e) => updateImageBlockSize(block.id, e.target.value)} className="fx-pm-select" title="Tamanho">
                                                         {IMAGE_SIZE_OPTIONS.map((option) => (
                                                             <option key={option.value} value={option.value}>{option.label}</option>
                                                         ))}
-                                                    </select>
+                                                    </SelectModerno>
                                                 )}
                                                 {(postBlocks.length > 1 || block.type === 'image') && (
                                                     <button type="button" onClick={() => removeBlock(idx)} className="fx-pm-tool-btn" title="Remover bloco" aria-label="Remover bloco">

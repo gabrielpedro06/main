@@ -885,116 +885,42 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   };
 
   // --- ESTILOS VISUAIS PREMIUM ---
-  const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)", backdropFilter: 'blur(4px)' };
-  const modalContainerStyle = { background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease-out' };
-  const modalHeaderStyle = { padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' };
-  const inputLabelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.8rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
-  const inputFieldStyle = { width: '100%', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.95rem', background: '#fff', boxSizing: 'border-box', outline: 'none', color: '#1e293b', transition: 'border 0.2s' };
+  // Janelas: moldura do design comum (styles/janelas.css: jn-fundo / jn-caixa); aqui só a camada e o tamanho
+  const modalOverlayStyle = { zIndex: "calc(var(--z-modal) + 13)" };
+  const modalContainerStyle = { maxWidth: '500px' };
+  const inputLabelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.72rem', fontWeight: '800', color: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent)', textTransform: 'uppercase', letterSpacing: '0.06em' };
+  const inputFieldStyle = { width: '100%', padding: '12px 14px', border: '1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 13%, transparent)', borderRadius: '12px', fontSize: '0.95rem', background: '#fff', boxSizing: 'border-box', outline: 'none', color: 'var(--color-textPrimary, #1e293b)', transition: 'border-color 0.2s, box-shadow 0.2s' };
 
   return (
     <>
       {/* Modal de confirmação para retomar sessão antiga - Versão Premium */}
       {showRetomarModal && (
         <ModalPortal>
-          <div style={{
-            ...modalOverlayStyle, 
-            backdropFilter: 'blur(8px)', // Efeito de vidro no fundo
-            backgroundColor: 'rgba(15, 23, 42, 0.45)', // Overlay mais escuro e elegante
-            alignItems: 'center', // Centralizado fica mais premium que no topo
-            display: 'flex',
-            justifyContent: 'center'
-          }}>
-            <div style={{
-              ...modalContainerStyle,
-              maxWidth: 420,
-              borderRadius: 24,
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              padding: 0,
-              background: '#ffffff',
-              border: '1px solid rgba(226, 232, 240, 0.8)',
-              overflow: 'hidden',
-              position: 'relative'
-            }}>
-              {/* Botão Fechar Minimalista */}
-              <button aria-label="Fechar" 
-                onClick={() => handleRetomarResponse(false)} 
-                style={{
-                  position:'absolute', top:20, right:20, background:'#f1f5f9', border:'none', 
-                  cursor:'pointer', color:'#64748b', width: 32, height: 32, borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s',
-                  zIndex: 10
-                }} 
-                className="hover-subtle-bg"
+          <div className="jn-fundo" style={modalOverlayStyle}>
+            <div className="jn-caixa is-confirmacao" role="dialog" aria-modal="true" aria-label="Retomar sessão" style={{ position: 'relative' }}>
+              <button type="button" className="jn-fechar" aria-label="Fechar"
+                onClick={() => handleRetomarResponse(false)}
+                style={{ position: 'absolute', top: 14, right: 14 }}
               >
                 <Icons.Close size={18}/>
               </button>
 
-              <div style={{padding: '48px 32px 32px 32px', textAlign: 'center'}}>
-                {/* Ícone com Gradiente */}
-                <div style={{
-                  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', 
-                  borderRadius: '20px', width: 64, height: 64, 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                  margin: '0 auto 24px auto',
-                  boxShadow: '0 10px 15px -3px rgba(251, 191, 36, 0.2)'
-                }}>
-                  <Icons.Pause size={32} color="#b45309" />
-                </div>
-
-                <h2 style={{
-                  margin: 0, fontSize: '1.5rem', fontWeight: 800, 
-                  color: '#0f172a', letterSpacing: '-0.025em'
-                }}>
-                  Retomar Sessão?
-                </h2>
-
-                <p style={{
-                  marginTop: 16, color: '#475569', fontSize: '1rem', 
-                  lineHeight: 1.6, fontWeight: 400
-                }}>
-                  Identificamos um registo anterior hoje. <br/>
-                  <span style={{color: '#1e293b', fontWeight: 600}}>Deseja continuar onde parou?</span>
-                </p>
-                
-                <div style={{
-                  marginTop: 12, padding: '10px 16px', background: '#f8fafc', 
-                  borderRadius: '12px', fontSize: '0.88rem', color: '#64748b',
-                  border: '1px dashed #e2e8f0'
-                }}>
-                  O intervalo será registado automaticamente como pausa.
-                </div>
+              <div className="jn-caixa-ico"><Icons.Pause size={24} /></div>
+              <h3>Retomar sessão?</h3>
+              <p>
+                Identificamos um registo anterior hoje. <br/>
+                <strong style={{ color: 'var(--jn-tinta)' }}>Deseja continuar onde parou?</strong>
+              </p>
+              <div className="jn-caixa-nota" style={{ textAlign: 'center' }}>
+                O intervalo será registado automaticamente como pausa.
               </div>
 
-              {/* Footer com botões de alta fidelidade */}
-              <div style={{
-                display: 'flex', gap: 12, padding: '24px 32px', 
-                background: '#f8fafc', borderTop: '1px solid #f1f5f9'
-              }}>
-                <button 
-                  type="button" 
-                  onClick={() => handleRetomarResponse(false)} 
-                  style={{
-                    flex: 1, padding: '14px 0', borderRadius: '14px', border: '1px solid #e2e8f0', 
-                    background: '#fff', color: '#475569', fontWeight: 600, fontSize: '0.95rem', 
-                    cursor: 'pointer', transition: '0.2s'
-                  }}
-                >
+              <div className="jn-acoes">
+                <button type="button" onClick={() => handleRetomarResponse(false)}>
                   Agora não
                 </button>
-                
-                <button 
-                  type="button" 
-                  onClick={() => handleRetomarResponse(true)} 
-                  style={{
-                    flex: 1.5, padding: '14px 0', borderRadius: '14px', border: 'none', 
-                    background: '#0f172a', // Azul quase preto (muito premium)
-                    color: '#fff', fontWeight: 600, fontSize: '0.95rem', 
-                    cursor: 'pointer', transition: '0.3s', display: 'flex', 
-                    alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.25)'
-                  }}
-                >
-                  <Icons.Pause size={18} /> Confirmar Retoma
+                <button type="button" className="is-primary" onClick={() => handleRetomarResponse(true)}>
+                  <Icons.Pause size={18} /> Confirmar retoma
                 </button>
               </div>
             </div>
@@ -1004,27 +930,30 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
       {incomingAnalysisModal.open && (
         <ModalPortal>
-          <div style={modalOverlayStyle}>
-            <div style={{...modalContainerStyle, maxWidth: 520}}>
-              <div style={{...modalHeaderStyle, background: 'var(--color-bgSecondary)', borderBottom: '1px solid var(--color-borderColor)'}}>
-                <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Nova tarefa/atividade para analise</h3>
-                <button aria-label="Fechar" onClick={acknowledgeIncomingAnalysisAssignments} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
-              </div>
-              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: 'calc(52 * var(--bz-vh, 1vh))', overflowY: 'auto'}}>
-                <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Recebeste novos itens para analise. Verifica no painel de tarefas.</p>
+          <div className="jn-fundo" style={modalOverlayStyle}>
+            <div className="jn-caixa jn-simples" role="dialog" aria-modal="true" aria-label="Nova tarefa/atividade para análise" style={{ ...modalContainerStyle, maxWidth: 520}}>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><Icons.Calendar size={20} /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>Nova tarefa/atividade para análise</h3>
+                  <p>Recebeste novos itens para análise. Verifica no painel de tarefas.</p>
+                </div>
+                <button type="button" className="jn-fechar" aria-label="Fechar" onClick={acknowledgeIncomingAnalysisAssignments}><Icons.Close size={18}/></button>
+              </header>
+              <div className="jn-corpo" style={{display: 'grid', gap: '10px', maxHeight: 'calc(52 * var(--bz-vh, 1vh))', overflowY: 'auto'}}>
                 {incomingAnalysisModal.items.map((item) => (
-                  <div key={`${item.tipo}-${item.id}`} style={{border: '1px solid var(--color-borderColor)', borderRadius: '10px', background: 'var(--color-bgTertiary)', padding: '10px 12px'}}>
+                  <div key={`${item.tipo}-${item.id}`} style={{border: '1px solid var(--color-borderColor)', borderRadius: '12px', background: 'var(--color-bgTertiary)', padding: '10px 12px'}}>
                     <div style={{fontSize: '0.78rem', color: 'var(--color-btnPrimaryDark)', fontWeight: 800}}>{item.tipo}</div>
                     <div style={{fontSize: '0.9rem', color: 'var(--color-textPrimary)', fontWeight: 700}}>{item.titulo || '-'}</div>
                     <div style={{fontSize: '0.76rem', color: 'var(--color-btnPrimaryDark)', marginTop: '3px'}}>Destino: {formatAnalysisDestination(item.analise_destino)} · Previsto: {item.analise_data_prevista || '-'}</div>
                   </div>
                 ))}
               </div>
-              <div style={{padding: '14px 16px', background: 'var(--color-bgSecondary)', borderTop: '1px solid var(--color-borderColor)', display: 'flex', justifyContent: 'flex-end'}}>
-                <button type="button" onClick={acknowledgeIncomingAnalysisAssignments} style={{padding:'10px 14px', borderRadius:'10px', border:'none', background:'var(--color-btnPrimary)', color:'white', fontWeight:'700', cursor:'pointer'}}>
+              <footer className="jn-rodape">
+                <button type="button" className="is-primary" onClick={acknowledgeIncomingAnalysisAssignments}>
                   Percebi
                 </button>
-              </div>
+              </footer>
             </div>
           </div>
         </ModalPortal>
@@ -1032,20 +961,23 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
 
       {analysisFollowUpModal.open && (
         <ModalPortal>
-          <div style={modalOverlayStyle}>
-            <div style={{...modalContainerStyle, maxWidth: 760}}>
-              <div style={{...modalHeaderStyle, background: 'var(--color-bgSecondary)', borderBottom: '1px solid var(--color-borderColor)'}}>
-                <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Analises para hoje ou em atraso</h3>
-                <button aria-label="Fechar" onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
-              </div>
-              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: 'calc(55 * var(--bz-vh, 1vh))', overflowY: 'auto'}}>
-                <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Confirma o estado dos itens com data expectavel para hoje ou ja ultrapassada: atualiza a data prevista ou marca como concluido.</p>
+          <div className="jn-fundo" style={modalOverlayStyle}>
+            <div className="jn-caixa jn-simples" role="dialog" aria-modal="true" aria-label="Análises para hoje ou em atraso" style={{ ...modalContainerStyle, maxWidth: 760}}>
+              <header className="jn-cabecalho">
+                <span className="jn-cabecalho-ico"><Icons.Calendar size={20} /></span>
+                <div className="jn-cabecalho-txt">
+                  <h3>Análises para hoje ou em atraso</h3>
+                  <p>Confirma o estado dos itens com data expectável para hoje ou já ultrapassada: atualiza a data prevista ou marca como concluído.</p>
+                </div>
+                <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })}><Icons.Close size={18}/></button>
+              </header>
+              <div className="jn-corpo" style={{display: 'grid', gap: '10px', maxHeight: 'calc(55 * var(--bz-vh, 1vh))', overflowY: 'auto'}}>
                 {analysisFollowUpModal.items.map((item) => {
                   const key = `${item.tipo}:${item.id}`;
                   const nextDate = analysisFollowUpDates[key] || '';
 
                   return (
-                    <div key={key} style={{border: '1px solid var(--color-borderColor)', borderRadius: '10px', background: 'var(--color-bgTertiary)', padding: '10px 12px', display: 'grid', gap: '8px'}}>
+                    <div key={key} style={{border: '1px solid var(--color-borderColor)', borderRadius: '12px', background: 'var(--color-bgTertiary)', padding: '10px 12px', display: 'grid', gap: '8px'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center'}}>
                         <div>
                           <div style={{fontSize: '0.78rem', color: 'var(--color-btnPrimaryDark)', fontWeight: 800}}>{item.tipo}</div>
@@ -1057,26 +989,27 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                       <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
                         <input
                           type="date"
+                          aria-label="Nova data prevista"
                           value={nextDate}
                           onChange={(e) => setAnalysisFollowUpDates((prev) => ({ ...prev, [key]: e.target.value }))}
-                          style={{border: '1px solid var(--color-borderColor)', borderRadius: '8px', padding: '8px 9px', background: 'var(--color-bgPrimary)', color: 'var(--color-textPrimary)'}}
+                          style={{...inputFieldStyle, width: 'auto', padding: '8px 10px', fontSize: '0.88rem'}}
                         />
-                        <button type="button" onClick={() => handleUpdateOverdueExpectedDate(item)} style={{border:'1px solid var(--color-borderColor)', background:'var(--color-bgPrimary)', color:'var(--color-textPrimary)', borderRadius:'8px', padding:'8px 10px', fontWeight:'700', cursor:'pointer'}}>
+                        <button type="button" onClick={() => handleUpdateOverdueExpectedDate(item)} style={{border:'1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 13%, transparent)', background:'#fff', color:'var(--color-textPrimary)', borderRadius:'10px', padding:'8px 12px', fontWeight:'700', cursor:'pointer'}}>
                           Atualizar data
                         </button>
-                        <button type="button" onClick={() => handleConcludeOverdueItem(item)} style={{border:'none', background:'var(--color-btnPrimary)', color:'#fff', borderRadius:'8px', padding:'8px 10px', fontWeight:'700', cursor:'pointer'}}>
-                          Marcar concluido
+                        <button type="button" onClick={() => handleConcludeOverdueItem(item)} style={{border:'none', background:'var(--color-btnPrimary)', color:'#fff', borderRadius:'10px', padding:'8px 12px', fontWeight:'700', cursor:'pointer'}}>
+                          Marcar concluído
                         </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div style={{padding: '14px 16px', background: 'var(--color-bgSecondary)', borderTop: '1px solid var(--color-borderColor)', display: 'flex', justifyContent: 'flex-end'}}>
-                <button type="button" onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })} style={{padding:'10px 14px', borderRadius:'10px', border:'1px solid var(--color-borderColor)', background:'var(--color-bgPrimary)', color:'var(--color-textPrimary)', fontWeight:'700', cursor:'pointer'}}>
+              <footer className="jn-rodape">
+                <button type="button" onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })}>
                   Fechar
                 </button>
-              </div>
+              </footer>
             </div>
           </div>
         </ModalPortal>
@@ -1270,27 +1203,27 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       {/* ============================================================== */}
       {showStartModal && (
           <ModalPortal>
-              <div style={modalOverlayStyle}>
-                  <div style={{...modalContainerStyle, maxWidth: '600px'}}>
-                      <div style={modalHeaderStyle}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Target size={20} color="var(--color-btnPrimary)" /> Bom dia! Vamos focar?</h3>
-                          <button aria-label="Fechar" onClick={() => setShowStartModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}} className="hover-red-text"><Icons.Close size={20}/></button>
-                      </div>
-                      
-                      <form onSubmit={confirmStart} style={{display: 'flex', flexDirection: 'column', maxHeight: 'calc(80 * var(--bz-vh, 1vh))'}}>
-                          <div style={{padding: '25px', background: '#fff', overflowY: 'auto', flex: 1}} className="custom-scrollbar">
-                              <p style={{color: '#64748b', fontSize: '0.95rem', margin: '0 0 15px 0', lineHeight: '1.5'}}>
-                                  Hoje o registo começa direto. As tarefas aparecem apenas no fecho do dia, com base no que foi realmente realizado.
-                              </p>
+              <div className="jn-fundo" style={modalOverlayStyle}>
+                  <div className="jn-caixa jn-simples" role="dialog" aria-modal="true" aria-label="Iniciar dia" style={{ ...modalContainerStyle, maxWidth: '600px'}}>
+                      <header className="jn-cabecalho">
+                          <span className="jn-cabecalho-ico"><Icons.Target size={20} /></span>
+                          <div className="jn-cabecalho-txt">
+                              <h3>Bom dia! Vamos focar?</h3>
+                              <p>Hoje o registo começa direto. As tarefas aparecem apenas no fecho do dia, com base no que foi realmente realizado.</p>
+                          </div>
+                          <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setShowStartModal(false)}><Icons.Close size={18}/></button>
+                      </header>
 
+                      <form onSubmit={confirmStart} style={{display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, maxHeight: 'calc(80 * var(--bz-vh, 1vh))'}}>
+                          <div className="jn-corpo custom-scrollbar">
                                 {analysisDueToday.length > 0 && (
-                                  <div style={{marginBottom: '15px', textAlign: 'left', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px', padding: '12px 14px'}}>
+                                  <div style={{marginBottom: '15px', textAlign: 'left', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '14px', padding: '12px 14px'}}>
                                     <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#9a3412', marginBottom: '8px'}}>
-                                      Hoje ha rececao de analise expectavel:
+                                      Hoje há receção de análise expectável:
                                     </div>
                                     <div style={{display: 'grid', gap: '6px'}}>
                                       {analysisDueToday.slice(0, 6).map((item) => (
-                                        <div key={`${item.tipo}-${item.id}`} style={{fontSize: '0.82rem', color: '#7c2d12', background: '#ffedd5', border: '1px solid #fdba74', borderRadius: '8px', padding: '7px 9px'}}>
+                                        <div key={`${item.tipo}-${item.id}`} style={{fontSize: '0.82rem', color: '#7c2d12', background: '#ffedd5', border: '1px solid #fdba74', borderRadius: '10px', padding: '7px 9px'}}>
                                           [{item.tipo}] {item.titulo} - {item.destino}
                                         </div>
                                       ))}
@@ -1298,20 +1231,20 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                   </div>
                                 )}
 
-                              <div style={{textAlign: 'center', padding: '30px', background: '#f8fafc', borderRadius: '12px', color: '#64748b', fontSize: '0.9rem'}}>
-                                  <Icons.Check size={30} color="#cbd5e1" />
+                              <div style={{textAlign: 'center', padding: '28px', background: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 8%, transparent)', borderRadius: '16px', color: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent)', fontSize: '0.9rem'}}>
+                                  <Icons.Check size={30} />
                                   <p style={{marginTop: '10px', marginBottom: 0}}>
-                                      Clica em Iniciar Dia para começar. No fim, vais rever apenas o trabalho realizado.
+                                      Clica em Iniciar dia para começar. No fim, vais rever apenas o trabalho realizado.
                                   </p>
                               </div>
                           </div>
 
-                          <div style={{padding: '20px 25px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '10px'}}>
-                              <button type="button" onClick={() => setShowStartModal(false)} style={{flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Agora Não</button>
-                              <button type="submit" style={{flex: 2, padding: '14px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow">
-                                  <Icons.Play size={18} /> Iniciar Dia
+                          <footer className="jn-rodape">
+                              <button type="button" onClick={() => setShowStartModal(false)}>Agora não</button>
+                              <button type="submit" className="is-ok">
+                                  <Icons.Play size={18} /> Iniciar dia
                               </button>
-                          </div>
+                          </footer>
                       </form>
                   </div>
               </div>
@@ -1321,24 +1254,28 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
       {/* --- MODAL TERMINAR (COM REVISÃO DE TAREFAS INTELIGENTE) --- */}
       {showClockOutModal && (
           <ModalPortal>
-              <div style={modalOverlayStyle}>
-                  <div style={{...modalContainerStyle, maxWidth: '550px'}}>
-                      <div style={modalHeaderStyle}>
-                          <h3 style={{margin: 0, color: '#1e293b', fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Stop size={20} color="#ef4444" /> Terminar Registo</h3>
-                          <button aria-label="Fechar" onClick={() => setShowClockOutModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}} className="hover-red-text"><Icons.Close size={20}/></button>
-                      </div>
-                      
-                      <form onSubmit={confirmFinish} style={{display: 'flex', flexDirection: 'column', maxHeight: 'calc(80 * var(--bz-vh, 1vh))'}}>
-                          <div style={{padding: '25px', background: '#fff', overflowY: 'auto', flex: 1}} className="custom-scrollbar">
-                              
+              <div className="jn-fundo" style={modalOverlayStyle}>
+                  <div className="jn-caixa jn-simples" role="dialog" aria-modal="true" aria-label="Terminar registo" style={{ ...modalContainerStyle, maxWidth: '550px'}}>
+                      <header className="jn-cabecalho">
+                          <span className="jn-cabecalho-ico is-danger"><Icons.Stop size={20} /></span>
+                          <div className="jn-cabecalho-txt">
+                              <h3>Terminar registo</h3>
+                              <p>Revê o trabalho do dia antes de confirmar a saída.</p>
+                          </div>
+                          <button type="button" className="jn-fechar" aria-label="Fechar" onClick={() => setShowClockOutModal(false)}><Icons.Close size={18}/></button>
+                      </header>
+
+                      <form onSubmit={confirmFinish} style={{display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, maxHeight: 'calc(80 * var(--bz-vh, 1vh))'}}>
+                          <div className="jn-corpo custom-scrollbar">
+
                               {endOfDayTasks.length > 0 && (
-                                  <div style={{marginBottom: '25px'}}>
-                                      <label style={{display: 'block', marginBottom: '10px', fontSize: '0.85rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
-                                          Tarefas Planeadas / Trabalhadas Hoje:
+                                  <div style={{marginBottom: '22px'}}>
+                                      <label style={{...inputLabelStyle, marginBottom: '4px'}}>
+                                          Tarefas planeadas / trabalhadas hoje
                                       </label>
-                                      <p style={{color: '#64748b', fontSize: '0.85rem', marginTop: '-5px', marginBottom: '15px'}}>Desmarca o que não conseguiste terminar para não ir para o histórico.</p>
-                                      
-                                      <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0'}}>
+                                      <p style={{color: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent)', fontSize: '0.85rem', marginTop: 0, marginBottom: '12px'}}>Desmarca o que não conseguiste terminar para não ir para o histórico.</p>
+
+                                      <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 4%, transparent)', padding: '12px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 8%, transparent)'}}>
                                           {endOfDayTasks.map((taskObj, idx) => {
                                               const isChecked = selectedEndOfDayTasks.some(t => t.titulo === taskObj.titulo);
                                               return (
@@ -1370,16 +1307,16 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                   </div>
                               )}
 
-                              <label style={inputLabelStyle}>Notas Adicionais (Opcional)</label>
-                              <textarea aria-label="Notas Adicionais (Opcional)" rows="4" value={dailySummary} onChange={e => setDailySummary(e.target.value)} style={{...inputFieldStyle, background: '#f8fafc', resize: 'vertical'}} className="input-focus" placeholder="Deixa um resumo do que ficou pendente ou notas para amanhã…" autoFocus={endOfDayTasks.length === 0} />
+                              <label style={inputLabelStyle}>Notas adicionais (opcional)</label>
+                              <textarea aria-label="Notas adicionais (opcional)" rows="4" value={dailySummary} onChange={e => setDailySummary(e.target.value)} style={{...inputFieldStyle, resize: 'vertical'}} className="input-focus" placeholder="Deixa um resumo do que ficou pendente ou notas para amanhã…" autoFocus={endOfDayTasks.length === 0} />
                           </div>
 
-                          <div style={{padding: '20px 25px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '10px'}}>
-                              <button type="button" onClick={() => setShowClockOutModal(false)} style={{flex:1, padding:'14px', borderRadius:'10px', border:'1px solid #cbd5e1', background:'white', fontWeight:'700', color: '#64748b', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" disabled={loading} style={{flex:2, padding:'14px', borderRadius:'10px', border:'none', background:'#dc2626', color:'white', fontWeight:'700', cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow">
-                                  <Icons.Stop size={16} /> {loading ? "A guardar…" : "Confirmar Saída"}
+                          <footer className="jn-rodape">
+                              <button type="button" onClick={() => setShowClockOutModal(false)}>Cancelar</button>
+                              <button type="submit" className="is-danger" disabled={loading}>
+                                  <Icons.Stop size={16} /> {loading ? "A guardar…" : "Confirmar saída"}
                               </button>
-                          </div>
+                          </footer>
                       </form>
                   </div>
               </div>

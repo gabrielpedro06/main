@@ -23,6 +23,8 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { toast } from "../utils/toast";
+import Janela from "../components/Janela";
+import SelectModerno from "../components/SelectModerno";
 import jsPDF from "jspdf";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
@@ -2119,9 +2121,6 @@ export default function ProjetoDetalhe() {
 )];
     const statusTheme = getProjectStatusTheme(projeto.estado);
     const projetoFases = normalizeProjetoFases(formGeral.prazos_fases);
-  const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' };
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '15px', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', color: '#1e293b' };
-  const sectionTitleStyle = { fontSize: '0.8rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '15px', marginTop: '5px' };
 
   const renderStatePills = (currentState, onChange, includeEncerrado = false) => {
       const states = [
@@ -3238,7 +3237,7 @@ export default function ProjetoDetalhe() {
                                         <Icons.Plus size={14} />
                                         <input type="text" placeholder="Adicionar tarefa (Enter)…" value={novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : ""} onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: e.target.value, responsavel_id: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.responsavel_id : "" })} />
                                     </label>
-                                    <select
+                                    <SelectModerno
                                         value={novaTarefaNome.ativId === ativ.id ? (novaTarefaNome.responsavel_id || "") : ""}
                                         onChange={e => setNovaTarefaNome({ ativId: ativ.id, nome: novaTarefaNome.ativId === ativ.id ? novaTarefaNome.nome : "", responsavel_id: e.target.value })}
                                         className="pd-select"
@@ -3246,7 +3245,7 @@ export default function ProjetoDetalhe() {
                                     >
                                         <option value="">Responsável (opcional)</option>
                                         {renderResponsavelOptions()}
-                                    </select>
+                                    </SelectModerno>
                                 </form>
                             </div>
                         )}
@@ -3258,7 +3257,7 @@ export default function ProjetoDetalhe() {
                 <form onSubmit={handleAddAtividade} className="pd-new-ativ">
                     <span className="pd-new-ativ-icon"><Icons.Layers size={18} /></span>
                     <input aria-label="Nome de um novo bloco de atividades" type="text" placeholder="Nome de um novo bloco de atividades…" value={novaAtividadeNome} onChange={e => setNovaAtividadeNome(e.target.value)} />
-                    <select
+                    <SelectModerno
                         value={novaAtividadeResponsavel}
                         onChange={e => setNovaAtividadeResponsavel(e.target.value)}
                         className="pd-select"
@@ -3266,7 +3265,7 @@ export default function ProjetoDetalhe() {
                     >
                         <option value="">Responsável (opcional)</option>
                         {renderResponsavelOptions()}
-                    </select>
+                    </SelectModerno>
                     <button type="submit" className="pd-btn is-primary" disabled={!novaAtividadeNome.trim()}>
                         <Icons.Plus size={15} /> Criar bloco
                     </button>
@@ -3514,12 +3513,12 @@ export default function ProjetoDetalhe() {
                         <form onSubmit={saveTimeLog} className="pd-modal-body">
                             <div className="pd-field">
                                 <label>Colaborador</label>
-                                <select className="pd-input" value={timeLogForm.user_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, user_id: e.target.value }))} required>
+                                <SelectModerno className="pd-input" value={timeLogForm.user_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, user_id: e.target.value }))} required>
                                     <option value="">Selecionar…</option>
                                     {staff
                                         .filter(s => s.ativo !== false || String(s.id) === String(timeLogForm.user_id))
                                         .map((s) => <option key={s.id} value={s.id}>{s.nome || s.email}{s.ativo === false ? ' (Inativo)' : ''}</option>)}
-                                </select>
+                                </SelectModerno>
                             </div>
 
                             <div className="pd-row-2">
@@ -3547,7 +3546,7 @@ export default function ProjetoDetalhe() {
 
                             <div className="pd-field">
                                 <label>Item</label>
-                                <select className="pd-input" value={timeLogForm.target_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, target_id: e.target.value }))} required>
+                                <SelectModerno className="pd-input" value={timeLogForm.target_id} onChange={(e) => setTimeLogForm((prev) => ({ ...prev, target_id: e.target.value }))} required>
                                     <option value="">Selecionar…</option>
                                     {timeLogForm.target_type === 'atividade'
                                         ? activityOptions.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)
@@ -3564,7 +3563,7 @@ export default function ProjetoDetalhe() {
                                                 </optgroup>
                                             );
                                         })}
-                                </select>
+                                </SelectModerno>
                                 {timeLogForm.target_type !== 'atividade' && timeLogForm.target_id && (() => {
                                     const opt = getTargetOptions(timeLogForm.target_type).find((o) => String(o.id) === String(timeLogForm.target_id));
                                     return opt ? <small className="pd-hint">{opt.label}</small> : null;
@@ -3817,10 +3816,10 @@ export default function ProjetoDetalhe() {
                                 <div className="pd-row-2">
                                     <div className="pd-field">
                                         <label>Tipo de projeto</label>
-                                        <select className="pd-input" value={formGeral.tipo_projeto_id || ''} onChange={e => setFormGeral({...formGeral, tipo_projeto_id: e.target.value || null})}>
+                                        <SelectModerno className="pd-input" value={formGeral.tipo_projeto_id || ''} onChange={e => setFormGeral({...formGeral, tipo_projeto_id: e.target.value || null})}>
                                             <option value="">— Sem tipo —</option>
                                             {tiposProjeto.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                                        </select>
+                                        </SelectModerno>
                                     </div>
                                     {!isProjetoFormacao && (
                                         <div className="pd-row-2 is-tight">
@@ -3864,7 +3863,7 @@ export default function ProjetoDetalhe() {
                                 </div>
                                 <div className="pd-field">
                                     <label>Cliente principal <em>*</em></label>
-                                    <select className="pd-input" value={formGeral.cliente_id || ''} required onChange={e => {
+                                    <SelectModerno className="pd-input" value={formGeral.cliente_id || ''} required onChange={e => {
                                         const selectedId = e.target.value;
                                         setFormGeral(prev => ({
                                             ...prev,
@@ -3875,7 +3874,7 @@ export default function ProjetoDetalhe() {
                                     }}>
                                         <option value="">- Selecione -</option>
                                         {clientes.map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                                    </select>
+                                    </SelectModerno>
                                 </div>
 
                                 {formGeral.is_parceria && (
@@ -3895,7 +3894,7 @@ export default function ProjetoDetalhe() {
                                             })}
                                         </div>
                                         {editing && (
-                                            <select
+                                            <SelectModerno
                                                 className="pd-input"
                                                 value={parceiroSelecionado}
                                                 onChange={e => {
@@ -3918,7 +3917,7 @@ export default function ProjetoDetalhe() {
                                                     .filter(c => String(c.id) !== String(formGeral.cliente_id || ''))
                                                     .filter(c => !(formGeral.parceiros_ids || []).includes(c.id))
                                                     .map(c => <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>)}
-                                            </select>
+                                            </SelectModerno>
                                         )}
                                     </div>
                                 )}
@@ -3942,24 +3941,24 @@ export default function ProjetoDetalhe() {
                                             <div className="pd-row-2">
                                                 <div className="pd-field">
                                                     <label>Organismo líder <em>*</em></label>
-                                                    <select className="pd-input" value={formGeral.organismo_id || ""} required={formGeral.has_organismo} onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value, organismo_contacto_id: null})}>
+                                                    <SelectModerno className="pd-input" value={formGeral.organismo_id || ""} required={formGeral.has_organismo} onChange={e => setFormGeral({...formGeral, organismo_id: e.target.value, organismo_contacto_id: null})}>
                                                         <option value="">-- Selecione o organismo --</option>
                                                         {clientes.filter(c => c.eh_organismo).map(c => (
                                                             <option key={c.id} value={c.id}>{getClientDisplayName(c) || c.marca}</option>
                                                         ))}
-                                                    </select>
+                                                    </SelectModerno>
                                                 </div>
                                                 {formGeral.organismo_id && (
                                                     <div className="pd-field">
                                                         <label>Pessoa do organismo</label>
-                                                        <select className="pd-input" value={formGeral.organismo_contacto_id || ""} onChange={e => setFormGeral({...formGeral, organismo_contacto_id: e.target.value})}>
+                                                        <SelectModerno className="pd-input" value={formGeral.organismo_contacto_id || ""} onChange={e => setFormGeral({...formGeral, organismo_contacto_id: e.target.value})}>
                                                             <option value="">-- Sem pessoa definida --</option>
                                                             {organismoPessoas.map(p => {
                                                                 const nome = p.nome_contacto || p.email || "Contacto";
                                                                 const cargo = p.cargo ? ` (${p.cargo})` : "";
                                                                 return <option key={p.id} value={p.id}>{`${nome}${cargo}`}</option>;
                                                             })}
-                                                        </select>
+                                                        </SelectModerno>
                                                         {editing && organismoPessoas.length === 0 && <small className="pd-hint">Este organismo ainda não tem contactos registados.</small>}
                                                     </div>
                                                 )}
@@ -3973,7 +3972,7 @@ export default function ProjetoDetalhe() {
                                 <h3><span className="pd-card-icon"><Icons.Users size={15} /></span> Equipa</h3>
                                 <div className="pd-field">
                                     <label>Responsável global</label>
-                                    <select className="pd-input" value={formGeral.responsavel_id || ''} onChange={e => {
+                                    <SelectModerno className="pd-input" value={formGeral.responsavel_id || ''} onChange={e => {
                                         const newResp = e.target.value || null;
                                         setFormGeral(prev => ({
                                             ...prev,
@@ -3983,7 +3982,7 @@ export default function ProjetoDetalhe() {
                                     }}>
                                         <option value="">Sem responsável interno (ou externo)</option>
                                         {renderResponsavelOptions()}
-                                    </select>
+                                    </SelectModerno>
                                 </div>
                                 <div className="pd-row-2">
                                     <div className="pd-field">
@@ -4041,18 +4040,18 @@ export default function ProjetoDetalhe() {
                                     <h3><span className="pd-card-icon"><Icons.Target size={15} /></span> Programa e aviso</h3>
                                     <div className="pd-field">
                                         <label>Programa</label>
-                                        <select className="pd-input" value={formGeral.programa_id || ''} onChange={(e) => handleProgramaChange(e.target.value)}>
+                                        <SelectModerno className="pd-input" value={formGeral.programa_id || ''} onChange={(e) => handleProgramaChange(e.target.value)}>
                                             <option value="">-- Sem programa associado --</option>
                                             {programas.filter((programa) => programa.ativo !== false || String(programa.id) === String(formGeral.programa_id)).map((programa) => (
                                                 <option key={programa.id} value={programa.id}>
                                                     {`${programa.codigo ? `${programa.codigo} - ` : ''}${programa.nome || 'Programa'}`}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </SelectModerno>
                                     </div>
                                     <div className="pd-field">
                                         <label>Aviso</label>
-                                        <select
+                                        <SelectModerno
                                             className="pd-input"
                                             value={formGeral.aviso_id || ''}
                                             disabled={!editing || avisosDoPrograma.length === 0}
@@ -4071,7 +4070,7 @@ export default function ProjetoDetalhe() {
                                             {avisosDoPrograma.map(av => (
                                                 <option key={av.id} value={av.id}>{av.codigo}</option>
                                             ))}
-                                        </select>
+                                        </SelectModerno>
                                     </div>
 
                                     <div className="pd-field">
@@ -4141,154 +4140,43 @@ export default function ProjetoDetalhe() {
 
       </div>
 
-      {confirmModal.show && (
-          <ModalPortal>
-              <div
-                  style={{
-                      position: 'fixed',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: 'rgba(15, 23, 42, 0.62)',
-                      backdropFilter: 'blur(6px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: "calc(var(--z-modal) + 13)",
-                      padding: '20px'
-                  }}
-                  onClick={(e) => {
-                      if (e.target === e.currentTarget) closeConfirmModal();
-                  }}
+      <Janela
+          aberta={confirmModal.show}
+          camada="calc(var(--z-modal) + 13)"
+          aoFechar={closeConfirmModal}
+          bloquear={projectActionLoading}
+          variante="confirmacao"
+          tom={confirmModal.confirmTone === 'danger' ? 'danger' : undefined}
+          icone={confirmModal.confirmTone === 'danger' ? <Icons.Trash size={22} color="currentColor" /> : <Icons.Folder size={22} color="currentColor" />}
+          titulo={confirmModal.title}
+          subtitulo={confirmModal.message}
+          rodape={<>
+              <button type="button" onClick={closeConfirmModal} disabled={projectActionLoading}>Cancelar</button>
+              <button
+                  type="button"
+                  className={confirmModal.confirmTone === 'danger' ? 'is-danger' : 'is-primary'}
+                  onClick={handleConfirmModalAction}
+                  disabled={projectActionLoading || (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText)}
               >
-                  <div
-                      style={{
-                          width: '100%',
-                          maxWidth: '520px',
-                          background: '#ffffff',
-                          borderRadius: '22px',
-                          border: `1px solid ${confirmModal.confirmTone === 'danger' ? '#fecaca' : '#fed7aa'}`,
-                          boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.35)',
-                          overflow: 'hidden'
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                  >
-                      <div
-                          style={{
-                              padding: '24px 26px 18px',
-                              background: confirmModal.confirmTone === 'danger'
-                                  ? 'linear-gradient(180deg, #fff1f2 0%, #ffffff 100%)'
-                                  : 'linear-gradient(180deg, #fff7ed 0%, #ffffff 100%)'
-                          }}
-                      >
-                          <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px'}}>
-                              <div style={{display: 'flex', alignItems: 'flex-start', gap: '14px'}}>
-                                  <div
-                                      style={{
-                                          width: '46px',
-                                          height: '46px',
-                                          borderRadius: '14px',
-                                          background: confirmModal.confirmTone === 'danger' ? '#fee2e2' : '#ffedd5',
-                                          color: confirmModal.confirmTone === 'danger' ? '#dc2626' : '#c2410c',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          flexShrink: 0
-                                      }}
-                                  >
-                                      {confirmModal.confirmTone === 'danger' ? <Icons.Trash size={18} color="currentColor" /> : <Icons.Folder size={18} color="currentColor" />}
-                                  </div>
-                                  <div>
-                                      <h3 style={{margin: '2px 0 8px 0', color: '#0f172a', fontSize: '1.15rem', fontWeight: '800'}}>{confirmModal.title}</h3>
-                                      <p style={{margin: 0, color: '#64748b', fontSize: '0.92rem', lineHeight: 1.55}}>{confirmModal.message}</p>
-                                  </div>
-                              </div>
-                              <button aria-label="Fechar"
-                                  type="button"
-                                  onClick={closeConfirmModal}
-                                  disabled={projectActionLoading}
-                                  style={{background: 'transparent', border: 'none', color: '#64748b', cursor: projectActionLoading ? 'not-allowed' : 'pointer', padding: 0, display: 'flex'}}
-                              >
-                                  <Icons.Close size={20} />
-                              </button>
-                          </div>
-                      </div>
-
-                      <div style={{padding: '0 26px 24px'}}>
-                          {confirmModal.requiresText && (
-                              <div style={{marginBottom: '18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '14px 16px'}}>
-                                  <div style={{fontSize: '0.74rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>
-                                      Confirmação obrigatória
-                                  </div>
-                                  <p style={{margin: '0 0 10px 0', color: '#475569', fontSize: '0.88rem'}}>
-                                      Escreve <strong>{confirmModal.expectedText}</strong> para desbloquear esta ação.
-                                  </p>
-                                  <input
-                                      type="text"
-                                      value={confirmModal.inputValue}
-                                      onChange={(e) => setConfirmModal((prev) => ({ ...prev, inputValue: e.target.value }))}
-                                      placeholder={confirmModal.expectedText}
-                                      style={{
-                                          width: '100%',
-                                          padding: '11px 12px',
-                                          borderRadius: '10px',
-                                          border: '1px solid #cbd5e1',
-                                          background: '#ffffff',
-                                          fontSize: '0.92rem',
-                                          color: '#0f172a',
-                                          outline: 'none',
-                                          boxSizing: 'border-box'
-                                      }}
-                                  />
-                              </div>
-                          )}
-
-                          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap'}}>
-                              <button
-                                  type="button"
-                                  onClick={closeConfirmModal}
-                                  disabled={projectActionLoading}
-                                  style={{
-                                      border: '1px solid #cbd5e1',
-                                      background: '#ffffff',
-                                      color: '#475569',
-                                      borderRadius: '12px',
-                                      padding: '11px 16px',
-                                      fontWeight: '700',
-                                      cursor: projectActionLoading ? 'not-allowed' : 'pointer',
-                                      opacity: projectActionLoading ? 0.6 : 1
-                                  }}
-                              >
-                                  Cancelar
-                              </button>
-                              <button
-                                  type="button"
-                                  onClick={handleConfirmModalAction}
-                                  disabled={projectActionLoading || (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText)}
-                                  style={{
-                                      border: 'none',
-                                      background: confirmModal.confirmTone === 'danger' ? '#dc2626' : '#ea580c',
-                                      color: '#ffffff',
-                                      borderRadius: '12px',
-                                      padding: '11px 16px',
-                                      fontWeight: '800',
-                                      cursor: projectActionLoading || (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText) ? 'not-allowed' : 'pointer',
-                                      opacity: projectActionLoading || (confirmModal.requiresText && confirmModal.inputValue !== confirmModal.expectedText) ? 0.6 : 1,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '8px'
-                                  }}
-                              >
-                                  {confirmModal.confirmTone === 'danger' ? <Icons.Trash size={15} color="#ffffff" /> : <Icons.Folder size={15} color="#ffffff" />}
-                                  {projectActionLoading ? 'A processar…' : confirmModal.confirmLabel}
-                              </button>
-                          </div>
-                      </div>
-                  </div>
+                  {confirmModal.confirmTone === 'danger' ? <Icons.Trash size={15} color="currentColor" /> : <Icons.Folder size={15} color="currentColor" />}
+                  {projectActionLoading ? 'A processar…' : confirmModal.confirmLabel}
+              </button>
+          </>}
+      >
+          {confirmModal.requiresText && (
+              <div className="jn-confirmar-texto">
+                  <span>Confirmação obrigatória</span>
+                  <p>Escreve <strong>{confirmModal.expectedText}</strong> para desbloquear esta ação.</p>
+                  <input
+                      type="text"
+                      value={confirmModal.inputValue}
+                      onChange={(e) => setConfirmModal((prev) => ({ ...prev, inputValue: e.target.value }))}
+                      placeholder={confirmModal.expectedText}
+                      aria-label={`Escreve ${confirmModal.expectedText} para confirmar`}
+                  />
               </div>
-          </ModalPortal>
-      )}
+          )}
+      </Janela>
 
       <TimerSwitchModal
           open={timerSwitchModal.show}
@@ -4326,40 +4214,44 @@ export default function ProjetoDetalhe() {
       ========================================= */}
 
       {/* MODAL 1: EDITAR ATIVIDADE */}
-      {atividadeModal.show && atividadeModal.data && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
-                  <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(600px, calc(92 * var(--bz-vw, 1vw)))', maxHeight: 'calc(88 * var(--bz-vh, 1vh))', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.ClipboardList size={20} color="var(--color-btnPrimary)" /> Editar Atividade</h3>
-                          <button aria-label="Fechar" onClick={() => setAtividadeModal({show:false, data:null})} style={{background:'none', border:'none', fontSize:'1.2rem', color:'#64748b', cursor:'pointer'}}>✕</button>
-                      </div>
-                      
-                      <form onSubmit={handleSaveAtividade}>
-                          <label style={labelStyle}>Título da Atividade *</label>
-                          <input type="text" value={atividadeModal.data.titulo} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, titulo: e.target.value}})} style={{...inputStyle, fontWeight: 'bold'}} className="input-focus" required />
+      <Janela
+          aberta={atividadeModal.show && !!atividadeModal.data}
+          aoFechar={() => setAtividadeModal({show:false, data:null})}
+          titulo="Editar atividade"
+          subtitulo={projeto?.titulo}
+          icone={<Icons.ClipboardList size={20} />}
+          largura={640}
+          rodape={<>
+              <button type="button" onClick={() => setAtividadeModal({show:false, data:null})}>Cancelar</button>
+              <button type="submit" form="pd-form-atividade" className="is-primary"><Icons.Save /> Guardar alterações</button>
+          </>}
+      >
+      {atividadeModal.data && (
+                      <form id="pd-form-atividade" onSubmit={handleSaveAtividade}>
+                          <label className="bz-rotulo">Título da Atividade *</label>
+                          <input type="text" value={atividadeModal.data.titulo} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, titulo: e.target.value}})}  className="bz-campo is-espaco is-forte" required />
                           
-                          <div style={sectionTitleStyle}><Icons.Layers /> Projeto & Responsável</div>
+                          <div className="bz-secao"><Icons.Layers /> Projeto & Responsável</div>
                           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
                               <div>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Projeto Pai</label>
-                                  <input type="text" value={projeto.titulo} disabled style={{...inputStyle, background: '#f1f5f9', marginBottom: 0}} />
+                                  <label className="bz-rotulo">Projeto Pai</label>
+                                  <input type="text" value={projeto.titulo} disabled className="bz-campo is-leitura" />
                               </div>
                               <div>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Responsável</label>
-                                  <select value={atividadeModal.data.responsavel_id || ''} onChange={e => {
+                                  <label className="bz-rotulo">Responsável</label>
+                                  <SelectModerno value={atividadeModal.data.responsavel_id || ''} onChange={e => {
                                     const newResp = e.target.value || null; 
                                     const extras = Array.isArray(atividadeModal.data.colaboradores_extra) ? atividadeModal.data.colaboradores_extra : [];
                                     setAtividadeModal({show: true, data: {...atividadeModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
-                                }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
+                                }}  className="bz-campo">
                                     <option value=""> Sem responsável interno (ou Externo) </option>
                                     {renderResponsavelOptions()}
-                                </select>
+                                </SelectModerno>
                               </div>
                           </div>
 
                           <div style={{marginBottom: '15px'}}>
-                              <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
+                              <label className="bz-rotulo">Outros Colaboradores Envolvidos</label>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                   <div>
                                       <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
@@ -4405,40 +4297,40 @@ export default function ProjetoDetalhe() {
                           </div>
 
                           {/* --- PLANEAMENTO (Sempre visível) & FINANCEIRO CONDICIONAL --- */}
-                          <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Financeiro</div>
+                          <div className="bz-secao"><Icons.Calendar /> Planeamento & Financeiro</div>
                           <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '15px'}}>
                               
                               {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
                               <div style={{flex: '1 1 200px'}}>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Início</label>
-                                  <input type="date" value={atividadeModal.data.data_inicio || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_inicio: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" />
+                                  <label className="bz-rotulo">Data Início</label>
+                                  <input type="date" value={atividadeModal.data.data_inicio || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_inicio: e.target.value}})}  className="bz-campo is-compacto" />
                               </div>
                               
                               {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
                               <div style={{flex: '1 1 200px'}}>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Fim</label>
-                                  <input type="date" value={atividadeModal.data.data_fim || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_fim: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" />
+                                  <label className="bz-rotulo">Data Fim</label>
+                                  <input type="date" value={atividadeModal.data.data_fim || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_fim: e.target.value}})}  className="bz-campo is-compacto" />
                               </div>
                               
                               {/* 👇 COM CONDIÇÃO - SÓ APARECE SE EXIGIDO NAS CONFIGURAÇÕES */}
                               {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'investimento') && (
-                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Invest. (€)</label><input type="text" value={formatNumber(atividadeModal.data.investimento)} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, investimento: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 200px'}}><label className="bz-rotulo">Invest. (€)</label><input type="text" value={formatNumber(atividadeModal.data.investimento)} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, investimento: parseNumberInput(e.target.value)}})}  className="bz-campo is-compacto" /></div>
                               )}
                               
                               {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'incentivo') && (
-                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Incentivo (€)</label><input type="text" value={formatNumber(atividadeModal.data.incentivo)} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, incentivo: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 200px'}}><label className="bz-rotulo">Incentivo (€)</label><input type="text" value={formatNumber(atividadeModal.data.incentivo)} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, incentivo: parseNumberInput(e.target.value)}})}  className="bz-campo is-compacto" /></div>
                               )}
 
                               {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'financiamento') && (
-                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Financiamento (€)</label><input type="number" step="0.01" value={atividadeModal.data.financiamento || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, financiamento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 200px'}}><label className="bz-rotulo">Financiamento (€)</label><input type="number" step="0.01" value={atividadeModal.data.financiamento || 0} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, financiamento: e.target.value}})}  className="bz-campo is-compacto" /></div>
                               )}
 
                               {deveMostrarCampoItem(atividadeModal.data.info_adicional, 'data_prevista_aprovacao') && (
-                                  <div style={{flex: '1 1 200px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data Prev. Aprovação</label><input type="date" value={atividadeModal.data.data_prevista_aprovacao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_prevista_aprovacao: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 200px'}}><label className="bz-rotulo">Data Prev. Aprovação</label><input type="date" value={atividadeModal.data.data_prevista_aprovacao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, data_prevista_aprovacao: e.target.value}})}  className="bz-campo is-compacto" /></div>
                               )}
                           </div>
 
-                          <div style={sectionTitleStyle}><Icons.Activity /> Estado</div>
+                          <div className="bz-secao"><Icons.Activity /> Estado</div>
                           {renderStatePills(atividadeModal.data.estado, (val) => setAtividadeModal({show: true, data: {...atividadeModal.data, estado: val}}))}
 
                           {(atividadeModal.data.estado === 'em_analise' || atividadeModal.data.analise_data_prevista || atividadeModal.data.analise_destino) && (
@@ -4446,24 +4338,24 @@ export default function ProjetoDetalhe() {
                                   <div style={{fontSize: '0.74rem', color: 'var(--color-btnPrimaryDark)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Acompanhamento da Analise</div>
                                   <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                       <div>
-                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Encaminhada para</label>
-                                          <select
+                                          <label className="bz-rotulo">Encaminhada para</label>
+                                          <SelectModerno
                                               value={atividadeModal.data.analise_destino || 'proprio'}
                                               onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, analise_destino: e.target.value}})}
-                                              style={{...inputStyle, marginBottom: 0}}
-                                              className="input-focus"
+                                              
+                                              className="bz-campo"
                                           >
                                               {ANALYSIS_DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                          </select>
+                                          </SelectModerno>
                                       </div>
                                       <div>
-                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight: 'bold'}}>Data expectavel de resposta</label>
+                                          <label className="bz-rotulo">Data expectavel de resposta</label>
                                           <input
                                               type="date"
                                               value={atividadeModal.data.analise_data_prevista || ''}
                                               onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, analise_data_prevista: e.target.value}})}
-                                              style={{...inputStyle, marginBottom: 0}}
-                                              className="input-focus"
+                                              
+                                              className="bz-campo"
                                           />
                                       </div>
                                   </div>
@@ -4471,61 +4363,59 @@ export default function ProjetoDetalhe() {
                           )}
 
                           {/* --- NOTAS (SEM CONDIÇÃO - SEMPRE VISÍVEIS) --- */}
-                          <div style={sectionTitleStyle}><Icons.FileText /> Notas</div>
+                          <div className="bz-secao"><Icons.FileText /> Notas</div>
                           <div style={{display: 'flex', flexWrap: 'wrap', gap: '15px'}}>
                               <div style={{flex: '1 1 250px'}}>
-                                  <textarea aria-label="Descrição" rows="3" placeholder="Descrição…" value={atividadeModal.data.descricao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none', width: '100%'}} className="input-focus" />
+                                  <textarea aria-label="Descrição" rows="3" placeholder="Descrição…" value={atividadeModal.data.descricao || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, descricao: e.target.value}})}  className="bz-campo is-espaco is-fixo" />
                               </div>
                               <div style={{flex: '1 1 250px'}}>
-                                  <textarea aria-label="Observações" rows="3" placeholder="Observações…" value={atividadeModal.data.observacoes || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, observacoes: e.target.value}})} style={{...inputStyle, resize:'none', background:'#fffbeb', borderColor:'#fcd34d', width: '100%'}} className="input-focus-alert" />
+                                  <textarea aria-label="Observações" rows="3" placeholder="Observações…" value={atividadeModal.data.observacoes || ''} onChange={e => setAtividadeModal({show: true, data: {...atividadeModal.data, observacoes: e.target.value}})}  className="bz-campo is-espaco is-fixo is-nota" />
                               </div>
                           </div>
 
-                          <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-                              <button type="button" onClick={() => setAtividadeModal({show:false, data:null})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar Alterações</button>
-                          </div>
                       </form>
-                  </div>
-              </div>
-          </ModalPortal>
       )}
+      </Janela>
 
       {/* MODAL 2: EDITAR TAREFA */}
-      {tarefaModal.show && tarefaModal.data && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
-                  <div className="custom-scrollbar" style={{background: 'white', padding: '32px', borderRadius: '18px', width: 'min(700px, calc(98 * var(--bz-vw, 1vw)))', maxHeight: 'calc(88 * var(--bz-vh, 1vh))', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="var(--color-btnPrimary)" /> Detalhes da Tarefa</h3>
-                          <button aria-label="Fechar" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
-                      </div>
-                      
-                      <form onSubmit={handleSaveTarefa}>
-                          <label style={labelStyle}>Título da Tarefa *</label>
-                          <input type="text" value={tarefaModal.data.titulo} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, titulo: e.target.value}})} style={{...inputStyle, fontWeight: 'bold'}} className="input-focus" required />
+      <Janela
+          aberta={tarefaModal.show && !!tarefaModal.data}
+          aoFechar={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }}
+          titulo="Detalhes da tarefa"
+          subtitulo={tarefaModal.atividadeNome || undefined}
+          icone={<Icons.Eye size={20} />}
+          largura={720}
+          rodape={<>
+              <button type="button" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }}>Cancelar</button>
+              <button type="submit" form="pd-form-tarefa" className="is-primary"><Icons.Save /> Guardar tarefa</button>
+          </>}
+      >
+      {tarefaModal.data && (
+                      <form id="pd-form-tarefa" onSubmit={handleSaveTarefa}>
+                          <label className="bz-rotulo">Título da Tarefa *</label>
+                          <input type="text" value={tarefaModal.data.titulo} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, titulo: e.target.value}})}  className="bz-campo is-espaco is-forte" required />
                           
-                          <div style={sectionTitleStyle}><Icons.Layers /> Enquadramento</div>
+                          <div className="bz-secao"><Icons.Layers /> Enquadramento</div>
                           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
                               <div>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Atividade Pai</label>
-                                  <input type="text" value={tarefaModal.atividadeNome} disabled style={{...inputStyle, background: '#f1f5f9', marginBottom: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap'}} />
+                                  <label className="bz-rotulo">Atividade Pai</label>
+                                  <input type="text" value={tarefaModal.atividadeNome} disabled className="bz-campo is-leitura is-cortado" />
                               </div>
                               <div>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Responsável</label>
-                                  <select value={tarefaModal.data.responsavel_id || ''} onChange={e => {
+                                  <label className="bz-rotulo">Responsável</label>
+                                  <SelectModerno value={tarefaModal.data.responsavel_id || ''} onChange={e => {
                                       const newResp = e.target.value;
                                       const extras = Array.isArray(tarefaModal.data.colaboradores_extra) ? tarefaModal.data.colaboradores_extra : [];
                                       setTarefaModal({...tarefaModal, data: {...tarefaModal.data, responsavel_id: newResp, colaboradores_extra: extras.filter(id => id !== newResp)}})
-                                  }} style={{...inputStyle, marginBottom: 0}} className="input-focus">
+                                  }}  className="bz-campo">
                                       <option value=""> Sem responsável interno (ou Externo) </option>
                                       {renderAssigneeOptionGroups(tarefaModal.data?.responsavel_id)}
-                                  </select>
+                                  </SelectModerno>
                               </div>
                           </div>
 
                           <div style={{marginBottom: '15px'}}>
-                              <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', display:'block', fontWeight:'bold'}}>Outros Colaboradores Envolvidos</label>
+                              <label className="bz-rotulo">Outros Colaboradores Envolvidos</label>
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                   <div>
                                       <div style={{fontSize: '0.7rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px'}}>Equipa Interna</div>
@@ -4571,51 +4461,51 @@ export default function ProjetoDetalhe() {
                           </div>
 
                           {/* --- PLANEAMENTO (Sempre visível) & FINANCEIRO CONDICIONAL --- */}
-                          <div style={sectionTitleStyle}><Icons.Calendar /> Planeamento & Estado</div>
+                          <div className="bz-secao"><Icons.Calendar /> Planeamento & Estado</div>
                           <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '15px'}}>
                               
                               {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
                               <div style={{flex: '1 1 150px'}}>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data Início</label>
-                                  <input type="date" value={tarefaModal.data.data_inicio || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_inicio: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" />
+                                  <label className="bz-rotulo">Data Início</label>
+                                  <input type="date" value={tarefaModal.data.data_inicio || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_inicio: e.target.value}})}  className="bz-campo is-compacto" />
                               </div>
                               
                               {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
                               <div style={{flex: '1 1 150px'}}>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Prazo Limite</label>
-                                  <input type="date" value={tarefaModal.data.data_fim || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_fim: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" />
+                                  <label className="bz-rotulo">Prazo Limite</label>
+                                  <input type="date" value={tarefaModal.data.data_fim || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_fim: e.target.value}})}  className="bz-campo is-compacto" />
                               </div>
 
                               {/* 👇 SEM CONDIÇÃO - SEMPRE VISÍVEL */}
                               <div style={{flex: '1 1 150px'}}>
-                                  <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Prioridade</label>
-                                  <select value={tarefaModal.data.prioridade || 'normal'} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, prioridade: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus">
+                                  <label className="bz-rotulo">Prioridade</label>
+                                  <SelectModerno value={tarefaModal.data.prioridade || 'normal'} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, prioridade: e.target.value}})}  className="bz-campo is-compacto">
                                       <option value="baixa">Baixa</option>
                                       <option value="normal">Normal</option>
                                       <option value="alta">Alta</option>
                                       <option value="urgente">Urgente</option>
-                                  </select>
+                                  </SelectModerno>
                               </div>
 
                               {/* 👇 COM CONDIÇÃO - SÓ APARECEM SE EXIGIDOS */}
                               {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'investimento') && (
-                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Investimento (€)</label><input type="text" value={formatNumber(tarefaModal.data.investimento)} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, investimento: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 150px'}}><label className="bz-rotulo">Investimento (€)</label><input type="text" value={formatNumber(tarefaModal.data.investimento)} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, investimento: parseNumberInput(e.target.value)}})}  className="bz-campo is-compacto" /></div>
                               )}
 
                               {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'incentivo') && (
-                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Incentivo (€)</label><input type="text" value={formatNumber(tarefaModal.data.incentivo)} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, incentivo: parseNumberInput(e.target.value)}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 150px'}}><label className="bz-rotulo">Incentivo (€)</label><input type="text" value={formatNumber(tarefaModal.data.incentivo)} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, incentivo: parseNumberInput(e.target.value)}})}  className="bz-campo is-compacto" /></div>
                               )}
 
                               {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'financiamento') && (
-                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Financiamento (€)</label><input type="number" step="0.01" value={tarefaModal.data.financiamento || 0} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, financiamento: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 150px'}}><label className="bz-rotulo">Financiamento (€)</label><input type="number" step="0.01" value={tarefaModal.data.financiamento || 0} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, financiamento: e.target.value}})}  className="bz-campo is-compacto" /></div>
                               )}
 
                               {deveMostrarCampoItem(tarefaModal.data.info_adicional, 'data_prevista_aprovacao') && (
-                                  <div style={{flex: '1 1 150px'}}><label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data Prev. Aprov.</label><input type="date" value={tarefaModal.data.data_prevista_aprovacao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_prevista_aprovacao: e.target.value}})} style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}} className="input-focus" /></div>
+                                  <div style={{flex: '1 1 150px'}}><label className="bz-rotulo">Data Prev. Aprov.</label><input type="date" value={tarefaModal.data.data_prevista_aprovacao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, data_prevista_aprovacao: e.target.value}})}  className="bz-campo is-compacto" /></div>
                               )}
                           </div>
 
-                          <label style={{...labelStyle, marginTop:'15px'}}>Estado Atual</label>
+                          <label className="bz-rotulo" style={{marginTop: '15px'}}>Estado Atual</label>
                           {renderStatePills(tarefaModal.data.estado, (val) => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, estado: val}}))}
 
                           {(tarefaModal.data.estado === 'em_analise' || tarefaModal.data.analise_data_prevista || tarefaModal.data.analise_destino) && (
@@ -4623,31 +4513,31 @@ export default function ProjetoDetalhe() {
                                   <div style={{fontSize: '0.74rem', color: 'var(--color-btnPrimaryDark)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px'}}>Acompanhamento da Analise</div>
                                   <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                       <div>
-                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Encaminhada para</label>
-                                          <select
+                                          <label className="bz-rotulo">Encaminhada para</label>
+                                          <SelectModerno
                                               value={tarefaModal.data.analise_destino || 'proprio'}
                                               onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, analise_destino: e.target.value}})}
-                                              style={{...inputStyle, marginBottom: 0, width: '100%'}}
-                                              className="input-focus"
+                                              
+                                              className="bz-campo"
                                           >
                                               {ANALYSIS_DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                                          </select>
+                                          </SelectModerno>
                                       </div>
                                       <div>
-                                          <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data expectavel de resposta</label>
+                                          <label className="bz-rotulo">Data expectavel de resposta</label>
                                           <input
                                               type="date"
                                               value={tarefaModal.data.analise_data_prevista || ''}
                                               onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, analise_data_prevista: e.target.value}})}
-                                              style={{...inputStyle, marginBottom: 0, width: '100%'}}
-                                              className="input-focus"
+                                              
+                                              className="bz-campo"
                                           />
                                       </div>
                                   </div>
                               </div>
                           )}
 
-                          <div style={sectionTitleStyle}><Icons.FileText /> Entregaveis</div>
+                          <div className="bz-secao"><Icons.FileText /> Entregaveis</div>
                           <div style={{background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', marginBottom: '12px'}}>
                               <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1e293b', cursor: 'pointer', fontSize: '0.82rem', marginBottom: '8px'}}>
                                   <input
@@ -4675,8 +4565,8 @@ export default function ProjetoDetalhe() {
                                                       ...tarefaModal,
                                                       data: { ...tarefaModal.data, nome_entregavel: e.target.value }
                                                   })}
-                                                  style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}}
-                                                  className="input-focus"
+                                                  
+                                                  className="bz-campo is-compacto"
                                               />
                                           </div>
                                           <div>
@@ -4688,8 +4578,8 @@ export default function ProjetoDetalhe() {
                                                       ...tarefaModal,
                                                       data: { ...tarefaModal.data, data_entregavel: e.target.value }
                                                   })}
-                                                  style={{...inputStyle, padding:'10px', fontSize:'0.85rem', marginBottom: 0, width: '100%'}}
-                                                  className="input-focus"
+                                                  
+                                                  className="bz-campo is-compacto"
                                               />
                                           </div>
                                       </div>
@@ -4759,57 +4649,49 @@ export default function ProjetoDetalhe() {
                           </div>
 
                           {/* --- DETALHES (Sempre visível) --- */}
-                          <div style={sectionTitleStyle}><Icons.FileText /> Detalhes</div>
-                          <textarea aria-label="Descreva o que é necessário fazer" rows="4" placeholder="Descreva o que é necessário fazer…" value={tarefaModal.data.descricao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, descricao: e.target.value}})} style={{...inputStyle, resize:'none'}} className="input-focus" />
+                          <div className="bz-secao"><Icons.FileText /> Detalhes</div>
+                          <textarea aria-label="Descreva o que é necessário fazer" rows="4" placeholder="Descreva o que é necessário fazer…" value={tarefaModal.data.descricao || ''} onChange={e => setTarefaModal({...tarefaModal, data: {...tarefaModal.data, descricao: e.target.value}})}  className="bz-campo is-espaco is-fixo" />
 
-                          <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-                              <button type="button" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar Tarefa</button>
-                          </div>
                       </form>
-                  </div>
-              </div>
-          </ModalPortal>
       )}
+      </Janela>
 
       {/* MODAL 3: EDITAR SUB-TAREFA COM DATA E ESTADO */}
-      {subtarefaModal.show && subtarefaModal.data && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: 'min(500px, calc(92 * var(--bz-vw, 1vw)))', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                          <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Check size={20} color="var(--color-btnPrimary)" /> Detalhes do Passo</h3>
-                          <button aria-label="Fechar" onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
-                      </div>
-                      
-                      <form onSubmit={handleSaveSubtarefa}>
-                          <label style={labelStyle}>Nome do Passo / Checklist *</label>
-                          <input type="text" autoFocus value={subtarefaModal.data.titulo} onChange={e => setSubtarefaModal({...subtarefaModal, data: {...subtarefaModal.data, titulo: e.target.value}})} style={{...inputStyle, fontWeight: 'bold'}} className="input-focus" required />
+      <Janela
+          aberta={subtarefaModal.show && !!subtarefaModal.data}
+          aoFechar={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})}
+          titulo="Detalhes do passo"
+          subtitulo={subtarefaModal.tarefaNome || undefined}
+          icone={<Icons.Check size={20} />}
+          largura={520}
+          rodape={<>
+              <button type="button" onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})}>Cancelar</button>
+              <button type="submit" form="pd-form-passo" className="is-primary"><Icons.Save /> Guardar</button>
+          </>}
+      >
+      {subtarefaModal.data && (
+                      <form id="pd-form-passo" onSubmit={handleSaveSubtarefa}>
+                          <label className="bz-rotulo">Nome do Passo / Checklist *</label>
+                          <input type="text" autoFocus value={subtarefaModal.data.titulo} onChange={e => setSubtarefaModal({...subtarefaModal, data: {...subtarefaModal.data, titulo: e.target.value}})}  className="bz-campo is-espaco is-forte" required />
                           
-                          <div style={sectionTitleStyle}><Icons.Layers /> Enquadramento</div>
+                          <div className="bz-secao"><Icons.Layers /> Enquadramento</div>
                           <div style={{marginBottom: '15px'}}>
-                              <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Pertence à Tarefa</label>
-                              <input type="text" value={subtarefaModal.tarefaNome} disabled style={{...inputStyle, background: '#f1f5f9', marginBottom: 0}} />
+                              <label className="bz-rotulo">Pertence à Tarefa</label>
+                              <input type="text" value={subtarefaModal.tarefaNome} disabled className="bz-campo is-leitura" />
                           </div>
 
-                          <div style={sectionTitleStyle}><Icons.Calendar /> Prazo (Opcional)</div>
+                          <div className="bz-secao"><Icons.Calendar /> Prazo (Opcional)</div>
                           <div style={{marginBottom: '15px'}}>
-                              <label style={{fontSize: '0.75rem', color: '#64748b', marginBottom: '4px', display:'block', fontWeight:'bold'}}>Data Limite para concluir este passo</label>
-                              <input type="date" value={subtarefaModal.data.data_fim || ''} onChange={e => setSubtarefaModal({...subtarefaModal, data: {...subtarefaModal.data, data_fim: e.target.value}})} style={{...inputStyle, marginBottom: 0}} className="input-focus" />
+                              <label className="bz-rotulo">Data Limite para concluir este passo</label>
+                              <input type="date" value={subtarefaModal.data.data_fim || ''} onChange={e => setSubtarefaModal({...subtarefaModal, data: {...subtarefaModal.data, data_fim: e.target.value}})}  className="bz-campo" />
                           </div>
 
-                          <label style={{...labelStyle, marginTop:'15px'}}>Estado Atual</label>
+                          <label className="bz-rotulo" style={{marginTop: '15px'}}>Estado Atual</label>
                           {renderStatePills(subtarefaModal.data.estado, (val) => setSubtarefaModal({...subtarefaModal, data: {...subtarefaModal.data, estado: val}}))}
 
-                          <div style={{display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #f1f5f9'}}>
-                              <button type="button" onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#64748b', fontWeight: 'bold', cursor:'pointer'}} className="hover-shadow">Cancelar</button>
-                              <button type="submit" style={{flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor:'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}} className="hover-shadow"><Icons.Save /> Guardar</button>
-                          </div>
                       </form>
-                  </div>
-              </div>
-          </ModalPortal>
       )}
+      </Janela>
       {infoTooltip && (
     <ModalPortal>
         <div style={{

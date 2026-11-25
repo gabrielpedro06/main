@@ -53,6 +53,7 @@ import {
   segmentPages,
 } from "../utils/faturasQr";
 import "./organizadorPdf.css";
+import SelectModerno from "../components/SelectModerno";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -1091,9 +1092,9 @@ export default function OrganizadorPdf() {
                         <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(m.date || "") ? m.date : ""} onChange={(e) => setField(d.key, { date: e.target.value })} />
                       </label>
                       <label><span>Categoria</span>
-                        <select value={m.category} onChange={(e) => setField(d.key, { category: e.target.value })}>
+                        <SelectModerno value={m.category} onChange={(e) => setField(d.key, { category: e.target.value })}>
                           {PDF_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        </SelectModerno>
                       </label>
                       <label><span>Nº documento</span>
                         <input value={m.numero || ""} placeholder="—" onChange={(e) => setField(d.key, { numero: e.target.value })} />

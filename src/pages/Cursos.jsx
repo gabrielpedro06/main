@@ -18,6 +18,7 @@ import { supabase } from '../services/supabase';
 import './gestao.css';
 import { confirmar } from "../utils/dialogo";
 import { OctagonX, TriangleAlert, CircleCheck } from "lucide-react";
+import PageHero from "../components/PageHero";
 
 const Icons = {
   Plus: ({ size = 16, color = 'currentColor' }) => (
@@ -461,18 +462,19 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: editable ? '1fr 1fr' : '1fr', gap: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+      {/* rodapé dentro do formulário (que vive no corpo da janela): sem fundo nem cantos próprios */}
+      <div className="jn-rodape" style={{ padding: '16px 0 0', background: 'transparent', borderRadius: 0 }}>
         {editable ? (
           <>
-            <button type="submit" disabled={isSaving} style={{ border: 'none', borderRadius: '14px', padding: '13px 16px', background: 'linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))', color: '#fff', fontWeight: 900, cursor: 'pointer', boxShadow: '0 12px 24px var(--color-btnPrimaryShadow)' }}>
-              {isSaving ? 'A guardar…' : submitLabel}
-            </button>
-            <button type="button" onClick={onCancel} style={{ border: '1px solid #cbd5e1', borderRadius: '14px', padding: '13px 16px', background: '#fff', color: '#334155', fontWeight: 900, cursor: 'pointer' }}>
+            <button type="button" onClick={onCancel}>
               Cancelar
+            </button>
+            <button type="submit" className="is-primary" disabled={isSaving}>
+              {isSaving ? 'A guardar…' : submitLabel}
             </button>
           </>
         ) : (
-          <button type="button" onClick={onCancel} style={{ border: '1px solid #cbd5e1', borderRadius: '14px', padding: '13px 16px', background: '#fff', color: '#334155', fontWeight: 900, cursor: 'pointer' }}>
+          <button type="button" onClick={onCancel}>
             Fechar
           </button>
         )}
@@ -486,18 +488,19 @@ function CreateModal({ show, title, onClose, children }) {
 
   return (
     <ModalPortal>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)", padding: 20 }}>
-        <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(920px, calc(96 * var(--bz-vw, 1vw)))', maxHeight: 'calc(92 * var(--bz-vh, 1vh))', overflow: 'hidden', borderRadius: 22, background: '#fff', border: '1px solid #dbe3ef', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.35)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '20px 22px', borderBottom: '1px solid var(--color-borderColorLight)', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
-            <div>
-              <p style={{ margin: '0 0 4px 0', fontSize: '0.74rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--color-btnPrimaryDark)', textTransform: 'uppercase' }}>Novo Curso</p>
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.32rem', fontWeight: 900 }}>{title}</h3>
+      <div onClick={onClose} className="jn-fundo" style={{ zIndex: "calc(var(--z-modal) + 13)" }}>
+        <div onClick={(e) => e.stopPropagation()} className="jn-caixa jn-simples is-folha" style={{ maxWidth: 920, maxHeight: 'calc(92 * var(--bz-vh, 1vh))', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <header className="jn-cabecalho">
+            <span className="jn-cabecalho-ico"><Icons.BookOpen size={20} /></span>
+            <div className="jn-cabecalho-txt">
+              <h3>{title}</h3>
+              <p>Novo curso</p>
             </div>
-            <button aria-label="Fechar" type="button" onClick={onClose} style={{ background: '#fff', border: '1px solid #cbd5e1', width: 38, height: 38, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#475569' }}>
+            <button type="button" className="jn-fechar" aria-label="Fechar" onClick={onClose}>
               <Icons.Close size={18} />
             </button>
-          </div>
-          <div style={{ padding: '22px', overflowY: 'auto' }}>{children}</div>
+          </header>
+          <div className="jn-corpo">{children}</div>
         </div>
       </div>
     </ModalPortal>
@@ -509,19 +512,20 @@ function SideDrawer({ show, isClosing, title, subtitle, onClose, children }) {
 
   return (
     <ModalPortal>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', zIndex: "calc(var(--z-modal) + 13)" }}>
-        <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 'min(calc(98 * var(--bz-vw, 1vw)), 1180px)', height: 'calc(100 * var(--bz-vh, 1vh))', margin: 0, borderRadius: '18px 0 0 18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100 * var(--bz-vh, 1vh))', animation: isClosing ? 'sidePanelPullOut 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'sidePanelPullIn 0.56s cubic-bezier(0.2, 0.9, 0.2, 1)' }}>
-          <div style={{ padding: '22px 24px', borderBottom: '1px solid var(--color-borderColorLight)', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18 }}>
-            <div>
-              <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--color-btnPrimaryDark)', textTransform: 'uppercase' }}>Curso</p>
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.35rem', fontWeight: 900 }}>{title}</h3>
-              {subtitle && <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>{subtitle}</p>}
+      <div onClick={onClose} className="jn-fundo" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', zIndex: "calc(var(--z-modal) + 13)" }}>
+        <div onClick={(e) => e.stopPropagation()} className="jn-caixa jn-simples" style={{ width: 'min(calc(98 * var(--bz-vw, 1vw)), 1180px)', height: 'calc(100 * var(--bz-vh, 1vh))', margin: 0, borderRadius: '24px 0 0 24px', animation: isClosing ? 'sidePanelPullOut 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'sidePanelPullIn 0.56s cubic-bezier(0.2, 0.9, 0.2, 1)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100 * var(--bz-vh, 1vh))' }}>
+          <header className="jn-cabecalho" style={{ borderRadius: '24px 0 0 0' }}>
+            <span className="jn-cabecalho-ico"><Icons.BookOpen size={20} /></span>
+            <div className="jn-cabecalho-txt">
+              <span style={{ display: 'block', marginBottom: 2, fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--jn-acento)' }}>Curso</span>
+              <h3>{title}</h3>
+              {subtitle && <p>{subtitle}</p>}
             </div>
-            <button aria-label="Fechar" onClick={onClose} style={{ background: '#fff', border: '1px solid #cbd5e1', width: 38, height: 38, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#475569' }}>
+            <button type="button" className="jn-fechar" aria-label="Fechar" onClick={onClose}>
               <Icons.Close size={18} />
             </button>
-          </div>
-          <div style={{ padding: '24px', overflowY: 'auto' }}>{children}</div>
+          </header>
+          <div className="jn-corpo" style={{ padding: '24px' }}>{children}</div>
         </div>
       </div>
     </ModalPortal>
@@ -794,31 +798,26 @@ export default function Cursos() {
   return (
     <div style={{ minHeight: 'calc(100 * var(--bz-vh, 1vh))', background: 'linear-gradient(180deg, var(--color-bgPrimary) 0%, var(--color-bgSecondary) 36%, var(--color-bgSecondary) 100%)', padding: '22px 18px 32px' }}>
       <div style={{ maxWidth: 1420, margin: '0 auto' }}>
-        <div className="page-header" style={{background: '#fff', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
-          <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-            <div style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '12px', borderRadius: '12px', display: 'flex'}}><Icons.BookOpen size={24} /></div>
-            <div>
-              <h1 style={{margin: 0, color: '#0f172a', fontSize: '1.8rem', fontWeight: '900', letterSpacing: '-0.02em'}}>Cursos</h1>
-              <p style={{color: '#64748b', margin: 0, fontWeight: '500', fontSize: '0.9rem'}}>Gestão de conteúdos e módulos formativos</p>
-            </div>
-          </div>
-          <button className="btn-cta" onClick={handleNovo} style={{background: 'var(--color-btnPrimary)', color: '#fff', padding: '10px 20px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.08)'}}>
-            <Icons.Plus size={18} /> Novo Curso
-          </button>
-        </div>
-
-        <div style={{background: '#fff', padding: '12px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '25px', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
-          <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '10px', color: '#64748b'}}><Icons.Search /></span>
-            <input aria-label="Procurar por curso"
-              type="text"
-              placeholder="Procurar por curso…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{width: '100%', padding: '8px 12px 8px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', boxSizing: 'border-box'}}
-            />
-          </div>
-        </div>
+        <PageHero
+          icon={<Icons.BookOpen size={24} />}
+          kicker="Formação"
+          title="Cursos"
+          subtitle="Gestão de conteúdos e módulos formativos"
+          stats={[{ valor: cursos.length, label: cursos.length === 1 ? "curso" : "cursos" }]}
+          side={<button type="button" className="page-hero-btn" onClick={handleNovo}><Icons.Plus size={18} /> Novo curso</button>}
+          tools={
+            <label className="page-hero-busca">
+              <Icons.Search />
+              <input
+                aria-label="Procurar por curso"
+                type="text"
+                placeholder="Procurar por curso…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </label>
+          }
+        />
 
         <Toast notification={notification} onClose={() => setNotification(null)} />
 

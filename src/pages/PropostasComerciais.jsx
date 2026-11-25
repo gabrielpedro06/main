@@ -16,6 +16,7 @@ import { supabase } from "../services/supabase";
 import PropostasFinanciamento from "./PropostasFinanciamento";
 import PropostasFormacao from "./PropostasFormacao";
 import "./../styles/dashboard.css";
+import SelectModerno from "../components/SelectModerno";
 
 const normalizeCliente = (item) => ({
   ...item,
@@ -123,14 +124,14 @@ export default function PropostasComerciais() {
           <div className="field-grid field-grid-1">
             <div className="field">
               <label>Empresa consultora</label>
-              <select value={selectedEmpresaId} onChange={(event) => handleSelectEmpresa(event.target.value)}>
+              <SelectModerno value={selectedEmpresaId} onChange={(event) => handleSelectEmpresa(event.target.value)}>
                 <option value="">Selecionar empresa para continuar</option>
                 {empresasOrdenadas.map((empresa) => (
                   <option key={empresa.id} value={empresa.id}>
                     {empresa.nome} - {empresa.tem_cursos ? "Cursos/Formacao" : "Financiamento"}
                   </option>
                 ))}
-              </select>
+              </SelectModerno>
               <div className="field-hint">
                 Os campos seguintes sao escolhidos automaticamente conforme a empresa selecionada.
               </div>

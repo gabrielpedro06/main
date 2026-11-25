@@ -31,8 +31,10 @@ const X = () => (
  * @param {"formulario"|"confirmacao"} [props.variante="formulario"]
  * @param {number} [props.largura=560] largura máxima em px (computador)
  * @param {boolean} [props.bloquear] true = não fecha com Esc/clique fora (ex.: a gravar)
+ * @param {"danger"|"ok"|"info"} [props.tom] cor do ícone (vermelho, verde, azul); por omissão a do tema
+ * @param {string} [props.camada] z-index (ex.: "calc(var(--z-modal) + 30)") para abrir POR CIMA de outra janela
  */
-export default function Janela({ aberta, aoFechar, titulo, subtitulo, icone, rodape, children, variante = "formulario", largura = 560, bloquear = false }) {
+export default function Janela({ aberta, aoFechar, titulo, subtitulo, icone, rodape, children, variante = "formulario", largura = 560, bloquear = false, tom, camada }) {
   const idTitulo = useId();
   const caixaRef = useRef(null);
   const focoAntes = useRef(null);
@@ -60,7 +62,7 @@ export default function Janela({ aberta, aoFechar, titulo, subtitulo, icone, rod
   const confirmacao = variante === "confirmacao";
 
   return createPortal(
-    <div className="jn-fundo" onMouseDown={(e) => { if (e.target === e.currentTarget && !bloquear) aoFechar?.(); }}>
+    <div className="jn-fundo" style={camada ? { zIndex: camada } : undefined} onMouseDown={(e) => { if (e.target === e.currentTarget && !bloquear) aoFechar?.(); }}>
       <div
         ref={caixaRef}
         className={`jn-caixa ${confirmacao ? "is-confirmacao" : "is-folha"}`}
@@ -72,7 +74,7 @@ export default function Janela({ aberta, aoFechar, titulo, subtitulo, icone, rod
       >
         {confirmacao ? (
           <>
-            {icone && <span className="jn-caixa-ico" aria-hidden="true">{icone}</span>}
+            {icone && <span className={`jn-caixa-ico ${tom ? `is-${tom}` : ""}`} aria-hidden="true">{icone}</span>}
             {titulo && <h2 id={idTitulo}>{titulo}</h2>}
             {subtitulo && <p>{subtitulo}</p>}
             {children}
@@ -81,7 +83,7 @@ export default function Janela({ aberta, aoFechar, titulo, subtitulo, icone, rod
         ) : (
           <>
             <header className="jn-cabecalho">
-              {icone && <span className="jn-cabecalho-ico" aria-hidden="true">{icone}</span>}
+              {icone && <span className={`jn-cabecalho-ico ${tom ? `is-${tom}` : ""}`} aria-hidden="true">{icone}</span>}
               <div className="jn-cabecalho-txt">
                 {titulo && <h2 id={idTitulo}>{titulo}</h2>}
                 {subtitulo && <p>{subtitulo}</p>}

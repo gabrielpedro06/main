@@ -1,0 +1,144 @@
+/* =====================================================================
+   Sidebar em vidro (computador). Mesma linguagem da barra do telemóvel e
+   das janelas: painel flutuante, afastado das margens, cantos 26px, vidro
+   com as cores do tema por cima do fundo desfocado, aresta de luz e
+   sombra suave. O destaque do item ativo (pill) e as animações vêm de
+   motion.css; aqui só o "corpo" do painel e os detalhes.
+   No telemóvel a sidebar é a gaveta (.is-mobile) e não muda.
+   Carregado em main.jsx (depois de motion.css).
+   ===================================================================== */
+@media (min-width: 901px) {
+  .dashboard-container > .sidebar:not(.is-mobile) {
+    --sv-margem: 12px;
+    /* o topo alinha com o topo das páginas (padding de .dashboard-main: 26px) */
+    --sv-topo: 26px;
+    margin: var(--sv-topo) 0 var(--sv-margem) var(--sv-margem);
+    /* a altura vem inline (100vh) do Sidebar.jsx: aqui desconta as margens */
+    height: calc(100% - var(--sv-topo) - var(--sv-margem)) !important;
+    border-radius: 26px;
+    /* a cor do tema a 100% (sem transparência nem véus de luz por cima) */
+    background: var(--color-sidebarBg);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 34px 70px -30px rgba(15, 23, 42, 0.6),
+      0 10px 24px -14px rgba(15, 23, 42, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  }
+
+  /* sem o brilho ambiente antigo: clareava a cor do tema */
+  .dashboard-container > .sidebar:not(.is-mobile)::before { display: none; }
+
+  /* o destaque do item ativo fica mais "vidro" */
+  .dashboard-container > .sidebar:not(.is-mobile) .sidebar-active-pill {
+    border-radius: 13px;
+    background: linear-gradient(100deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.10) 100%);
+    border-color: rgba(255, 255, 255, 0.26);
+  }
+
+  /* itens: cantos a condizer com o destaque */
+  .dashboard-container > .sidebar:not(.is-mobile) nav ul li a { border-radius: 13px; }
+
+  /* cartão do utilizador no fundo: vidro dentro do vidro (só com a sidebar aberta;
+     encolhida fica só a foto, como antes) */
+  .dashboard-container > .sidebar.open:not(.is-mobile) .sidebar-user-card {
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+  .dashboard-container > .sidebar.open:not(.is-mobile) .sidebar-user-card:hover {
+    background: rgba(255, 255, 255, 0.13);
+  }
+
+  /* scroll do menu discreto (sem a barra cinzenta do sistema) */
+  .dashboard-container > .sidebar:not(.is-mobile) .sidebar-scroll {
+    overflow-x: hidden; /* só scroll vertical (encolhida, aparecia uma barra horizontal) */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  }
+  .dashboard-container > .sidebar:not(.is-mobile) .sidebar-scroll::-webkit-scrollbar { width: 6px; height: 0; }
+  .dashboard-container > .sidebar:not(.is-mobile) .sidebar-scroll::-webkit-scrollbar-thumb { border-radius: 6px; background: rgba(255, 255, 255, 0.22); }
+  .dashboard-container > .sidebar:not(.is-mobile) .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* ecrãs entre 901 e 1024px: as páginas têm 18px de espaçamento (dashboard.css) */
+@media (min-width: 901px) and (max-width: 1024px) {
+  .dashboard-container > .sidebar:not(.is-mobile) { --sv-topo: 18px; }
+}
+
+/* ---------------------------------------------------------------------
+   Sidebar ABERTA: ao mudar de item, um reflexo de luz atravessa o
+   destaque e o ícone novo dá um pequeno salto
+   --------------------------------------------------------------------- */
+@media (min-width: 901px) {
+  .dashboard-container > .sidebar:not(.is-mobile) .sidebar-active-pill { overflow: hidden; }
+  .dashboard-container > .sidebar:not(.is-mobile) .sidebar-active-pill.is-moving::after {
+    background:
+      linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.45) 48%, rgba(255, 255, 255, 0.1) 56%, transparent 70%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 55%);
+    background-size: 250% 100%, 100% 100%;
+    background-repeat: no-repeat;
+    animation: svBrilho 0.75s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+  }
+  .dashboard-container > .sidebar:not(.is-mobile) nav ul li.active > a .icon {
+    animation: svIcone 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+}
+@keyframes svBrilho { from { background-position: 120% 0, 0 0; } to { background-position: -40% 0, 0 0; } }
+@keyframes svIcone {
+  0% { transform: scale(0.7) rotate(-12deg); }
+  60% { transform: scale(1.18) rotate(4deg); }
+  100% { transform: scale(1.06); }
+}
+
+/* ---------------------------------------------------------------------
+   Sidebar ENCOLHIDA: bolha do item ativo na aresta (SidebarBolha.jsx)
+   --------------------------------------------------------------------- */
+/* com a bolha, o destaque e o ícone do item ativo saem da sidebar */
+.sidebar.closed.tem-bolha .sidebar-active-pill { opacity: 0 !important; }
+.sidebar.closed.tem-bolha nav ul li.active > a .icon { opacity: 0 !important; transform: scale(0.5) !important; }
+/* a página começa DEPOIS da bolha (que sai ~26px pela aresta): assim nada da
+   página passa por cima dela, seja qual for a camada de cada página */
+@media (min-width: 901px) {
+  .dashboard-container > .sidebar.closed:not(.is-mobile) { margin-right: 30px; }
+}
+/* com o recorte, a sombra e a aresta da sidebar são desenhadas pela capa */
+.sidebar.closed.tem-bolha { box-shadow: none !important; border-color: transparent !important; }
+
+/* por cima de todo o conteúdo das páginas (que usa até --z-app + 7), por baixo das janelas */
+.bz-sb-capa { position: fixed; z-index: calc(var(--z-app) + 8); pointer-events: none; }
+.bz-sb-capa.is-sombra { z-index: calc(var(--z-app) - 1); }
+.bz-sb-capa svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.bz-sb-sombra path { fill: rgba(15, 23, 42, 0.32); filter: blur(16px); transform: translate(4px, 12px); }
+.bz-sb-aresta { fill: none; stroke: rgba(255, 255, 255, 0.16); stroke-width: 1.2; }
+.bz-sb-brilho { fill: none; stroke: url(#bz-sb-grad); stroke-width: 1; opacity: 0.6; }
+
+.bz-sb-bolha {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: calc(var(--z-app) + 9);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  pointer-events: none;
+  /* a cor do tema a 100%; o volume vem só da luz interior e da sombra */
+  background: var(--color-sidebarBg);
+  box-shadow:
+    0 14px 26px -8px color-mix(in srgb, var(--color-sidebarBg) 70%, transparent),
+    0 2px 6px rgba(15, 23, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.18);
+  will-change: transform;
+  opacity: 0;
+}
+.bz-sb-ico { display: grid; place-items: center; animation: svIcone 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.bz-sb-ico svg { width: 21px; height: 21px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-active-pill.is-moving::after, .sidebar nav ul li.active > a .icon, .bz-sb-ico { animation: none !important; }
+}

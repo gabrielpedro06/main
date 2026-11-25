@@ -21,6 +21,7 @@ import { supabase } from "../services/supabase";
 import { generateProposalPDF } from "../components/pdfProposalGenerator";
 import "./../styles/dashboard.css";
 import { confirmar } from "../utils/dialogo";
+import SelectModerno from "../components/SelectModerno";
 
 // ============================================================================
 // CONSTANTES E HELPERS
@@ -2212,7 +2213,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="field-grid">
                   <div className="field span-2">
                     <label>Selecionar Empresa</label>
-                    <select
+                    <SelectModerno
                       value={empresaConsultora.id}
                       onChange={(e) => selectEmpresaConsultora(e.target.value)}
                     >
@@ -2222,12 +2223,12 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           {emp.nome}
                         </option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
 
                   <div className="field">
                     <label>Pessoa da consultora (responsável)</label>
-                    <select
+                    <SelectModerno
                       value={empresaConsultora.signatario_id || ""}
                       onChange={(e) => selectContatoConsultora(e.target.value)}
                       disabled={!empresaConsultora.id}
@@ -2244,7 +2245,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           {c.nome}
                         </option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
 
                   <div className="field">
@@ -2296,11 +2297,11 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                   </div>
                   <div className="field">
                     <label>Estado</label>
-                    <select value={proposta.estado} onChange={setField(setProposta, "estado")}>
+                    <SelectModerno value={proposta.estado} onChange={setField(setProposta, "estado")}>
                       {PROPOSTA_ESTADOS.map((estadoItem) => (
                         <option key={estadoItem.value} value={estadoItem.value}>{estadoItem.label}</option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
                 </div>
               </div>
@@ -2353,14 +2354,14 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="field-grid">
                   <div className="field span-2">
                     <label>Selecionar Cliente</label>
-                    <select value={cliente.id} onChange={(e) => selectCliente(e.target.value)}>
+                    <SelectModerno value={cliente.id} onChange={(e) => selectCliente(e.target.value)}>
                       <option value="">—</option>
                       {clientes.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.nome}
                         </option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
                   <div className="field">
                     <label>NIPC</label>
@@ -2392,7 +2393,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                 <div className="field-grid">
                   <div className="field span-2">
                     <label>Selecionar Contacto</label>
-                    <select
+                    <SelectModerno
                       value={cliente.contacto_id}
                       onChange={(e) => {
                         const contato = contatosCliente.find((c) => String(c.id) === String(e.target.value));
@@ -2413,7 +2414,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           {c.nome}
                         </option>
                       ))}
-                    </select>
+                    </SelectModerno>
                   </div>
                   <div className="field">
                     <label>Cargo</label>
@@ -2781,14 +2782,14 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
                       <div className="field" style={{ marginBottom: "12px", maxWidth: 260 }}>
                         <label>Modo de honorário</label>
-                        <select
+                        <SelectModerno
                           value={item.modo_honorario || "fixo"}
                           onChange={(event) => updateOrcamentoTipoField(item.tipo_projeto_id, "modo_honorario", event.target.value)}
                         >
                           <option value="fixo">Fixo</option>
                           <option value="variavel">Variável</option>
                           <option value="ambos">Ambos</option>
-                        </select>
+                        </SelectModerno>
                       </div>
 
                       {mostrarFixo && (

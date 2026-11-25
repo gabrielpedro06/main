@@ -38,6 +38,8 @@ const normalize = (v) => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, ""
  * @param {string} [props.searchPlaceholder="Procurar…"]
  * @param {string} [props.ariaLabel] obrigatório se não houver <label> visível
  * @param {boolean} [props.disabled] bloqueado (não abre)
+ * @param {React.CSSProperties} [props.style] estilo do botão (ex.: largura/margens vindas de um <select> antigo)
+ * @param {string} [props.id] id do botão (para <label htmlFor>)
  */
 export default function FancySelect({
   value,
@@ -50,6 +52,8 @@ export default function FancySelect({
   searchPlaceholder = "Procurar…",
   ariaLabel,
   disabled = false,
+  style,
+  id,
 }) {
   const triggerRef = useRef(null);
   const listRef = useRef(null);
@@ -130,6 +134,8 @@ export default function FancySelect({
         onClick={() => { if (disabled) return; if (open) close(); else openMenu(); }}
         onKeyDown={(e) => { if (!disabled && !open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); openMenu(); } }}
         disabled={disabled}
+        style={style}
+        id={id}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}

@@ -182,3 +182,66 @@
 @media (prefers-reduced-motion: reduce) {
   .fs-menu, .fs-option, .fs-opt-check { animation: none; }
 }
+
+/* ---------- SelectModerno (components/SelectModerno.jsx): <select> antigo → FancySelect ---------- */
+/* o invólucro não conta para o layout: o botão comporta-se como o <select> que substituiu */
+.sm-wrap { display: contents; }
+.fs-trigger.sm-trigger { min-width: 0; max-width: 100%; }
+.fs-trigger.sm-trigger.pd-select { min-width: 190px; }
+/* as classes antigas dos <select> traziam uma seta desenhada no fundo: o FancySelect já tem a sua */
+.fs-trigger.sm-trigger:is(.pd-select, .pd-input) {
+  background-image: none !important;
+  background-color: var(--pd-field-bg, #fff) !important;
+  padding-right: 12px;
+  text-align: left;
+}
+/* modo de leitura do detalhe do projeto: parece texto, sem seta */
+.pd-form.is-reading .fs-trigger.sm-trigger { padding: 0; height: auto; min-height: 0; border-color: transparent !important; background-color: transparent !important; cursor: default; }
+.pd-form.is-reading .fs-trigger.sm-trigger .fs-caret { display: none; }
+/* campo escondido só para a validação "obrigatório" do formulário */
+.sm-validacao { position: absolute; left: 50%; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+
+/* ---------- SelectModerno nos sítios onde a página tinha estilos próprios para o <select> ---------- */
+/* o seletor novo nunca leva a "seta desenhada no fundo" dos <select> antigos (já tem a sua) */
+.fs-trigger.sm-trigger { background-image: none !important; }
+
+/* barras de filtros da Administração */
+.adm-filters .fs-trigger.sm-trigger {
+  height: 38px; padding: 0 12px; border: 1px solid var(--adm-line); border-radius: 11px;
+  font-size: 0.85rem; font-weight: 700; color: var(--adm-ink); background-color: var(--adm-soft);
+}
+/* Agenda (cabeçalho escuro e seletor de pessoa): o seletor fica "transparente" dentro da pílula, que já tem a seta */
+.ag-select .fs-trigger.sm-trigger,
+.ag-person-select .fs-trigger.sm-trigger {
+  height: auto; min-height: 0; padding: 0 22px 0 0; border: 0 !important; background-color: transparent !important;
+  box-shadow: none !important; font-size: 0.86rem; font-weight: 700; color: inherit;
+}
+.ag-select .fs-trigger.sm-trigger { color: #fff; max-width: 260px; }
+.ag-person-select .fs-trigger.sm-trigger { color: var(--ag-ink); font-size: 0.88rem; }
+.ag-select .fs-trigger.sm-trigger .fs-caret,
+.ag-person-select .fs-trigger.sm-trigger .fs-caret { display: none; }
+@media (max-width: 760px) { .ag-select .fs-trigger.sm-trigger { max-width: none; flex: 1; } }
+/* Ativos TI: ordenar */
+.ti-sort .fs-trigger.sm-trigger {
+  height: 100%; padding: 0 6px; border: 0 !important; background-color: transparent !important; box-shadow: none !important;
+  font-size: 0.82rem; font-weight: 800; color: var(--ti-text);
+}
+/* Marketing: tipo de anexo (pequeno) */
+:is(.mk-anexo-txt, .mk-anexos-drop) .fs-trigger.sm-trigger {
+  height: 22px; padding: 0 6px; gap: 4px; border: 1px solid var(--mk-line); border-radius: 6px; background-color: #f8fafc;
+  font-size: 0.7rem; font-weight: 800; color: var(--mk-muted);
+}
+:is(.mk-anexo-txt, .mk-anexos-drop) .fs-trigger.sm-trigger .fs-caret svg { width: 11px; height: 11px; }
+/* Projetos: filtros da vista geral e "por página" */
+.po-vg-field .fs-trigger.sm-trigger {
+  height: 38px; padding: 0 11px; border-radius: 11px; border: 1.5px solid var(--po-field-line); background-color: var(--po-field-bg);
+  font-size: 0.82rem; font-weight: 700; color: var(--po-ink); max-width: 230px;
+}
+.po-vg-field.is-inline .fs-trigger.sm-trigger { height: 40px; }
+.po-vg-perpage .fs-trigger.sm-trigger {
+  height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--po-line); background-color: #fff;
+  font-size: 0.8rem; font-weight: 700; color: var(--po-ink);
+}
+@media (max-width: 760px) { .po-vg-field .fs-trigger.sm-trigger { max-width: none; width: 100%; } }
+/* formulários genéricos (.field) */
+.field .fs-trigger.sm-trigger { width: 100%; }

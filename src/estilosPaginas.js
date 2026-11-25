@@ -37,6 +37,7 @@ import "./styles/marketing.css";
 import "./styles/profile.css";
 import "./styles/seguranca-mfa.css";
 import "./styles/admin.css";
+import "./styles/admin-separadores.css";
 import "./styles/templates.css";
 import "./styles/programas.css";
 import "./pages/gestao.css";

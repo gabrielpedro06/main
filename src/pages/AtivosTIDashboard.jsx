@@ -16,6 +16,7 @@ import FancySelect from "../components/FancySelect";
 import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../utils/cofre";
 import "../styles/ativos-ti.css";
 import { registarEvento } from "../utils/registarEvento";
+import SelectModerno from "../components/SelectModerno";
 
 /* ------------------------------------------------------------------ */
 /* Ícones SVG                                                         */
@@ -1361,14 +1362,14 @@ export default function AtivosTIDashboard() {
                   </label>
                   <div className="ti-sort">
                     <Icons.Sort size={15} />
-                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Ordenar">
+                    <SelectModerno value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Ordenar">
                       <option value="inv_desc">Inventário (recente primeiro)</option>
                       <option value="inv_asc">Inventário (antigo primeiro)</option>
                       <option value="modelo">Modelo A–Z</option>
                       <option value="colab">Colaborador A–Z</option>
                       <option value="garantia">Garantia a terminar</option>
                       <option value="recentes">Adicionados recentemente</option>
-                    </select>
+                    </SelectModerno>
                   </div>
                   <div className="ti-seg">
                     <button type="button" className={equipView === "lista" ? "is-on" : ""} onClick={() => setEquipView("lista")} title="Lista"><Icons.List size={15} /><span>Lista</span></button>

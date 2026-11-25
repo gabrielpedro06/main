@@ -508,3 +508,86 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root { --jn-vidro: var(--color-bgSecondary, #fff); --jn-vidro-forte: var(--color-bgSecondary, #fff); }
 }
+
+/* ---------------------------------------------------------------------
+   7. Peças extra das janelas novas (components/Janela.jsx)
+   --------------------------------------------------------------------- */
+.jn-cabecalho-ico:is(.is-danger):not(#jn) { --jn-acento: var(--jn-perigo); }
+.jn-cabecalho-ico:is(.is-ok):not(#jn) { --jn-acento: var(--jn-sucesso); }
+
+/* campos: realce ao escrever (o contorno vem do tema) */
+.jn-corpo :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not(:disabled):focus {
+  outline: none;
+  border-color: var(--jn-acento) !important; /* alguns campos antigos trazem a borda no estilo inline */
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--jn-acento) 16%, transparent);
+}
+
+/* "Escreve X para confirmar" (ações perigosas) */
+.jn-confirmar-texto {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  text-align: left;
+  background: color-mix(in srgb, var(--jn-perigo) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jn-perigo) 22%, transparent);
+}
+.jn-confirmar-texto > span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jn-perigo);
+}
+.jn-confirmar-texto > p { margin: 0 0 10px; font-size: 0.86rem; color: var(--jn-suave); }
+.jn-confirmar-texto > input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--jn-tinta) 14%, transparent);
+  background: #fff;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--jn-tinta);
+}
+.jn-confirmar-texto > input:focus {
+  outline: none;
+  border-color: var(--jn-perigo);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--jn-perigo) 15%, transparent);
+}
+
+/* Assistente "Novo projeto" (Projetos.jsx): passos por baixo do cabeçalho */
+.pj-wizard:not(#jn) { min-height: min(650px, 88dvh); }
+.pj-wizard-passos {
+  flex: none;
+  display: flex;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--jn-linha);
+  background: color-mix(in srgb, var(--jn-tinta) 2%, transparent);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pj-wizard-passos::-webkit-scrollbar { display: none; }
+.pj-wizard .jn-corpo:not(#jn) { flex: 1; }
+
+/* Nota/lista dentro de uma confirmação (ex.: aviso do Cartão de Cidadão) */
+.jn-caixa-nota {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--jn-suave);
+  background: color-mix(in srgb, var(--jn-tinta) 4%, transparent);
+  border: 1px solid var(--jn-linha);
+}
+.jn-caixa-nota ul { margin: 6px 0 0; padding-left: 20px; color: var(--jn-tinta); }
+
+/* Janelas antigas convertidas só na moldura (TransferGest, Administração, Cursos, assiduidade):
+   o conteúdo é o de sempre; a caixa faz scroll se for mais alta do que o ecrã */
+.jn-caixa.jn-simples:not(#jn) { overflow-y: auto; }
+.jn-caixa.jn-simples:not(#jn) h3 { letter-spacing: -0.01em; }

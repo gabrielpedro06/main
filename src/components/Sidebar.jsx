@@ -6,6 +6,7 @@ import { abrirComando, ATALHO_COMANDO } from "../utils/comando";
 import { supabase } from "../services/supabase"; 
 import WidgetCalendar from "./WidgetCalendar"; 
 import AccountMenu from "./AccountMenu";
+import SidebarBolha from "./SidebarBolha";
 import "./../styles/dashboard.css";
 import { clicavel } from "../utils/clicavel";
 
@@ -299,6 +300,7 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
   // Um único "pill" absoluto que se move (e estica) entre itens do menu.
   const navListRef = useRef(null);
   const pillRef = useRef(null);
+  const asideRef = useRef(null);
   const lastPillPos = useRef(null);
 
   const positionPill = useCallback((animate) => {
@@ -389,7 +391,7 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
 
   return (
     <>
-      <aside className={`sidebar ${menuOpen ? "open" : "closed"} ${isMobile ? "is-mobile" : ""}`} style={{ display: 'flex', flexDirection: 'column', height: 'calc(100 * var(--bz-vh, 1vh))', zIndex: "var(--z-app)" }}>
+      <aside ref={asideRef} className={`sidebar ${menuOpen ? "open" : "closed"} ${isMobile ? "is-mobile" : ""}`} style={{ display: 'flex', flexDirection: 'column', height: 'calc(100 * var(--bz-vh, 1vh))', zIndex: "var(--z-app)" }}>
         
         {/* 💡 LOGO CONTAINER TRANSFORMA-SE NO BOTÃO DE TOGGLE */}
         <div 
@@ -764,6 +766,8 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
     .sidebar-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 `}</style>
       </aside>
+      {/* Sidebar encolhida: o item ativo numa bolha com recorte, como a barra do telemóvel */}
+      <SidebarBolha asideRef={asideRef} ligada={!menuOpen && !isMobile} chave={location.pathname} />
 
       {/* --- MODAL DO CALENDÁRIO --- */}
       {showCalendarModal && (
