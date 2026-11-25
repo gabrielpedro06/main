@@ -14,6 +14,8 @@
 // Só para rato (no toque não há hover).
 // =====================================================================
 
+import { zoomUI } from "./tamanhoInterface";
+
 let instalado = false;
 
 export function instalarTrianguloSeguro() {
@@ -57,8 +59,9 @@ export function instalarTrianguloSeguro() {
     clearTimeout(timer);
     timer = null;
     const r = painel.getBoundingClientRect();
-    const altura = Math.max(0, Math.round(e.clientY - r.bottom));
-    painel.style.setProperty("--st-x", `${Math.round(e.clientX - r.left)}px`);
+    const z = zoomUI(); // medidas do ecrã → px de CSS (tamanho da interface)
+    const altura = Math.max(0, Math.round((e.clientY - r.bottom) / z));
+    painel.style.setProperty("--st-x", `${Math.round((e.clientX - r.left) / z)}px`);
     painel.style.setProperty("--st-h", `${altura}px`);
   }, { passive: true });
 }

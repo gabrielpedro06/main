@@ -41,6 +41,7 @@ import { confirmar } from "../utils/dialogo";
 import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
+import { rectCss, larguraEcra } from "../utils/tamanhoInterface";
 // --- ÍCONES SVG PROFISSIONAIS COMPLETOS ---
 const Icons = {
   Building: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
@@ -2110,7 +2111,7 @@ export default function ProjetoDetalhe() {
       return false; 
   };
 
-  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'80vh'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
+  if (loading) return <div className="page-container" style={{display:'flex', justifyContent:'center', alignItems:'center', height:'calc(80 * var(--bz-vh, 1vh))'}}><div className="pulse-dot-white" style={{background:'var(--color-btnPrimary)'}}></div></div>;
   if (!projeto) return <div className="page-container"><p>Projeto não encontrado.</p><button onClick={() => navigate(-1)}>Voltar</button></div>;
     const entidadesFin = [...new Set(
     [projeto.cliente_id, ...(projeto.is_parceria ? normalizeIdsList(projeto.parceiros_ids) : [])]
@@ -2653,7 +2654,7 @@ export default function ProjetoDetalhe() {
           ))}
       </nav>
 
-      <div style={{minHeight: '50vh'}}>
+      <div style={{minHeight: 'calc(50 * var(--bz-vh, 1vh))'}}>
 
         {activeTab === 'execucao' && (() => {
             const liderId = String(projeto.cliente_id || "");
@@ -2902,7 +2903,7 @@ export default function ProjetoDetalhe() {
                                                                 <span
                                                                     className="pd-ftable-info"
                                                                     onMouseEnter={(e) => {
-                                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                                        const rect = rectCss(e.currentTarget);
                                                                         setInfoTooltip({ x: rect.left + rect.width / 2, y: rect.bottom + 8, criadorNome, criadoEm });
                                                                     }}
                                                                     onMouseLeave={() => setInfoTooltip(null)}
@@ -4328,7 +4329,7 @@ export default function ProjetoDetalhe() {
       {atividadeModal.show && atividadeModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
-                  <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(600px, 92vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
+                  <div className="custom-scrollbar" style={{background: 'white', padding: '24px', borderRadius: '16px', width: 'min(600px, calc(92 * var(--bz-vw, 1vw)))', maxHeight: 'calc(88 * var(--bz-vh, 1vh))', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.ClipboardList size={20} color="var(--color-btnPrimary)" /> Editar Atividade</h3>
                           <button aria-label="Fechar" onClick={() => setAtividadeModal({show:false, data:null})} style={{background:'none', border:'none', fontSize:'1.2rem', color:'#64748b', cursor:'pointer'}}>✕</button>
@@ -4494,7 +4495,7 @@ export default function ProjetoDetalhe() {
       {tarefaModal.show && tarefaModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
-                  <div className="custom-scrollbar" style={{background: 'white', padding: '32px', borderRadius: '18px', width: 'min(700px, 98vw)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
+                  <div className="custom-scrollbar" style={{background: 'white', padding: '32px', borderRadius: '18px', width: 'min(700px, calc(98 * var(--bz-vw, 1vw)))', maxHeight: 'calc(88 * var(--bz-vh, 1vh))', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Eye size={20} color="var(--color-btnPrimary)" /> Detalhes da Tarefa</h3>
                           <button aria-label="Fechar" onClick={() => { setTarefaModal({show:false, data:null, atividadeNome:''}); setTarefaFileToUpload(null); }} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -4775,7 +4776,7 @@ export default function ProjetoDetalhe() {
       {subtarefaModal.show && subtarefaModal.data && (
           <ModalPortal>
               <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 5)"}}>
-                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: 'min(500px, 92vw)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
+                  <div style={{background: 'white', padding: '30px', borderRadius: '16px', width: 'min(500px, calc(92 * var(--bz-vw, 1vw)))', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
                       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
                           <h3 style={{margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Check size={20} color="var(--color-btnPrimary)" /> Detalhes do Passo</h3>
                           <button aria-label="Fechar" onClick={() => setSubtarefaModal({show:false, data:null, tarefaNome:''})} style={{background:'none', border:'none', cursor:'pointer'}} className="hover-red-text"><Icons.Close size={20} /></button>
@@ -4814,7 +4815,7 @@ export default function ProjetoDetalhe() {
         <div style={{
             position: 'fixed',
             top: infoTooltip.y,
-            left: clamp(infoTooltip.x, 120, window.innerWidth - 120),
+            left: clamp(infoTooltip.x, 120, larguraEcra() - 120),
             transform: 'translateX(-50%)',
             width: '210px',
             background: '#1e293b',

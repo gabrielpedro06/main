@@ -7,6 +7,7 @@ export const JANELAS = [
   "modal-overlay", "pa-overlay", "pd-overlay", "pf-crop-overlay", "pf-dialog-overlay", "po-overlay",
   "rh-overlay", "ti-confirm-overlay", "ti-detail-overlay", "ti-overlay", "tk-overlay", "pp-overlay",
   "cm-fundo", "bz-theme-overlay", "bz-account-backdrop", "np-backdrop", "fs-backdrop",
+  "jn-fundo", "sgm-back", "pdfo-dialog-back", "apv-dialog",
 ];
 
 export const SELETOR_JANELAS = `${JANELAS.map((c) => `.${c}`).join(",")},[data-janela]`;

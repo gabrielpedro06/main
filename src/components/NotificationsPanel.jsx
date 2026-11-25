@@ -3,6 +3,7 @@
 // Estilos .np-* em home.css.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { rectCss, larguraEcra } from "../utils/tamanhoInterface";
 
 const I = {
   Rocket: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" /><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" /><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" /><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" /></svg>,
@@ -87,9 +88,9 @@ export default function NotificationsPanel({ open, onClose, anchorRef, items = [
       setIsMobile(mobile);
       const anchor = anchorRef?.current;
       if (mobile || !anchor) return;
-      const r = anchor.getBoundingClientRect();
-      const width = Math.min(PANEL_WIDTH, window.innerWidth - 24);
-      const left = Math.min(Math.max(12, r.left), window.innerWidth - width - 12);
+      const r = rectCss(anchor);
+      const width = Math.min(PANEL_WIDTH, larguraEcra() - 24);
+      const left = Math.min(Math.max(12, r.left), larguraEcra() - width - 12);
       setPos({ top: r.bottom + 10, left, width, arrowLeft: Math.max(18, r.left + r.width / 2 - left) });
     };
     update();

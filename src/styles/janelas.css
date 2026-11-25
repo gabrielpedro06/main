@@ -1,0 +1,510 @@
+/* =====================================================================
+   JANELAS — design único para todas as janelas (modais) da app, em vidro.
+   ---------------------------------------------------------------------
+   A app tinha ~30 janelas, cada uma com o seu canto, sombra, cabeçalho,
+   botões e animação. Esta camada aplica a MESMA "moldura" a todas, sem
+   mudar o conteúdo nem a funcionalidade de cada uma:
+     · fundo escurecido e desfocado (cortina)
+     · caixa em vidro fosco, cantos 24px, aresta de luz, sombra única
+     · cabeçalho: ícone + título + botão fechar sempre iguais
+     · rodapé: botões alinhados à direita, com os mesmos tamanhos e cores
+     · confirmações ("Apagar?"): ícone, título, texto e botões ao centro
+     · no telemóvel, os formulários abrem como folha que sobe de baixo
+   Famílias (listas abaixo): CONFIRMAÇÕES, FORMULÁRIOS e PAINÉIS LATERAIS
+   (os painéis laterais só herdam a cortina).
+
+   Janela nova: usar components/Janela.jsx (já nasce com este design), ou
+   acrescentar as classes da janela às listas abaixo.
+
+   Nota técnica: os seletores usam :not(#jn) para ganharem aos estilos
+   antigos de cada página (que continuam nos seus ficheiros) sem !important.
+   Carregado por último em main.jsx.
+   ===================================================================== */
+
+:root {
+  --jn-raio: 24px;
+  --jn-raio-peq: 14px;
+  --jn-vidro: color-mix(in srgb, var(--color-bgSecondary, #ffffff) 88%, transparent);
+  --jn-vidro-forte: color-mix(in srgb, var(--color-bgSecondary, #ffffff) 92%, transparent);
+  --jn-aresta: color-mix(in srgb, #ffffff 55%, transparent);
+  --jn-linha: color-mix(in srgb, var(--color-textPrimary, #0f172a) 8%, transparent);
+  --jn-tinta: var(--color-textPrimary, #0f172a);
+  --jn-suave: color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent);
+  --jn-acento: var(--color-btnPrimary, #2563eb);
+  --jn-perigo: #dc2626;
+  --jn-sucesso: #16a34a;
+  --jn-sombra:
+    0 50px 100px -30px rgba(15, 23, 42, 0.55),
+    0 16px 36px -18px rgba(15, 23, 42, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  --jn-mola: cubic-bezier(0.2, 0.9, 0.3, 1.12);
+}
+
+/* ---------------------------------------------------------------------
+   0. Estrutura das janelas novas (components/Janela.jsx)
+   --------------------------------------------------------------------- */
+.jn-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal, 1000) + 5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.jn-caixa {
+  width: 100%;
+  max-height: min(88dvh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  outline: none;
+}
+.jn-caixa.is-confirmacao { display: block; overflow: visible; }
+.jn-cabecalho-txt { flex: 1; min-width: 0; }
+.jn-corpo { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+/* ---------------------------------------------------------------------
+   1. CORTINA (fundo de todas as janelas, incluindo painéis laterais)
+   --------------------------------------------------------------------- */
+:is(
+  .jn-fundo, .dlg-overlay, .ab-overlay, .af-overlay, .ag-overlay, .apv-overlay, .apv-dialog, .cc-overlay,
+  .en-overlay, .fx-overlay:not(.fx-overlay-chat), .gm-overlay, .mk-modal-overlay, .mk-overlay, .modal-overlay,
+  .pa-overlay, .pd-overlay, .pf-dialog-overlay, .po-overlay, .rh-overlay, .ti-confirm-overlay,
+  .ti-detail-overlay, .ti-overlay, .tk-overlay, .sgm-back, .pdfo-dialog-back
+):not(#jn) {
+  background:
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--jn-acento) 14%, transparent), transparent 60%),
+    rgba(15, 23, 42, 0.28);
+  -webkit-backdrop-filter: blur(10px) saturate(1.25);
+  backdrop-filter: blur(10px) saturate(1.25);
+  animation: jnCortina 0.22s ease both;
+}
+@keyframes jnCortina { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------------------------------------------------------------------
+   2. CAIXA (confirmações + formulários)
+   --------------------------------------------------------------------- */
+:is(
+  /* confirmações */
+  .jn-caixa, .dlg-box, .ab-dialog, .ag-dialog, .fx-dialog, .gm-dialog, .pa-confirm, .pf-dialog, .po-dialog,
+  .rh-confirm, .ti-confirm, .tk-dialog, .cc-modal, .sgm-dialog, .pdfo-dialog, .apv-dialog-box,
+  /* formulários */
+  .ab-modal, .af-modal, .ag-modal, .apv-modal, .fx-modal, .gm-modal, .mk-modal, .modal-content,
+  .pa-modal, .pd-modal, .po-modal, .rh-modal, .tk-modal
+):not(#jn) {
+  border-radius: var(--jn-raio);
+  border: 1px solid var(--jn-aresta);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.08) 160px),
+    var(--jn-vidro);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  backdrop-filter: blur(28px) saturate(1.8);
+  box-shadow: var(--jn-sombra);
+  color: var(--jn-tinta);
+  animation: jnEntra 0.34s var(--jn-mola) both;
+}
+@keyframes jnEntra {
+  from { opacity: 0; transform: translateY(16px) scale(0.965); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------------------
+   3. FORMULÁRIOS: cabeçalho, corpo, rodapé
+   --------------------------------------------------------------------- */
+/* cabeçalho */
+:is(
+  .jn-cabecalho, .ab-modal-head, .af-modal-head, .ag-modal-head, .fx-modal-head, .gm-modal-head,
+  .pa-modal-head, .pd-modal-head, .po-modal-head, .rh-modal-head, .tk-modal-head
+):not(#jn) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px 16px;
+  margin: 0;
+  background: transparent;
+  color: var(--jn-tinta);
+  border-bottom: 1px solid var(--jn-linha);
+  border-radius: var(--jn-raio) var(--jn-raio) 0 0;
+}
+/* título e subtítulo do cabeçalho */
+:is(
+  .jn-cabecalho, .ab-modal-head, .af-modal-head, .ag-modal-head, .fx-modal-head, .gm-modal-head,
+  .pa-modal-head, .pd-modal-head, .po-modal-head, .rh-modal-head, .tk-modal-head, .mk-modal-head
+):not(#jn) :is(h2, h3, .af-modal-title, .pa-modal-title, .rh-modal-title) {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: var(--jn-tinta);
+  text-wrap: balance;
+}
+:is(
+  .jn-cabecalho, .ab-modal-head, .af-modal-head, .ag-modal-head, .fx-modal-head, .gm-modal-head,
+  .pa-modal-head, .pd-modal-head, .po-modal-head, .rh-modal-head, .tk-modal-head, .mk-modal-head
+):not(#jn) :is(h2, h3) + :is(p, span, small) {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--jn-suave);
+}
+/* textos secundários do cabeçalho (alguns cabeçalhos eram escuros, com texto branco) */
+:is(.af-modal-title, .pa-modal-title, .rh-modal-title, .tk-modal-titles, .po-modal-titles):not(#jn) > :is(small, p) {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--jn-suave);
+}
+.af-modal-title:not(#jn) > div { color: var(--jn-suave); }
+.af-modal-title:not(#jn) .af-code.is-light {
+  background: color-mix(in srgb, var(--jn-acento) 12%, transparent);
+  color: var(--jn-acento);
+}
+/* "sobretítulo" pequeno em maiúsculas por cima do título */
+:is(.af-modal-title, .pa-modal-title, .rh-modal-title):not(#jn) > span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jn-acento);
+}
+
+/* ícone do cabeçalho */
+:is(
+  .jn-cabecalho-ico, .ab-modal-icon, .af-modal-ico, .ag-modal-icon, .gm-modal-icon, .pa-modal-ico,
+  .pd-modal-icon, .po-modal-icon, .rh-modal-ico, .tk-modal-icon
+):not(#jn) {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--jn-raio-peq);
+  color: var(--jn-acento);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 70%),
+    color-mix(in srgb, var(--jn-acento) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--jn-acento) 18%, transparent);
+}
+:is(
+  .jn-cabecalho-ico, .ab-modal-icon, .af-modal-ico, .ag-modal-icon, .gm-modal-icon, .pa-modal-ico,
+  .pd-modal-icon, .po-modal-icon, .rh-modal-ico, .tk-modal-icon
+):not(#jn) svg { width: 21px; height: 21px; }
+
+/* botão fechar (×) */
+:is(.jn-fechar, .af-modal-close, .pa-modal-close, .rh-modal-close, .ag-close, .fx-close, .po-close, .tk-close):not(#jn) {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--jn-tinta) 6%, transparent);
+  color: var(--jn-suave);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.25s var(--jn-mola);
+}
+:is(.jn-fechar, .af-modal-close, .pa-modal-close, .rh-modal-close, .ag-close, .fx-close, .po-close, .tk-close):not(#jn):hover {
+  background: color-mix(in srgb, var(--jn-tinta) 11%, transparent);
+  color: var(--jn-tinta);
+  transform: rotate(90deg);
+}
+
+/* corpo */
+:is(
+  .jn-corpo, .ab-modal-body, .af-modal-body, .ag-modal-body, .fx-modal-body, .gm-modal-body,
+  .pa-modal-body, .pd-modal-body, .po-modal-body, .rh-modal-body, .tk-modal-body
+):not(#jn) {
+  padding: 18px 22px;
+  background: transparent;
+}
+
+/* rodapé */
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot,
+  .pa-modal-foot, .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot
+):not(#jn) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  margin: 0;
+  border-top: 1px solid var(--jn-linha);
+  background: color-mix(in srgb, var(--jn-tinta) 2.5%, transparent);
+  border-radius: 0 0 var(--jn-raio) var(--jn-raio);
+}
+
+/* ---------------------------------------------------------------------
+   4. CONFIRMAÇÕES: tudo ao centro
+   --------------------------------------------------------------------- */
+:is(
+  .jn-caixa.is-confirmacao, .dlg-box, .ab-dialog, .ag-dialog, .fx-dialog, .gm-dialog, .pa-confirm, .pf-dialog,
+  .po-dialog, .rh-confirm, .ti-confirm, .tk-dialog, .cc-modal, .sgm-dialog, .pdfo-dialog, .apv-dialog-box
+):not(#jn) {
+  width: min(420px, 100%);
+  padding: 28px 26px 22px;
+  text-align: center;
+}
+:is(
+  .jn-caixa.is-confirmacao, .dlg-box, .ab-dialog, .ag-dialog, .fx-dialog, .gm-dialog, .pa-confirm, .pf-dialog,
+  .po-dialog, .rh-confirm, .ti-confirm, .tk-dialog, .cc-modal, .sgm-dialog, .pdfo-dialog, .apv-dialog-box
+):not(#jn) > :is(h2, h3) {
+  margin: 0;
+  font-size: 1.14rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: var(--jn-tinta);
+  text-wrap: balance;
+}
+:is(
+  .jn-caixa.is-confirmacao, .dlg-box, .ab-dialog, .ag-dialog, .fx-dialog, .gm-dialog, .pa-confirm, .pf-dialog,
+  .po-dialog, .rh-confirm, .ti-confirm, .tk-dialog, .cc-modal, .sgm-dialog, .pdfo-dialog, .apv-dialog-box
+):not(#jn) > p {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--jn-suave);
+  text-wrap: pretty;
+}
+/* ícone grande */
+:is(
+  .jn-caixa-ico, .dlg-icon, .ab-dialog-icon, .ag-dialog-icon, .fx-dialog-icon, .gm-dialog-icon, .pa-confirm-ico,
+  .pf-dialog-icon, .po-dialog-icon, .rh-confirm-ico, .ti-confirm-ico, .tk-dialog-icon, .cc-modal-ico,
+  .sgm-dialog-ico, .pdfo-dialog-ico
+):not(#jn) {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--jn-acento);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 70%),
+    color-mix(in srgb, var(--jn-acento) 15%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--jn-acento) 20%, transparent),
+    0 10px 22px -12px color-mix(in srgb, var(--jn-acento) 60%, transparent);
+}
+:is(
+  .jn-caixa-ico, .dlg-icon, .ab-dialog-icon, .ag-dialog-icon, .fx-dialog-icon, .gm-dialog-icon, .pa-confirm-ico,
+  .pf-dialog-icon, .po-dialog-icon, .rh-confirm-ico, .ti-confirm-ico, .tk-dialog-icon, .cc-modal-ico,
+  .sgm-dialog-ico, .pdfo-dialog-ico
+):not(#jn) svg { width: 24px; height: 24px; }
+/* tons do ícone: perigo (apagar, recusar), sucesso, informação */
+:is(.dlg-icon, .ab-dialog-icon, .ag-dialog-icon, .fx-dialog-icon, .gm-dialog-icon, .pa-confirm-ico, .pf-dialog-icon,
+    .po-dialog-icon, .rh-confirm-ico, .ti-confirm-ico, .tk-dialog-icon, .cc-modal-ico, .sgm-dialog-ico, .pdfo-dialog-ico,
+    .jn-caixa-ico):is(.is-danger, .is-bad, .is-red, .is-perigo):not(#jn),
+:is(.ab-dialog, .ag-dialog, .fx-dialog, .gm-dialog, .pa-confirm, .ti-confirm, .pdfo-dialog):is(.is-danger, .is-danger-tone):not(#jn) :is(.ab-dialog-icon, .ag-dialog-icon, .fx-dialog-icon, .gm-dialog-icon, .pa-confirm-ico, .ti-confirm-ico, .pdfo-dialog-ico) {
+  --jn-acento: var(--jn-perigo);
+}
+:is(.rh-confirm-ico, .tk-dialog-icon, .jn-caixa-ico):is(.is-ok, .is-success, .is-sucesso):not(#jn) { --jn-acento: var(--jn-sucesso); }
+:is(.dlg-icon, .jn-caixa-ico):is(.is-info):not(#jn) { --jn-acento: #0284c7; }
+
+/* botões das confirmações */
+:is(
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 22px;
+}
+
+/* ---------------------------------------------------------------------
+   5. BOTÕES dentro das janelas (rodapés e confirmações): o mesmo botão
+   em todo o lado. Variantes lidas das classes que cada página já usa.
+   --------------------------------------------------------------------- */
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a) {
+  --b-fundo: color-mix(in srgb, var(--jn-tinta) 6%, rgba(255, 255, 255, 0.55));
+  --b-tinta: var(--jn-tinta);
+  --b-aresta: color-mix(in srgb, var(--jn-tinta) 11%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 112px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 13px;
+  border: 1px solid var(--b-aresta);
+  background: var(--b-fundo);
+  color: var(--b-tinta);
+  font: inherit;
+  font-size: 0.89rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.18s var(--jn-mola), filter 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a) svg { width: 17px; height: 17px; flex: none; }
+/* principal (Guardar, Criar, Confirmar…) */
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a):is([class*="primary"], [class*="is-brand"], [type="submit"]:not([class*="ghost"]):not([class*="danger"]):not([class*="is-bad"])) {
+  --b-fundo: linear-gradient(180deg, color-mix(in srgb, var(--jn-acento) 88%, #fff), var(--jn-acento));
+  --b-tinta: #fff;
+  --b-aresta: color-mix(in srgb, var(--jn-acento) 70%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 20px -12px color-mix(in srgb, var(--jn-acento) 80%, transparent);
+}
+/* perigo (Apagar, Recusar…) */
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a):is([class*="danger"], [class*="is-bad"], [class*="perigo"]) {
+  --b-fundo: linear-gradient(180deg, #ef4444, #dc2626);
+  --b-tinta: #fff;
+  --b-aresta: #b91c1c;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 20px -12px rgba(220, 38, 38, 0.8);
+}
+/* sucesso (Aprovar) */
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a):is(.is-ok, [class*="success"], [class*="sucesso"]) {
+  --b-fundo: linear-gradient(180deg, #22c55e, #16a34a);
+  --b-tinta: #fff;
+  --b-aresta: #15803d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 20px -12px rgba(22, 163, 74, 0.8);
+}
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a):hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a):active:not(:disabled) { transform: scale(0.97); }
+:is(
+  .jn-rodape, .ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+  .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot,
+  .jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+  .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+  .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions
+):not(#jn) > :is(button, a):disabled { opacity: 0.55; cursor: not-allowed; transform: none; filter: none; }
+
+/* ---------------------------------------------------------------------
+   6. TELEMÓVEL: formulários como folha que sobe de baixo; confirmações
+   continuam ao centro, com botões a toda a largura
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  :is(.ab-overlay, .af-overlay, .ag-overlay, .apv-overlay, .fx-overlay:not(.fx-overlay-chat), .gm-overlay,
+      .mk-modal-overlay, .modal-overlay, .pa-overlay, .pd-overlay, .po-overlay, .rh-overlay, .tk-overlay, .jn-fundo)
+    :not(#jn):has(> :is(.ab-modal, .af-modal, .ag-modal, .apv-modal, .fx-modal, .gm-modal, .mk-modal, .modal-content,
+                        .pa-modal, .pd-modal, .po-modal, .rh-modal, .tk-modal, .jn-caixa.is-folha)) {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+  :is(.ab-modal, .af-modal, .ag-modal, .apv-modal, .fx-modal, .gm-modal, .mk-modal, .modal-content,
+      .pa-modal, .pd-modal, .po-modal, .rh-modal, .tk-modal, .jn-caixa.is-folha):not(#jn) {
+    width: 100%;
+    max-width: none;
+    max-height: min(92dvh, 100% - env(safe-area-inset-top) - 12px);
+    margin: 0;
+    border-radius: 26px 26px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 140px),
+      var(--jn-vidro-forte);
+    animation: jnSobe 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* pega para arrastar (a folha fecha a arrastar para baixo: GestosJanelas) */
+  :is(.ab-modal-head, .af-modal-head, .ag-modal-head, .fx-modal-head, .gm-modal-head, .pa-modal-head,
+      .pd-modal-head, .po-modal-head, .rh-modal-head, .tk-modal-head, .jn-cabecalho):not(#jn) {
+    position: relative;
+    padding-top: 26px;
+  }
+  :is(.ab-modal-head, .af-modal-head, .ag-modal-head, .fx-modal-head, .gm-modal-head, .pa-modal-head,
+      .pd-modal-head, .po-modal-head, .rh-modal-head, .tk-modal-head, .jn-cabecalho):not(#jn)::after {
+    content: "";
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 40px;
+    height: 5px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--jn-tinta) 18%, transparent);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  :is(.ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+      .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot, .jn-rodape):not(#jn) {
+    border-radius: 0;
+  }
+  :is(.ab-modal-foot, .af-modal-foot, .ag-modal-foot, .fx-modal-foot, .gm-modal-foot, .pa-modal-foot,
+      .pd-modal-actions, .po-modal-foot, .rh-modal-foot, .tk-modal-foot, .jn-rodape):not(#jn) > :is(button, a) {
+    flex: 1 1 auto;
+  }
+  /* confirmações: botões empilhados a toda a largura (o principal em cima) */
+  :is(.jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+      .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+      .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions):not(#jn) {
+    flex-direction: column-reverse;
+  }
+  :is(.jn-acoes, .dlg-actions, .ab-dialog-actions, .ag-dialog-actions, .fx-dialog-actions, .gm-dialog-actions,
+      .pa-confirm-actions, .po-dialog-actions, .rh-confirm-actions, .ti-confirm-actions, .tk-dialog-actions,
+      .cc-modal-actions, .sgm-dialog-actions, .pdfo-dialog-actions, .apv-dialog-actions):not(#jn) > :is(button, a) {
+    flex: none;
+    width: 100%;
+    height: 48px;
+  }
+}
+@keyframes jnSobe { from { transform: translateY(100%); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.dlg-overlay, .dlg-box, .jn-fundo, .jn-caixa):not(#jn) { animation: none; }
+}
+
+/* Sem suporte de desfoque (browsers antigos): vidro mais opaco para se ler bem */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --jn-vidro: var(--color-bgSecondary, #fff); --jn-vidro-forte: var(--color-bgSecondary, #fff); }
+}

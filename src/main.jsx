@@ -3,6 +3,8 @@
 // Nota: App.jsx volta a envolver tudo noutro <AuthProvider>; os componentes usam o mais interior.
 // PRIMEIRO de tudo: lê o link de recuperação de password antes de o cliente Supabase o apagar do URL
 import './utils/recuperacao'
+// Tamanho da interface (80/90/100%) aplicado antes de desenhar a app
+import './utils/tamanhoInterface'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
@@ -12,6 +14,8 @@ import './styles/main.css'
 import './styles/motion.css'
 import './styles/acessibilidade.css'
 import './styles/refinamentos.css'
+import './styles/tamanho-interface.css'
+import './styles/janelas.css' // design único das janelas (por último: ganha aos estilos antigos)
 import { instalarAberturaSegura } from './utils/ficheirosPrivados'
 import { instalarPlaceholders } from './utils/placeholderImagem'
 import { instalarTrianguloSeguro } from './utils/trianguloSeguro'

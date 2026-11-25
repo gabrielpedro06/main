@@ -1010,7 +1010,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                 <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Nova tarefa/atividade para analise</h3>
                 <button aria-label="Fechar" onClick={acknowledgeIncomingAnalysisAssignments} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
               </div>
-              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: '52vh', overflowY: 'auto'}}>
+              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: 'calc(52 * var(--bz-vh, 1vh))', overflowY: 'auto'}}>
                 <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Recebeste novos itens para analise. Verifica no painel de tarefas.</p>
                 {incomingAnalysisModal.items.map((item) => (
                   <div key={`${item.tipo}-${item.id}`} style={{border: '1px solid var(--color-borderColor)', borderRadius: '10px', background: 'var(--color-bgTertiary)', padding: '10px 12px'}}>
@@ -1038,7 +1038,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                 <h3 style={{margin: 0, color: 'var(--color-btnPrimaryDark)', fontSize: '1.05rem', fontWeight: 800}}>Analises para hoje ou em atraso</h3>
                 <button aria-label="Fechar" onClick={() => setAnalysisFollowUpModal({ open: false, items: [] })} style={{background:'transparent', border:'none', cursor:'pointer', color:'var(--color-btnPrimaryDark)'}}><Icons.Close size={18}/></button>
               </div>
-              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: '55vh', overflowY: 'auto'}}>
+              <div style={{padding: '16px', display: 'grid', gap: '10px', maxHeight: 'calc(55 * var(--bz-vh, 1vh))', overflowY: 'auto'}}>
                 <p style={{margin: 0, color: 'var(--color-btnPrimaryHover)', fontSize: '0.88rem'}}>Confirma o estado dos itens com data expectavel para hoje ou ja ultrapassada: atualiza a data prevista ou marca como concluido.</p>
                 {analysisFollowUpModal.items.map((item) => {
                   const key = `${item.tipo}:${item.id}`;
@@ -1277,7 +1277,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                           <button aria-label="Fechar" onClick={() => setShowStartModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}} className="hover-red-text"><Icons.Close size={20}/></button>
                       </div>
                       
-                      <form onSubmit={confirmStart} style={{display: 'flex', flexDirection: 'column', maxHeight: '80vh'}}>
+                      <form onSubmit={confirmStart} style={{display: 'flex', flexDirection: 'column', maxHeight: 'calc(80 * var(--bz-vh, 1vh))'}}>
                           <div style={{padding: '25px', background: '#fff', overflowY: 'auto', flex: 1}} className="custom-scrollbar">
                               <p style={{color: '#64748b', fontSize: '0.95rem', margin: '0 0 15px 0', lineHeight: '1.5'}}>
                                   Hoje o registo começa direto. As tarefas aparecem apenas no fecho do dia, com base no que foi realmente realizado.
@@ -1328,7 +1328,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                           <button aria-label="Fechar" onClick={() => setShowClockOutModal(false)} style={{background:'transparent', border:'none', cursor:'pointer', color:'#64748b'}} className="hover-red-text"><Icons.Close size={20}/></button>
                       </div>
                       
-                      <form onSubmit={confirmFinish} style={{display: 'flex', flexDirection: 'column', maxHeight: '80vh'}}>
+                      <form onSubmit={confirmFinish} style={{display: 'flex', flexDirection: 'column', maxHeight: 'calc(80 * var(--bz-vh, 1vh))'}}>
                           <div style={{padding: '25px', background: '#fff', overflowY: 'auto', flex: 1}} className="custom-scrollbar">
                               
                               {endOfDayTasks.length > 0 && (

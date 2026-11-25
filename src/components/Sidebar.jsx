@@ -389,7 +389,7 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
 
   return (
     <>
-      <aside className={`sidebar ${menuOpen ? "open" : "closed"} ${isMobile ? "is-mobile" : ""}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', zIndex: "var(--z-app)" }}>
+      <aside className={`sidebar ${menuOpen ? "open" : "closed"} ${isMobile ? "is-mobile" : ""}`} style={{ display: 'flex', flexDirection: 'column', height: 'calc(100 * var(--bz-vh, 1vh))', zIndex: "var(--z-app)" }}>
         
         {/* 💡 LOGO CONTAINER TRANSFORMA-SE NO BOTÃO DE TOGGLE */}
         <div 

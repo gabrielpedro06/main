@@ -266,6 +266,30 @@ path()` ao vidro e às duas `<svg>` (sombra e contorno). O deslizar é uma mola 
 `requestAnimationFrame`. O conteúdo passa por baixo: `.dashboard-main` tem `padding-bottom` em
 mobile. `--bz-bottomnav-h` (76px) é usado pelos avisos e barras fixas para ficarem por cima.
 
+### Janelas (design único, vidro)
+
+`styles/janelas.css` (importado por último em `main.jsx`) aplica a mesma moldura a todas as janelas
+existentes, sem mudar o JSX: cortina desfocada, caixa em vidro (cantos 24px, aresta de luz, sombra
+única), cabeçalho (ícone, título e ×), corpo, rodapé, botões (variantes lidas das classes antigas:
+`*primary*`, `*danger*`/`is-bad`, `is-ok`) e confirmações centradas. No telemóvel (≤640px), os
+formulários abrem como folha que sobe de baixo, com pega. As listas de classes estão no ficheiro,
+por família: confirmações, formulários e painéis laterais (estes só herdam a cortina). Os seletores
+usam `:not(#jn)` para ganharem aos estilos antigos sem `!important`.
+**Janelas novas:** `components/Janela.jsx` (`variante="formulario"|"confirmacao"`), que já nasce com
+este design. Para "Tens a certeza?" simples, usar `confirmar()` (`utils/dialogo.js`).
+
+### Tamanho da interface (80/90/100%, só computador)
+
+`utils/tamanhoInterface.js` (importado no início de `main.jsx`) põe `data-tamanho` no `<html>`.
+`styles/tamanho-interface.css` aplica `zoom` (80% por omissão) a partir de 901px; a escolha fica
+em `localStorage` (`bz-tamanho-interface`) e muda-se no menu da conta. Duas consequências do `zoom`:
+- **Unidades de ecrã:** `100vh` encolheria. O `vite.config.js` reescreve em todo o CSS `Nvh/vw/dvh…`
+  → `calc(N * var(--bz-vh, 1vh))`, e `--bz-vh` compensa o zoom. Nos estilos inline (JSX) usar
+  a mesma forma.
+- **Coordenadas:** `getBoundingClientRect`, `clientX` e `innerWidth` vêm em píxeis do ecrã. Para
+  posicionar com `left/top` usar `rectCss()`, `larguraEcra()`, `alturaEcra()` e `zoomUI()`. Os mapas
+  Leaflet ficam a 100% (zoom inverso).
+
 ### Gestos no telemóvel (voltar fecha / arrastar fecha)
 
 `components/GestosJanelas.jsx` (montado em `Dashboard.jsx`, só em ecrãs ≤ 900px ou de toque) observa o

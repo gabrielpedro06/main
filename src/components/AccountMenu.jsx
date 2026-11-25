@@ -6,6 +6,7 @@ import { useTheme } from "../context/ThemeContext";
 import ThemeSelector from "./ThemeSelector";
 import { seccaoDaRota } from "../content/ajuda";
 import { isNotifySoundEnabled, playNotifySound, setNotifySoundEnabled } from "../utils/notifySound";
+import { rectCss, alturaEcra, lerTamanho, definirTamanho, TAMANHOS } from "../utils/tamanhoInterface";
 
 const Icon = {
   User: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
@@ -16,6 +17,7 @@ const Icon = {
   LogOut: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>,
   Bell: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>,
   BellOff: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M18.63 13A17.89 17.89 0 0 1 18 8" /><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /><path d="M18 8a6 6 0 0 0-9.33-5" /><line x1="1" y1="1" x2="23" y2="23" /></svg>,
+  Text: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h11v2" /><path d="M9.5 5v14" /><path d="M7 19h5" /><path d="M14 12v-1.5h7V12" /><path d="M17.5 10.5V19" /><path d="M16 19h3" /></svg>,
   Close: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
 };
 
@@ -44,6 +46,9 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
   const [position, setPosition] = useState(null);
   const [showThemes, setShowThemes] = useState(false);
   const [soundOn, setSoundOn] = useState(isNotifySoundEnabled);
+  const [tamanho, setTamanho] = useState(lerTamanho);
+  // Só no computador (no telemóvel o tamanho não muda)
+  const [ecraGrande] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(min-width: 901px)").matches);
 
   // Calcula a posição a partir do cartão
   useLayoutEffect(() => {
@@ -51,11 +56,11 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
     const update = () => {
       const anchor = anchorRef.current;
       if (!anchor) return;
-      const rect = anchor.getBoundingClientRect();
+      const rect = rectCss(anchor);
       if (placement === "right") {
-        setPosition({ left: rect.right + 10, bottom: Math.max(8, window.innerHeight - rect.bottom), width: 264 });
+        setPosition({ left: rect.right + 10, bottom: Math.max(8, alturaEcra() - rect.bottom), width: 264 });
       } else {
-        setPosition({ left: rect.left, bottom: window.innerHeight - rect.top + 8, width: Math.max(rect.width, 248) });
+        setPosition({ left: rect.left, bottom: alturaEcra() - rect.top + 8, width: Math.max(rect.width, 248) });
       }
     };
     update();
@@ -145,6 +150,31 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
                 {soundOn ? <Icon.Bell /> : <Icon.BellOff />} Som das notificações
                 <span className={`bz-switch ${soundOn ? "is-on" : ""}`} aria-hidden="true"><span /></span>
               </button>
+              {ecraGrande && (
+                <div className="bz-account-item bz-account-tamanho" role="group" aria-label="Tamanho da interface">
+                  <Icon.Text /> Tamanho
+                  <span className="bz-tamanho-seg">
+                    {TAMANHOS.map((t, i) => (
+                      <button
+                        key={t.valor}
+                        type="button"
+                        className={tamanho === t.valor ? "is-on" : ""}
+                        aria-pressed={tamanho === t.valor}
+                        title={t.label}
+                        aria-label={t.label}
+                        onClick={() => {
+                          definirTamanho(t.valor);
+                          setTamanho(t.valor);
+                          onClose(); // o menu mudou de sítio com o novo tamanho
+                        }}
+                        style={{ fontSize: `${0.7 + i * 0.14}rem` }}
+                      >
+                        A
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="bz-account-group">

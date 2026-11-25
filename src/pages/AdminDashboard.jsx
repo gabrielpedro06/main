@@ -942,7 +942,7 @@ export default function AdminDashboard() {
           style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "24px" }} 
           onClick={(e) => e.target === e.currentTarget && setProjectModalOpen(false)}
         >
-          <div style={{ width: "100%", maxWidth: "800px", maxHeight: "80vh", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
+          <div style={{ width: "100%", maxWidth: "800px", maxHeight: "calc(80 * var(--bz-vh, 1vh))", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid var(--color-borderColor)" }}>
               <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.2rem", fontWeight: 800 }}>Filtrar por Projeto</h3>
@@ -981,7 +981,7 @@ export default function AdminDashboard() {
           style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: "calc(var(--z-modal) + 5)", padding: "24px" }} 
           onClick={(e) => e.target === e.currentTarget && setUserModalOpen(false)}
         >
-          <div style={{ width: "100%", maxWidth: "800px", maxHeight: "80vh", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
+          <div style={{ width: "100%", maxWidth: "800px", maxHeight: "calc(80 * var(--bz-vh, 1vh))", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "16px", border: "1px solid var(--color-borderColor)", boxShadow: "0 24px 48px rgba(15,23,42,0.2)" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px", borderBottom: "1px solid var(--color-borderColor)" }}>
               <h3 style={{ margin: 0, color: "var(--color-textPrimary)", fontSize: "1.2rem", fontWeight: 800 }}>Selecionar Colaborador</h3>

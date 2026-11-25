@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "../styles/fancy-select.css";
+import { rectCss, larguraEcra, alturaEcra } from "../utils/tamanhoInterface";
 
 const Check = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -84,13 +85,13 @@ export default function FancySelect({
   useLayoutEffect(() => {
     if (!open) return undefined;
     const update = () => {
-      const r = triggerRef.current?.getBoundingClientRect();
+      const r = rectCss(triggerRef.current);
       if (!r) return;
-      const width = Math.min(Math.max(menuWidth, r.width), window.innerWidth - 24);
-      const left = Math.min(Math.max(12, r.left), window.innerWidth - width - 12);
-      const spaceBelow = window.innerHeight - r.bottom;
+      const width = Math.min(Math.max(menuWidth, r.width), larguraEcra() - 24);
+      const left = Math.min(Math.max(12, r.left), larguraEcra() - width - 12);
+      const spaceBelow = alturaEcra() - r.bottom;
       const up = spaceBelow < 260 && r.top > spaceBelow;
-      setPos({ left, width, top: up ? undefined : r.bottom + 8, bottom: up ? window.innerHeight - r.top + 8 : undefined, up });
+      setPos({ left, width, top: up ? undefined : r.bottom + 8, bottom: up ? alturaEcra() - r.top + 8 : undefined, up });
     };
     update();
     window.addEventListener("resize", update);

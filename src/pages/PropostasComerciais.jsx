@@ -109,7 +109,7 @@ export default function PropostasComerciais() {
 
   if (isLoading) {
     return (
-      <div className="page-container" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+      <div className="page-container" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "calc(80 * var(--bz-vh, 1vh))" }}>
         <div className="pulse-dot-white" style={{ background: "var(--color-btnPrimary)" }}></div>
       </div>
     );

@@ -3602,7 +3602,7 @@ const exportCurrentOverviewPdf = () => {
       {showModal && (
         <ModalPortal>
           <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(15, 23, 42, 0.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:"calc(var(--z-modal) + 13)"}} onClick={() => setShowModal(false)}>
-            <div style={{background:'#fff', width:'95%', maxWidth:'1000px', minHeight: '650px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'92vh', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
+            <div style={{background:'#fff', width:'95%', maxWidth:'1000px', minHeight: '650px', borderRadius:'16px', boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(92 * var(--bz-vh, 1vh))', animation: 'fadeIn 0.2s ease-out'}} onClick={e => e.stopPropagation()}>
               
               {/* --- CABEÇALHO --- */}
               <div style={{padding:'20px 25px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f8fafc'}}>

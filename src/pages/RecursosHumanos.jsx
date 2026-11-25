@@ -66,6 +66,7 @@ import { uuidSeguro } from "../utils/filtroSeguro";
 import { lerCache, guardarCache } from "../utils/cachePaginas";
 import { toastDesfazer } from "../utils/toast";
 import { ListaSkeleton } from "../components/Skeleton";
+import { rectCss } from "../utils/tamanhoInterface";
 
 // Stale-while-revalidate: os RH abrem logo com os últimos dados (utils/cachePaginas.js)
 const cacheRh = () => lerCache("rh") || {};
@@ -124,7 +125,7 @@ const ModernTooltip = ({ content, children }) => {
         const node = triggerRef.current;
         if (!node) return;
 
-        const rect = node.getBoundingClientRect();
+        const rect = rectCss(node);
         const shouldRenderTop = rect.top > 90;
 
         setPosition({

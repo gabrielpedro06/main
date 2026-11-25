@@ -1814,7 +1814,7 @@ export default function DashboardHome() {
       {showHistoryModal && (
         <ModalPortal>
             <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}} onClick={(e) => { if(e.target === e.currentTarget) setShowHistoryModal(false); }}>
-                <div style={{background: '#fff', width: '95%', maxWidth: '900px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh', animation: 'fadeIn 0.2s ease-out'}}>
+                <div style={{background: '#fff', width: '95%', maxWidth: '900px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(90 * var(--bz-vh, 1vh))', animation: 'fadeIn 0.2s ease-out'}}>
                     
                     <div style={{padding: '20px 30px', borderBottom: '1px solid #e2e8f0', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>

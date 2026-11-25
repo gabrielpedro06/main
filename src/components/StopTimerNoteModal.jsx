@@ -405,7 +405,7 @@ export default function StopTimerNoteModal({
             alignItems: "center",
             textAlign: "center",
             gap: "18px",
-            maxHeight: "92vh",
+            maxHeight: "calc(92 * var(--bz-vh, 1vh))",
             overflow: "hidden",
             animation: "stopModalPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards"
           }}

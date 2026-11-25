@@ -42,6 +42,7 @@ import { clicavel } from "../utils/clicavel";
 
 import AvisoToast from "../components/AvisoToast";
 import { registarEvento } from "../utils/registarEvento";
+import { zoomUI } from "../utils/tamanhoInterface";
 // --- ÍCONES SVG PROFISSIONAIS (SaaS Premium) ---
 const Icons = {
   Search: ({ size = 14, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
@@ -642,8 +643,9 @@ export default function Clientes() {
 
   function handleCropMouseMove(e) {
     if (!cropDragStart) return;
-    const dx = e.clientX - cropDragStart.mx;
-    const dy = e.clientY - cropDragStart.my;
+    // medidas do ecrã → px de CSS (tamanho da interface 80/90%)
+    const dx = (e.clientX - cropDragStart.mx) / zoomUI();
+    const dy = (e.clientY - cropDragStart.my) / zoomUI();
     setCropOffset(clampCropOffset(cropDragStart.ox + dx, cropDragStart.oy + dy, cropScale));
   }
 
@@ -2448,7 +2450,7 @@ export default function Clientes() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{width:'min(980px, 96vw)', maxHeight:'86vh', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid var(--color-borderColorLight)', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
+              style={{width:'min(980px, calc(96 * var(--bz-vw, 1vw)))', maxHeight:'calc(86 * var(--bz-vh, 1vh))', overflow:'hidden', borderRadius:'20px', background:'white', border:'1px solid var(--color-borderColorLight)', boxShadow:'0 30px 60px -20px rgba(15, 23, 42, 0.45)', display:'flex', flexDirection:'column'}}
             >
               <div style={{padding:'22px 24px', borderBottom:'1px solid #e2e8f0', background:'linear-gradient(135deg, var(--color-bgSecondary), #f8fafc)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'20px'}}>
                 <div>
@@ -3469,8 +3471,8 @@ export default function Clientes() {
               onMouseDown={handleCropMouseDown}
               style={{
                 position: 'relative',
-                width: 'min(80vw, 80vh, 440px)',
-                height: 'min(80vw, 80vh, 440px)',
+                width: 'min(calc(80 * var(--bz-vw, 1vw)), calc(80 * var(--bz-vh, 1vh)), 440px)',
+                height: 'min(calc(80 * var(--bz-vw, 1vw)), calc(80 * var(--bz-vh, 1vh)), 440px)',
                 background: '#111',
                 borderRadius: '12px',
                 overflow: 'hidden',
@@ -3536,7 +3538,7 @@ export default function Clientes() {
               </svg>
             </div>
 
-            <div style={{display:'flex',alignItems:'center',gap:'10px',marginTop:'14px',width:'min(80vw,440px)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginTop:'14px',width:'min(calc(80 * var(--bz-vw, 1vw)),440px)'}}>
               <span style={{color:'rgba(255,255,255,0.5)',fontSize:'0.8rem'}}>−</span>
               <input
                 type="range" min={1} max={100} step={1}

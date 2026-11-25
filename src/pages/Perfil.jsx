@@ -20,6 +20,7 @@ import "../styles/profile.css";
 import FancySelect from "../components/FancySelect";
 import { postAutenticado } from "../utils/apiAutenticada";
 import { guardarPrivados, separarPrivados } from "../utils/dadosPrivados";
+import { zoomUI } from "../utils/tamanhoInterface";
 
 // Portal para os Modais/Pop-ups ficarem sempre por cima de tudo
 const ModalPortal = ({ children }) => {
@@ -261,8 +262,9 @@ export default function Perfil() {
 
   function handleCropMouseMove(e) {
     if (!cropDragStart) return;
-    const dx = e.clientX - cropDragStart.mx;
-    const dy = e.clientY - cropDragStart.my;
+    // medidas do ecrã → px de CSS (tamanho da interface 80/90%)
+    const dx = (e.clientX - cropDragStart.mx) / zoomUI();
+    const dy = (e.clientY - cropDragStart.my) / zoomUI();
     setCropOffset(clampCropOffset(cropDragStart.ox + dx, cropDragStart.oy + dy, cropScale));
   }
 

@@ -1,5 +1,6 @@
 ﻿import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { rectCss, larguraEcra } from "../utils/tamanhoInterface";
 
 // Tooltips da app inteira: qualquer elemento com atributo `title` passa a mostrar
 // um balão com o tema em vez do tooltip nativo do browser. Não é preciso nada por
@@ -39,7 +40,7 @@ export default function GlobalTooltipProvider({ children }) {
         const el = active?.element;
         if (!el) return;
 
-        const rect = el.getBoundingClientRect();
+        const rect = rectCss(el);
         if (rect.width === 0 && rect.height === 0) {
             return;
         }
@@ -49,10 +50,10 @@ export default function GlobalTooltipProvider({ children }) {
         const measuredWidth = tooltipRef.current?.offsetWidth || TOOLTIP_MAX_WIDTH;
         const tooltipWidth = Math.min(TOOLTIP_MAX_WIDTH, measuredWidth);
         const minCenterX = TOOLTIP_VIEWPORT_PADDING + (tooltipWidth / 2);
-        const maxCenterX = window.innerWidth - TOOLTIP_VIEWPORT_PADDING - (tooltipWidth / 2);
+        const maxCenterX = larguraEcra() - TOOLTIP_VIEWPORT_PADDING - (tooltipWidth / 2);
 
         const clampedCenterX = minCenterX > maxCenterX
-            ? window.innerWidth / 2
+            ? larguraEcra() / 2
             : Math.min(Math.max(triggerCenterX, minCenterX), maxCenterX);
 
         const arrowLimit = Math.max(0, (tooltipWidth / 2) - 18);

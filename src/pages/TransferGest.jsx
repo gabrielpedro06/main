@@ -1165,7 +1165,7 @@ export default function TransferGest() {
       {showFormModal && (
         <ModalPortal>
           <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "960px", maxHeight: "90vh", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
+            <div style={{ width: "100%", maxWidth: "960px", maxHeight: "calc(90 * var(--bz-vh, 1vh))", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <h3 style={{ margin: 0 }}>{isEditForm ? "Editar registo TransferGest" : "Novo registo TransferGest"}</h3>
                 <button className="tg-modal-btn" onClick={() => setShowFormModal(false)}>Fechar</button>
@@ -1301,7 +1301,7 @@ export default function TransferGest() {
       {showDetailModal && detailItem && (
         <ModalPortal>
           <div style={{ position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.65)", backdropFilter: "blur(4px)", zIndex: "calc(var(--z-modal) + 13)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-            <div style={{ width: "100%", maxWidth: "980px", maxHeight: "90vh", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
+            <div style={{ width: "100%", maxWidth: "980px", maxHeight: "calc(90 * var(--bz-vh, 1vh))", overflowY: "auto", background: "var(--color-cardBg, #fff)", borderRadius: "14px", border: "1px solid var(--color-borderColor)", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
                 <div>
                   <div style={{ fontSize: "0.75rem", color: "var(--color-btnPrimary)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>

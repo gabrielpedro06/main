@@ -154,7 +154,7 @@ function Toast({ notification, onClose }) {
 
   return (
     <ToastPortal>
-      <div style={{ position: 'fixed', top: 22, right: 22, zIndex: "calc(var(--z-modal-topo) + 1)", width: 'min(420px, calc(100vw - 32px))', pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', top: 22, right: 22, zIndex: "calc(var(--z-modal-topo) + 1)", width: 'min(420px, calc(calc(100 * var(--bz-vw, 1vw)) - 32px))', pointerEvents: 'none' }}>
         <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 18, background: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, borderLeft: `5px solid ${colors.accent}`, boxShadow: '0 22px 40px rgba(15, 23, 42, 0.18)', backdropFilter: 'blur(6px)' }}>
           <div style={{ width: 30, height: 30, borderRadius: 999, display: 'grid', placeItems: 'center', flexShrink: 0, background: isError ? '#fecaca' : isWarning ? '#fde68a' : 'var(--color-bgSecondary)', color: colors.accent, fontSize: '0.95rem', fontWeight: 900 }}>
             {colors.icon}
@@ -487,7 +487,7 @@ function CreateModal({ show, title, onClose, children }) {
   return (
     <ModalPortal>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)", padding: 20 }}>
-        <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(920px, 96vw)', maxHeight: '92vh', overflow: 'hidden', borderRadius: 22, background: '#fff', border: '1px solid #dbe3ef', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.35)', display: 'flex', flexDirection: 'column' }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(920px, calc(96 * var(--bz-vw, 1vw)))', maxHeight: 'calc(92 * var(--bz-vh, 1vh))', overflow: 'hidden', borderRadius: 22, background: '#fff', border: '1px solid #dbe3ef', boxShadow: '0 30px 60px -20px rgba(15, 23, 42, 0.35)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '20px 22px', borderBottom: '1px solid var(--color-borderColorLight)', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
             <div>
               <p style={{ margin: '0 0 4px 0', fontSize: '0.74rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--color-btnPrimaryDark)', textTransform: 'uppercase' }}>Novo Curso</p>
@@ -510,7 +510,7 @@ function SideDrawer({ show, isClosing, title, subtitle, onClose, children }) {
   return (
     <ModalPortal>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.58)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', zIndex: "calc(var(--z-modal) + 13)" }}>
-        <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 'min(98vw, 1180px)', height: '100vh', margin: 0, borderRadius: '18px 0 0 18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '100vh', animation: isClosing ? 'sidePanelPullOut 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'sidePanelPullIn 0.56s cubic-bezier(0.2, 0.9, 0.2, 1)' }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 'min(calc(98 * var(--bz-vw, 1vw)), 1180px)', height: 'calc(100 * var(--bz-vh, 1vh))', margin: 0, borderRadius: '18px 0 0 18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100 * var(--bz-vh, 1vh))', animation: isClosing ? 'sidePanelPullOut 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards' : 'sidePanelPullIn 0.56s cubic-bezier(0.2, 0.9, 0.2, 1)' }}>
           <div style={{ padding: '22px 24px', borderBottom: '1px solid var(--color-borderColorLight)', background: 'linear-gradient(135deg, var(--color-bgSecondary), #fff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 18 }}>
             <div>
               <p style={{ margin: '0 0 4px 0', fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--color-btnPrimaryDark)', textTransform: 'uppercase' }}>Curso</p>
@@ -792,7 +792,7 @@ export default function Cursos() {
   }, [cursos, searchTerm, statusTab]);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, var(--color-bgPrimary) 0%, var(--color-bgSecondary) 36%, var(--color-bgSecondary) 100%)', padding: '22px 18px 32px' }}>
+    <div style={{ minHeight: 'calc(100 * var(--bz-vh, 1vh))', background: 'linear-gradient(180deg, var(--color-bgPrimary) 0%, var(--color-bgSecondary) 36%, var(--color-bgSecondary) 100%)', padding: '22px 18px 32px' }}>
       <div style={{ maxWidth: 1420, margin: '0 auto' }}>
         <div className="page-header" style={{background: '#fff', padding: '20px 25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
           <div style={{display:'flex', alignItems:'center', gap:'15px'}}>

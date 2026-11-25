@@ -703,7 +703,7 @@ export default function GestaoLeads() {
                                         <span style={{background: col.bg, color: col.color, padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold', border: `1px solid ${col.border}`}}>{colItems.length}</span>
                                     </div>
                                     
-                                    <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', maxHeight: '70vh' }} className="custom-scrollbar hide-scrollbar-kanban">
+                                    <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', maxHeight: 'calc(70 * var(--bz-vh, 1vh))' }} className="custom-scrollbar hide-scrollbar-kanban">
                                         {colItems.map(item => {
                                             const isInactive = item.ativo === false;
                                             const isMissingData = !item.email && !item.contacto;

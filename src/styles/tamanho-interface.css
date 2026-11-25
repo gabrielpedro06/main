@@ -1,0 +1,61 @@
+/* =====================================================================
+   Tamanho da interface (só computador). Ver src/utils/tamanhoInterface.js.
+   <html data-tamanho="80|90|100"> → zoom da app inteira (como o zoom do
+   browser, mas por omissão e guardado por pessoa).
+   --bz-vh / --bz-vw compensam o zoom nas unidades de ecrã: o vite.config.js
+   reescreve 100vh → calc(100 * var(--bz-vh, 1vh)) em todo o CSS.
+   ===================================================================== */
+@media (min-width: 901px) {
+  html[data-tamanho="80"] { --bz-zoom: 0.8; }
+  html[data-tamanho="90"] { --bz-zoom: 0.9; }
+  html:is([data-tamanho="80"], [data-tamanho="90"]) {
+    zoom: var(--bz-zoom);
+    --bz-vh: calc(1vh / var(--bz-zoom));
+    --bz-dvh: calc(1dvh / var(--bz-zoom));
+    --bz-svh: calc(1svh / var(--bz-zoom));
+    --bz-lvh: calc(1lvh / var(--bz-zoom));
+    --bz-vw: calc(1vw / var(--bz-zoom));
+    --bz-dvw: calc(1dvw / var(--bz-zoom));
+    --bz-svw: calc(1svw / var(--bz-zoom));
+    --bz-lvw: calc(1lvw / var(--bz-zoom));
+  }
+  /* Mapas (Leaflet) calculam posições do rato sem contar com o zoom: ficam a 100% */
+  html:is([data-tamanho="80"], [data-tamanho="90"]) .leaflet-container {
+    zoom: calc(1 / var(--bz-zoom));
+  }
+}
+
+/* Escolha no menu da conta (AccountMenu.jsx) */
+.bz-account-tamanho { cursor: default; }
+.bz-tamanho-seg {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-textPrimary, #0f172a) 7%, transparent);
+}
+.bz-tamanho-seg button {
+  width: 28px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.bz-tamanho-seg button:hover { opacity: 1; }
+.bz-tamanho-seg button.is-on {
+  opacity: 1;
+  background: var(--color-bgSecondary, #fff);
+  color: var(--color-btnPrimary, #2563eb);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+}
