@@ -678,6 +678,9 @@ button.sidebar-user-card {
   align-items: center;
   gap: 6px;
   max-width: 50%;
+  /* espaço para o anel da bolinha e para as letras não serem cortados pelo overflow */
+  padding: 3px 2px 3px 4px;
+  line-height: 1.35;
   font-size: 0.74rem;
   font-weight: 600;
   color: #64748b;
