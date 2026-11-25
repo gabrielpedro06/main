@@ -80,16 +80,75 @@ pública (`json.geoapi.pt`) diretamente do browser. As designações dos CAE vê
 
 Dois separadores, duas tabelas:
 - **Prospects** (`marketing_prospects`): contactos frios, vista em grelha.
-- **Leads** (`marketing_leads`): kanban por `estado`.
+- **Leads** (`marketing_leads`): o **CRM** (`components/crm/`, migração 083).
 
 Estados das leads: `novo` → `contactado` → `reuniao` → `proposta` → `convertido` (etiqueta
-"Ganho") | `perdido`. Arrastar entre colunas muda o estado.
+"Ganho") | `perdido`.
+
+### CRM das Leads (`components/crm/CrmLeads.jsx`, `FichaLead.jsx`, `crm.js`, `styles/crm.css`)
+- **Indicadores**: funil em aberto (soma do valor das leads em aberto), previsão ponderada
+  (valor × probabilidade; sem probabilidade própria usa a da etapa: 10/25/50/70/100/0 %),
+  ganhas este mês, taxa de fecho dos últimos 90 dias (ganhas ÷ ganhas+perdidas), ações para
+  hoje/em atraso e esquecidas. Os dois últimos são clicáveis (filtram).
+- **Responsáveis**: qualquer pessoa ativa da equipa (`profiles.ativo`).
+- **Filtros**: todas / as minhas / ações hoje / esquecidas, setor e responsável; mais a
+  pesquisa da página (empresa, pessoa, email, NIF), localidade, CAE e arquivo.
+- **Funil**: colunas por etapa com total em € por coluna; arrastar muda a etapa (com
+  Desfazer). Passar a **Perdido** pede o motivo (`motivo_perda`). Cartões ordenados pela
+  próxima ação. **Lista**: a mesma informação em tabela. A escolha fica no browser.
+- **Por tratar**: em Novo e sem responsável (ex.: acabadas de importar por CSV). É a fila de
+  trabalho: não conta como esquecida nem mostra "Sem próximo passo"; tem um filtro próprio.
+- **Esquecida**: lead já trabalhada (com responsável ou fora de Novo), em aberto, sem
+  movimento há 7+ dias (`DIAS_ESQUECIDA` em `crm.js`).
+  Movimento = o mais recente de `ultimo_contacto_em`, `estado_desde` e `created_at`.
+- **Ficha** (painel lateral, abre também por `/dashboard/leads?lead=<id>`): etapa, valor,
+  probabilidade, responsável, próxima ação (texto + data, atalhos Hoje/Amanhã/…), contactos
+  (links `mailto:`/`tel:`), notas e **histórico** (`marketing_leads_interacoes`: chamada,
+  email, reunião, proposta, nota). As mudanças de etapa entram sozinhas no histórico
+  (trigger). Chamadas/emails/reuniões/propostas atualizam `ultimo_contacto_em`; notas não.
+  Tudo grava ao sair do campo; se a BD recusar, o ecrã volta ao valor anterior.
+- **Origem** (`origem`, 085): de onde veio a lead (lista `ORIGENS` em `crm.js`; aceita outras).
+  Posta sozinha: "Importação CSV" (importar no separador Leads) e "Prospeção" (promover prospect).
+  Se a 085 não tiver corrido, as inserções tentam de novo sem a origem (`inserirLeads`).
+- **Resultados** (3.ª vista, `ResultadosCrm.jsx`): por período (data de criação da lead), tabelas
+  por origem e por pessoa (leads, em aberto, ganhas, perdidas, taxa de fecho, valor ganho, valor em
+  aberto), funil atual e motivos de perda. Respeita os filtros de setor e responsável.
+- **Propostas**: a ficha lista as propostas (`propostas_comerciais`) da entidade ligada
+  (`marketing_leads.cliente_id`, 085). "Criar proposta" (só admin/administrador, como a rota):
+  `garantirEntidade()` usa a entidade ligada, ou a de igual NIF, ou cria uma nova em `clientes`;
+  grava `cliente_id` e abre `/dashboard/propostas/novo?cliente=<id>`. Os formulários de proposta
+  (`PropostasFinanciamento`, `PropostasFormacao`) escolhem esse cliente sozinhos.
+  "Tornar cliente" não cria outra entidade se a lead já estiver ligada a uma.
+- **Pessoas** (`PessoasLead.jsx`, 086): o contacto principal continua nos campos da lead
+  (`titular`, `email`, `contacto`: são os que as campanhas, a exportação e a pesquisa usam);
+  as outras pessoas ficam em `marketing_leads_pessoas` (nome, cargo, papel decisor/financeiro/
+  técnico/outro, email, telefone). "Tornar principal" troca a pessoa com os campos da lead.
+- **Registo rápido de chamadas** (`RegistoChamada.jsx`): tocar num telefone na ficha guarda a
+  chamada (`iniciarChamada`, localStorage, válida 3 h). Ao voltar à app (separador visível /
+  janela com foco, 4 s depois) abre "Como correu a chamada?": Atendeu / Não atendeu / Caixa de
+  correio / Número errado, nota e próximo passo (Não atendeu sugere "Voltar a ligar" amanhã).
+  Grava uma interação `chamada`; "Atendeu" numa lead em Novo passa-a para Contactado. A ficha
+  aberta recarrega o histórico pelo evento `crm-historico`.
+- **Marcar reunião** (ficha, bloco Próxima ação): dia, hora e assunto. Cria o evento na tabela
+  `agenda` (o Calendário da barra lateral) de quem marca e tenta também no do responsável; se a
+  regra da tabela não deixar, avisa-o no sino (`crm_reuniao`). Regista "reunião" no histórico
+  (conta como contacto), põe a reunião como próxima ação (com lembrete) e passa a lead para
+  Reunião se estava em Novo/Contactado.
+- **Lembretes**: ao abrir o Início, `gerarLembretesLeads()` cria uma notificação
+  (`crm_lembrete`) por cada lead do utilizador com a próxima ação para hoje ou em atraso,
+  uma vez por data (`lembrete_enviado_para`). Atribuir uma lead a outra pessoa avisa-a
+  (`crm_atribuida`). Ambas abrem a ficha da lead.
 
 Fluxo:
 1. **Promover a Lead**: copia o prospect para `marketing_leads` (`estado = novo`) e desativa
    o prospect (`ativo = false`).
 2. **Tornar Cliente** (lead convertida): cria em `clientes` (`marca`, `entidade`, `nif`) e
    arquiva a lead (`ativo = false`, `estado = convertido`). Falha se o NIF já existir.
+
+Aspeto: cabeçalho comum (`PageHero`) com os separadores Leads/Prospects, pesquisa, localidade,
+CAE, Arquivo, copiar emails e CSV; janelas comuns (`Janela`) para criar/editar, importar e campanha;
+confirmações com `confirmar()`. Prospects: cartões de setores → empresas do setor em cartões ou
+tabela. Criar uma lead abre logo a sua ficha no CRM. Estilos `.ld-*` em `styles/crm.css`.
 
 Outras funções: filtros por setor/localidade/CAE, importação CSV (separador `;`, 1.ª linha é
 cabeçalho, NIF já existentes na tabela são ignorados), exportação CSV, copiar emails e

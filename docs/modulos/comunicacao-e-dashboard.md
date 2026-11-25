@@ -94,6 +94,17 @@ O rascunho do **chat** já foi extraído para `ChatComposer` (estado local), por
 - os rascunhos dos **comentários** (`newCommentText`, `inlineCommentDrafts`) vivem no `Forum` e redesenham feed, salas e mensagens a cada tecla;
 - a lista de mensagens não está memorizada (cada mensagem recalcula o visto ✓/✓✓ com comparações de datas em cada render).
 
+### Vídeos incorporados (feed e chat)
+Um link do **YouTube** (normal, `youtu.be`, Shorts, diretos), **Vimeo**, **Loom** ou **Google Drive**
+numa publicação ou mensagem aparece como leitor de vídeo (`components/VideoIncorporado.jsx`; até 4
+por mensagem). O vídeo fica no site de origem: não ocupa armazenamento do Bizin.
+- Também se pode colar o "código de incorporação" (`<iframe …>`) do YouTube: a app aproveita **só o
+  endereço** (`utils/videoIncorporado.js`, lista fechada de sites) e mostra o texto limpo. O HTML
+  colado nunca é inserido na página.
+- Mostra a miniatura com botão de play; o leitor (iframe, YouTube em `youtube-nocookie.com`) só é
+  criado ao carregar, para conversas com muitos vídeos não ficarem lentas.
+- Para acrescentar um site: um caso novo em `reconhecerVideo()`.
+
 ## Programas/Avisos (GestaoAvisos)
 
 Catálogo de **programas de financiamento** e dos **avisos** de candidatura (não confundir com notificações).

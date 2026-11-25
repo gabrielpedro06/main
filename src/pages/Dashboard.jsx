@@ -2,14 +2,15 @@
 // marca, decorações de tema e <Outlet /> com a página atual. Em mobile (≤900px)
 // a sidebar passa a gaveta e aparecem a barra de topo e a navegação inferior.
 // Documentação: docs/modulos/comunicacao-e-dashboard.md
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import BrandIntro from "../components/BrandIntro";
 import ThemeDecor from "../components/ThemeDecor";
 import { ChamadasProvider } from "../context/ChamadasContext";
 import PaginaSkeleton from "../components/Skeleton";
-import CommandMenu from "../components/CommandMenu";
+// Menu de comandos (Ctrl+K, com o índice da Ajuda): descarrega logo a seguir à página, à parte
+const CommandMenu = lazy(() => import("../components/CommandMenu"));
 import { abrirComando } from "../utils/comando";
 import GestosJanelas from "../components/GestosJanelas";
 import BarraNavegacao from "../components/BarraNavegacao";
@@ -27,7 +28,6 @@ const PAGE_TITLES = [
   ["/dashboard/tarefas", "Tarefas"],
   ["/dashboard/projetos", "Projetos"],
   ["/dashboard/clientes", "Entidades"],
-  ["/dashboard/atividades", "Atividades"],
   ["/dashboard/forum", "Comunicação"],
   ["/dashboard/rh", "Recursos Humanos"],
   ["/dashboard/ferias", "Ausências"],
@@ -161,7 +161,7 @@ export default function Dashboard() {
     >
       <BrandIntro />
       <ThemeDecor />
-      <CommandMenu />
+      <Suspense fallback={null}><CommandMenu /></Suspense>
       <GestosJanelas />
       <AtalhosTeclado />
       {/* Marcador da gaveta aberta: faz o "voltar" do telemóvel fechar a gaveta (ver GestosJanelas) */}

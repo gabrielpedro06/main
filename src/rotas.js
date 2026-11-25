@@ -14,7 +14,6 @@ export const PAGINAS = {
   projetos: () => import("./pages/Projetos"),
   "projetos/:id": () => import("./pages/ProjetoDetalhe"),
   clientes: () => import("./pages/Clientes"),
-  atividades: () => import("./pages/Atividades"),
   forum: () => import("./pages/Forum"),
   rh: () => import("./pages/RecursosHumanos"),
   "pedidos/:id": () => import("./pages/AprovarPedido"),

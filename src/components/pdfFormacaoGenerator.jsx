@@ -337,7 +337,7 @@ export const generateFormacaoPDF = async (params) => {
 
     doc.setTextColor(...color);
     let cursorX = textX;
-    tokens.forEach((tk, index) => {
+    tokens.forEach((tk) => {
       doc.setFont('helvetica', tk.bold ? 'bold' : 'normal');
       doc.text(tk.text, cursorX, currentY, textOptions);
       cursorX += doc.getTextWidth(tk.text) + spaceWidth + extraPerGap;
@@ -447,7 +447,6 @@ export const generateFormacaoPDF = async (params) => {
     // Configuração de Posicionamento para o lado direito
     const rightPadding = 15;
     const contentX = (pageWidth / 2) + rightPadding;
-    const rightColumnWidth = (pageWidth / 2) - (rightPadding * 2);
 
     // 3. Logótipo 2SIGLAS (Centrado no topo da página)
     if (logoBase64) {
@@ -511,7 +510,6 @@ export const generateFormacaoPDF = async (params) => {
   const contactoCargo = cliente?.contacto_cargo || '';
   const clientName = cliente?.nome || 'Empresa Cliente';
   const clienteMorada = cliente?.morada || '';
-  const clienteLocalidade = cliente?.distrito_cidade || '';
 
   doc.setFont('helvetica', 'bold');
   doc.text(`Exmo(a). Senhor(a) ${contactoNome}`, marginX, currentY);

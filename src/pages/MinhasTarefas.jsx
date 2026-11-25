@@ -74,14 +74,14 @@ export default function MinhasTarefas() {
   const [logs, setLogs] = useState(() => lerCache("agenda")?.logs || []);
   const [activeLog, setActiveLog] = useState(null);
     const [activeTimerTitle, setActiveTimerTitle] = useState("");
-        const [activeTimerLocation, setActiveTimerLocation] = useState("");
+        const [, setActiveTimerLocation] = useState("");
         const [activeTimerRoute, setActiveTimerRoute] = useState("");
   const [loading, setLoading] = useState(() => !lerCache("agenda")?.tasks); // com cache: mostra já e atualiza por trás
   const [notification, setNotification] = useState(null);
   const [staff, setStaff] = useState(() => lerCache("agenda")?.staff || []); 
   
   // FILTROS E ESTADOS DE UI
-  const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
+  const [mostrarConcluidos] = useState(false);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState("avulsas"); 
   const [availableProjects, setAvailableProjects] = useState(() => lerCache("agenda")?.availableProjects || []);
   
@@ -121,6 +121,7 @@ export default function MinhasTarefas() {
 
   useEffect(() => {
     if (user?.id) carregarTudo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carregarTudo é recriada a cada render; recarrega só quando mudam utilizador/filtros
   }, [user, mostrarConcluidos, selectedProjectFilter]);
 
   useEffect(() => {
@@ -159,7 +160,7 @@ export default function MinhasTarefas() {
           if (nome && typeof nome === 'string') return nome.trim().split(' ')[0];
           if (email && typeof email === 'string') return email.trim().split('@')[0];
           return "Colab";
-      } catch (e) { return "Colab"; }
+      } catch { return "Colab"; }
   };
 
   async function carregarTudo() {
@@ -628,7 +629,7 @@ export default function MinhasTarefas() {
           if (activeLog) {
               setTimerSwitchModal({
                   show: true,
-                  message: `Deseja terminar a tarefa atual para iniciar a tarefa \"${task.titulo}\"?`,
+                  message: `Deseja terminar a tarefa atual para iniciar a tarefa "${task.titulo}"?`,
                   pendingTask: task
               });
               return;
@@ -938,7 +939,7 @@ export default function MinhasTarefas() {
       try {
           await supabase.from('tarefas').update(updatePayload).eq("id", draggedTask.id);
           fetchMyTasks(); 
-      } catch(err) {
+      } catch {
           showToast("Erro ao mover a tarefa.", "error");
       }
       setDraggedTask(null);

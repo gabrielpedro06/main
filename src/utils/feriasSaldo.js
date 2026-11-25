@@ -469,7 +469,7 @@ async function obterPedidosFeriasAno({
 
 /**
  * Saldo calculado só a partir dos pedidos APROVADOS em `ferias` (sem transitados).
- * Nota: o parâmetro `dataAdmissao` é aceite mas não é usado aqui.
+ * Nota: o parâmetro `dataAdmissao` pode ser passado mas é ignorado aqui.
  * @returns {Promise<{ ano, diasConsumidos, diasLimite, diasRestantes }>}
  */
 export async function obterSaldoFeriasAno({
@@ -478,7 +478,6 @@ export async function obterSaldoFeriasAno({
   ano = getCurrentYear(),
   excluirPedidoId = null,
   diasLimiteAnual = ANNUAL_VACATION_DAYS,
-  dataAdmissao = null,
   tolerancias = [],
 }) {
   const diasLimite = resolveAnnualVacationLimit(diasLimiteAnual);

@@ -49,19 +49,6 @@ const safeValue = (value) => {
   return text || '—';
 };
 
-const formatEstadoLabel = (estado) => {
-  const key = String(estado || '').trim().toLowerCase();
-  const map = {
-    em_preparacao: 'Em preparação',
-    revisao: 'Revisão',
-    enviada: 'Enviada',
-    analise: 'Análise',
-    ganha: 'Ganha',
-    perdida: 'Perdida',
-  };
-  return map[key] || safeValue(estado);
-};
-
 const normalizeModoHonorario = (modo, item = {}) => {
   const key = String(modo || '').trim().toLowerCase();
   if (key === 'fixo' || key === 'variavel' || key === 'ambos') return key;
@@ -139,7 +126,6 @@ export const generateProposalPDF = async (params) => {
     proposta,
     cliente,
     empresaConsultora,
-    tipoProjeto,
     tiposProjetoSelecionados,
     programa,
     selectedPrograma,
@@ -152,7 +138,6 @@ export const generateProposalPDF = async (params) => {
     condicoesGerais,
     entidadeConfig = {}, // Recebe a config da nova aba
     proposalData = {},
-    totais,
     formatDatePt,
     formatCurrency: fmtCurrency,
   } = params;
@@ -163,7 +148,6 @@ export const generateProposalPDF = async (params) => {
   const sourcePrograma = proposal.programa || programa;
   const sourceSelectedPrograma = proposal.selected_programa || selectedPrograma;
   const sourceSelectedAviso = proposal.selected_aviso || selectedAviso;
-  const sourceTipoProjeto = proposal.tipo_projeto || tipoProjeto;
   const sourceTiposProjetoSelecionados = proposal.tipos_projeto || tiposProjetoSelecionados;
   const sourceModeloEstrutura = proposal.modelo_estrutura || modeloEstrutura;
   const sourceOrcamentoLinhas = proposal.servicos || orcamentoLinhas;
@@ -171,7 +155,6 @@ export const generateProposalPDF = async (params) => {
   const sourceNotasExclusoes = proposal.orcamento?.notas || notasExclusoes;
   const sourceCondicoesGerais = proposal.condicoes_gerais || condicoesGerais;
   const sourceEntidadeConfig = proposal.entidade_config || entidadeConfig;
-  const sourceTotais = proposal.totais || totais;
 
   const isSelected = (item) => item?.selecionado !== false;
   const visibleOrcamentoTiposProjeto = (Array.isArray(sourceOrcamentoTiposProjeto) ? sourceOrcamentoTiposProjeto : []).filter(isSelected);
@@ -192,16 +175,12 @@ export const generateProposalPDF = async (params) => {
   // Carregar Imagens
   const logoBase64 = await loadImage(getLogoPath(sourceEmpresaConsultora));
   const capaBase64 = await loadImage('/capaconsultoria.png'); 
-  const certificacoesBase64 = await loadImage(config.imagem_certificacoes);
+  await loadImage(config.imagem_certificacoes);
 
   // Ordenações e Nomes
   const orderedTipoIds = (visibleOrcamentoTiposProjeto.length > 0
     ? visibleOrcamentoTiposProjeto : Array.isArray(sourceOrcamentoLinhas) ? sourceOrcamentoLinhas : [])
     .map((item) => String(item?.tipo_projeto_id || item?.id || '')).filter(Boolean);
-
-  const orderedTipoNames = (visibleOrcamentoTiposProjeto.length > 0
-    ? visibleOrcamentoTiposProjeto : Array.isArray(sourceOrcamentoLinhas) ? sourceOrcamentoLinhas : [])
-    .map((item) => safeValue(item?.nome)).filter((name) => name && name !== '—');
 
   const getTipoProjetoNome = (id) => {
     if (!id || id === 'default') return 'Serviços do Projeto';
@@ -365,17 +344,6 @@ export const generateProposalPDF = async (params) => {
     }
   };
 
-  const renderKeyList = (title, items) => {
-    if (!Array.isArray(items) || items.length === 0) return;
-    drawTitle(title);
-    items.forEach((item) => {
-      // Sanitizamos para o caso de a lista também vir com caracteres estranhos
-      const cleanItem = sanitizeText(item);
-      drawParagraph(`- ${cleanItem}`, { size: 9.5, lineHeight: 4.5, gap: 1 });
-    });
-    currentY += 3;
-  };
-
   const startMainSection = (title) => {
     ensureSpace(20);
     drawSectionTitle(title);
@@ -523,8 +491,6 @@ export const generateProposalPDF = async (params) => {
   currentY += 5;
   doc.text(`T. ${signatarioTel} | E. ${signatarioEmail}`, marginX, currentY);
 
-  const numeroLabel = propNum && propNum !== '—' ? propNum : 'Por atribuir';
-  const tipoProjetoLabel = orderedTipoNames.length > 0 ? orderedTipoNames.join(' + ') : safeValue(sourceTipoProjeto?.nome);
 
 
   // ============================================================================

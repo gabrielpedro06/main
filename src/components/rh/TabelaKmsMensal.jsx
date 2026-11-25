@@ -9,7 +9,6 @@
 // Nota: usa o €/km atual para todos os meses (o histórico do valor não é guardado).
 // =====================================================================
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 import { Car, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { registarEvento } from "../../utils/registarEvento";
@@ -93,7 +92,7 @@ export default function TabelaKmsMensal({ colaboradores = [], valorPorKm = 0.4, 
   const pendenteAno = linhas.reduce((s, l) => s + l.pendentes.reduce((a, b) => a + b, 0), 0);
   const rate = Number(valorPorKm) || 0;
 
-  const exportar = () => {
+  const exportar = async () => {
     const cab = ["Colaborador", ...meses.flatMap((m) => [`${m} (km)`, `${m} (€)`]), "Total (km)", "Total (€)"];
     const corpo = linhas.map((l) => [
       l.c.nome,
@@ -102,6 +101,7 @@ export default function TabelaKmsMensal({ colaboradores = [], valorPorKm = 0.4, 
       Number((l.total * rate).toFixed(2)),
     ]);
     const rodape = ["TOTAL", ...totaisMes.flatMap((km) => [Math.round(km), Number((km * rate).toFixed(2))]), Math.round(totalAno), Number((totalAno * rate).toFixed(2))];
+    const XLSX = await import("xlsx"); // só descarrega ao exportar
     const ws = XLSX.utils.aoa_to_sheet([cab, ...corpo, rodape]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Kms ${ano}`);

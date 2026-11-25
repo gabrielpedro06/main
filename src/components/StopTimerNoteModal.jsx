@@ -275,6 +275,7 @@ export default function StopTimerNoteModal({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a função depende só de analysisTargetLog, que já está nas dependências
   }, [open, isAnalysisStatus, isClientDestination, analysisTargetLog]);
 
   if (!open) return null;

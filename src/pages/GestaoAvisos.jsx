@@ -108,7 +108,7 @@ const normalizeFases = (value) => {
       // Evita loops infinitos se o parse devolver exatamente a mesma string
       if (typeof nextValue === "string" && nextValue === parsedValue) break;
       parsedValue = nextValue;
-    } catch (e) {
+    } catch {
       break; // Não é JSON, sai do loop e avança
     }
   }
@@ -244,6 +244,7 @@ export default function GestaoAvisos() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carregamento inicial, só na montagem
   }, []);
 
   useEffect(() => {

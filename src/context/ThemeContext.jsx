@@ -66,6 +66,7 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     const savedTheme = localStorage.getItem('app-theme')
     if (savedTheme && THEMES[savedTheme]) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com o localStorage na montagem; mantém o ciclo isLoading
       setCurrentTheme(savedTheme)
     }
     setIsLoading(false)
@@ -137,6 +138,7 @@ export function ThemeProvider({ children }) {
 }
 
 /** { currentTheme, changeTheme(nome), availableThemes, themeColors, isLoading, modo, setModo(modo), escuro }. Lança erro fora do ThemeProvider. */
+// eslint-disable-next-line react-refresh/only-export-components -- o hook vive junto do contexto
 export function useTheme() {
   const context = useContext(ThemeContext)
   if (!context) {

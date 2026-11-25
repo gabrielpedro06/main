@@ -8,7 +8,7 @@
 // pages/Dashboard.jsx (PAGE_TITLES) e o link em components/Sidebar.jsx.
 // =====================================================================
 import { lazy, Suspense } from "react";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Contexto de Autenticação e Tema
 import { AuthProvider } from "./context/AuthContext";
@@ -34,7 +34,6 @@ const Tarefas = lazy(PAGINAS.tarefas);
 const Projetos = lazy(PAGINAS.projetos);
 const ProjetoDetalhe = lazy(PAGINAS["projetos/:id"]);
 const Clientes = lazy(PAGINAS.clientes);
-const Atividades = lazy(PAGINAS.atividades);
 const Forum = lazy(PAGINAS.forum);
 const RecursosHumanos = lazy(PAGINAS.rh);
 const Ferias = lazy(PAGINAS.ferias);
@@ -83,7 +82,8 @@ export default function App() {
             <Route path="projetos/:id" element={<ProjetoDetalhe />} />
             
             <Route path="clientes" element={<Clientes />} />
-            <Route path="atividades" element={<Atividades />} />
+            {/* a antiga página Atividades foi retirada: links antigos vão para Tarefas */}
+            <Route path="atividades" element={<Navigate to="/dashboard/tarefas" replace />} />
             <Route path="forum" element={<Forum />} />
             <Route path="rh" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor"]}><RecursosHumanos /></ProtectedRoute>} />
             <Route path="pedidos/:id" element={<ProtectedRoute allowedRoles={["admin", "administrador", "gestor"]}><AprovarPedido /></ProtectedRoute>} />

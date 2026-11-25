@@ -29,7 +29,6 @@ const PAGINAS = [
   { rota: "/dashboard/tarefas", titulo: "Tarefas globais", extra: "tarefas equipa" },
   { rota: "/dashboard/projetos", titulo: "Projetos", extra: "portfolio" },
   { rota: "/dashboard/clientes", titulo: "Entidades", extra: "clientes empresas parceiros organismos" },
-  { rota: "/dashboard/atividades", titulo: "Atividades" },
   { rota: "/dashboard/forum", titulo: "Comunicação", extra: "fórum chat mensagens videochamada" },
   { rota: "/dashboard/ferias", titulo: "Ausências", extra: "férias faltas pedido" },
   { rota: "/dashboard/pedido-km", titulo: "Pedido de Km", extra: "kms quilómetros deslocações" },

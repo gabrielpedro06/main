@@ -25,7 +25,6 @@ import { supabase } from "../services/supabase";
 import { toast } from "../utils/toast";
 import Janela from "../components/Janela";
 import SelectModerno from "../components/SelectModerno";
-import jsPDF from "jspdf";
 import { useAuth } from "../context/AuthContext";
 import TimerSwitchModal from "../components/TimerSwitchModal";
 import StopTimerNoteModal from "../components/StopTimerNoteModal";
@@ -37,7 +36,6 @@ import "./../styles/dashboard.css";
 import "../styles/projeto-detalhe.css";
 
 // 💡 IMPORTAÇÃO CORRIGIDA (SEM CHAVETAS):
-import gerarRelatorioProjeto from "../components/pdfGenerator"; 
 import ProjetoTracker from "../components/ProjetoTracker";
 import { confirmar } from "../utils/dialogo";
 import { clicavel } from "../utils/clicavel";
@@ -146,12 +144,6 @@ const normalizeProjetoFases = (value) => {
             };
         })
         .filter((fase) => fase.nome || fase.prazo);
-};
-
-const getLastProjetoFaseDate = (fases) => {
-    const normalized = normalizeProjetoFases(fases);
-    const dates = normalized.map((fase) => fase.prazo).filter(Boolean);
-    return dates.length > 0 ? dates[dates.length - 1] : "";
 };
 
 const ANALYSIS_DESTINATION_OPTIONS = [
@@ -424,15 +416,6 @@ export default function ProjetoDetalhe() {
       return [];
   };
 
-  const normalizeBoolean = (raw) => {
-      if (typeof raw === "boolean") return raw;
-      if (typeof raw === "string") {
-          const parsed = raw.trim().toLowerCase();
-          return parsed === "true" || parsed === "1" || parsed === "sim";
-      }
-      return Boolean(raw);
-  };
-
   const getProjetoClientIds = (projLike) => {
     if (!projLike) return [];
     const ids = [];
@@ -495,6 +478,7 @@ export default function ProjetoDetalhe() {
       })();
 
       return () => { cancelled = true; };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- só deve recarregar quando mudam as entidades do projeto, não a cada edição do formulário
   }, [formGeral.cliente_id, formGeral.parceiros_ids, formGeral.organismo_id]);
 
   // --- REFS PARA DRAG & DROP NATIVO ---
@@ -597,6 +581,7 @@ export default function ProjetoDetalhe() {
   useEffect(() => {
     fetchProjetoDetails();
     checkActiveLog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só deve recarregar quando muda o projeto ou o utilizador
   }, [id, user]);
 
     useEffect(() => {
@@ -1706,8 +1691,6 @@ export default function ProjetoDetalhe() {
       ? (entidadePessoas || []).filter(p => String(p.cliente_id) === String(formGeral.organismo_id))
       : [];
 
-  const assigneeOptions = [...internalAssigneeOptions, ...entityAssigneeOptions];
-
   const allTasksInProject = atividades.flatMap((a) => a.tarefas || []);
   const { activityById, taskById } = buildDependencyMaps(atividades, allTasksInProject);
 
@@ -2197,12 +2180,6 @@ export default function ProjetoDetalhe() {
       }
   }
 
-  const canNavigateToClient = !projeto.is_parceria && Boolean(projeto?.cliente_id);
-  const handleClientHeaderClick = () => {
-      if (!canNavigateToClient) return;
-      navigate('/dashboard/clientes', { state: { openClienteId: projeto.cliente_id } });
-  };
-
   const ganttItems = buildGanttItems(atividades);
     // Generate a consistent color per activity based on its title (keeps tasks visually inside the same theme)
     const hashToHue = (text = "") => {
@@ -2269,6 +2246,7 @@ export default function ProjetoDetalhe() {
       if (isExportingGantt) return;
       setIsExportingGantt(true);
       try {
+          const { default: jsPDF } = await import("jspdf"); // só descarrega ao exportar
           const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
           const PW = pdf.internal.pageSize.getWidth();
           const PH = pdf.internal.pageSize.getHeight();
@@ -2570,7 +2548,7 @@ export default function ProjetoDetalhe() {
                       <button type="button" onClick={() => navigate('/dashboard/projetos')} className="pd-back">
                           <Icons.ArrowLeft /> Portfólio
                       </button>
-                      <button type="button" onClick={() => gerarRelatorioProjeto(projeto, atividades, logs, staff, clientes)} className="pd-glass-btn">
+                      <button type="button" onClick={async () => (await import("../components/pdfGenerator")).default(projeto, atividades, logs, staff, clientes)} className="pd-glass-btn">
                           <Icons.Download size={15} /> Gerar PDF
                       </button>
                   </div>

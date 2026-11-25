@@ -221,6 +221,7 @@ export function AuthProvider({ children }) {
 }
 
 /** Acesso ao contexto de autenticação (ver valores expostos no cabeçalho do ficheiro). */
+// eslint-disable-next-line react-refresh/only-export-components -- o hook vive junto do contexto
 export function useAuth() {
   return useContext(AuthContext)
 }

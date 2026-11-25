@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { announceNewMessages, bindNotificationUnlock } from "../utils/notifySound";
 import { useAuth } from "../context/AuthContext";
 import { abrirComando, ATALHO_COMANDO } from "../utils/comando";
 import { supabase } from "../services/supabase"; 
-import WidgetCalendar from "./WidgetCalendar"; 
+// Calendário (e o cálculo de saldos de férias que usa): só descarrega quando se abre
+const WidgetCalendar = lazy(() => import("./WidgetCalendar"));
 import AccountMenu from "./AccountMenu";
 import SidebarBolha from "./SidebarBolha";
 import "./../styles/dashboard.css";
@@ -62,7 +63,7 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
   
   const [forumUnreadCount, setForumUnreadCount] = useState(0);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
-  const [myChatRoomIds, setMyChatRoomIds] = useState([]);
+  const [, setMyChatRoomIds] = useState([]);
   const myChatRoomIdsRef = useRef([]);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
 
@@ -194,6 +195,7 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
     return () => {
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só deve reiniciar quando muda o utilizador
   }, [user?.id]);
 
   useEffect(() => {
@@ -252,6 +254,7 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- o canal só deve ser recriado quando muda o utilizador
   }, [user?.id]);
 
   const totalCommsUnread = Number(forumUnreadCount || 0) + Number(chatUnreadCount || 0);
@@ -773,7 +776,9 @@ export default function Sidebar({ menuOpen, setMenuOpen, isMobile = false }) {
       {showCalendarModal && (
           <div className="cal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowCalendarModal(false); }}>
               <div className="cal-modal" role="dialog" aria-label="Calendário">
-                  <WidgetCalendar onClose={() => setShowCalendarModal(false)} />
+                  <Suspense fallback={<div className="cal-a-carregar" style={{ padding: 48, textAlign: "center", color: "var(--cor-suave)" }}>A carregar o calendário…</div>}>
+                      <WidgetCalendar onClose={() => setShowCalendarModal(false)} />
+                  </Suspense>
               </div>
           </div>
       )}

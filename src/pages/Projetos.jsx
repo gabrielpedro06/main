@@ -26,7 +26,6 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../services/supabase";
-import { toastDesfazer } from "../utils/toast";
 
 // Projetos apagados com "Desfazer" ainda à espera (não reaparecem se a lista recarregar)
 const projetosAApagar = new Set();
@@ -39,8 +38,6 @@ import { hasAttendanceStartedToday, startAttendanceNow } from "../utils/attendan
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { concludeActivityWithChildren } from "../utils/activityStatusCascade";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import "./../styles/dashboard.css";
 import "../styles/portfolio.css";
 import { postAutenticado } from "../utils/apiAutenticada";
@@ -148,11 +145,6 @@ const normalizeBoolean = (raw) => {
     return Boolean(raw);
 };
 
-const createBlankProjetoFase = (index = 0) => ({
-    nome: `Fase ${index + 1}`,
-    prazo: "",
-});
-
 /** Normaliza prazos_fases para [{ nome, prazo }] (aceita "fase"/"data" antigos); não-arrays dão []. */
 const normalizeProjetoFases = (value) => {
     if (!Array.isArray(value) || value.length === 0) return [];
@@ -225,7 +217,7 @@ export default function Projetos() {
     const [viewMode, setViewMode] = useState("cards");
   const [portfolioView, setPortfolioView] = useState("mine");
   const [showOnlyMine, setShowOnlyMine] = useState(true); 
-  const [showUnassignedOverviewProjects, setShowUnassignedOverviewProjects] = useState(() => overviewFilterCache.showUnassignedOverviewProjects === true);
+  const [showUnassignedOverviewProjects] = useState(() => overviewFilterCache.showUnassignedOverviewProjects === true);
   const [overviewSort, setOverviewSort] = useState(() => (
       overviewFilterCache.overviewSort?.key === "project" && overviewFilterCache.overviewSort?.direction === "asc"
           ? DEFAULT_OVERVIEW_SORT
@@ -260,7 +252,7 @@ export default function Projetos() {
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [isViewOnly, setIsViewOnly] = useState(false);
-  const [activeTab, setActiveTab] = useState("geral");
+  const [, setActiveTab] = useState("geral");
     const [parceiroSelecionado, setParceiroSelecionado] = useState("");
     const [quickOrganismoModal, setQuickOrganismoModal] = useState({ show: false, marca: "", sigla: "", nif: "", entidade: "", website: "", isSubmitting: false });
     // Para onde vai a entidade criada no modal rápido: "lider" (passo 1), "parceiro" (passo 1) ou "organismo" (passo 2)
@@ -421,11 +413,13 @@ export default function Projetos() {
           closeQuickOrganismoModal();
       }
       if (!showModal) { setQuickPrograma(null); setQuickAviso(null); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reage só ao fechar o modal principal
   }, [showModal]);
 
   useEffect(() => {
     fetchData();
     checkActiveLog();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega só quando muda o utilizador
   }, [user]);
 
     const getProgramaById = (programaId) => programas.find((programa) => String(programa.id) === String(programaId)) || null;
@@ -542,6 +536,7 @@ export default function Projetos() {
             // Limpa para não repetir ao atualizar a página
             navigate(location.pathname, { replace: true, state: {} });
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando chega estado de navegação
     }, [location.state]);
 
     // Efeito para carregar a árvore de atividades quando selecionamos um Tipo de Projeto
@@ -570,6 +565,7 @@ export default function Projetos() {
           
           navigate(location.pathname, { replace: true, state: {} });
       }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando chega estado de navegação
   }, [location.state, navigate]);
 
   useEffect(() => {
@@ -812,18 +808,18 @@ export default function Projetos() {
 
         if (activeLog.projeto_id) {
             const proj = projetos.find(p => p.id === activeLog.projeto_id);
-            if (proj?.titulo) return `projeto \"${proj.titulo}\"`;
+            if (proj?.titulo) return `projeto "${proj.titulo}"`;
         }
 
         if (activeLog.task_id || activeLog.tarefa_id) {
             const taskId = activeLog.task_id || activeLog.tarefa_id;
             const { data } = await supabase.from("tarefas").select("titulo").eq("id", taskId).maybeSingle();
-            if (data?.titulo) return `tarefa \"${data.titulo}\"`;
+            if (data?.titulo) return `tarefa "${data.titulo}"`;
         }
 
         if (activeLog.atividade_id) {
             const { data } = await supabase.from("atividades").select("titulo").eq("id", activeLog.atividade_id).maybeSingle();
-            if (data?.titulo) return `atividade \"${data.titulo}\"`;
+            if (data?.titulo) return `atividade "${data.titulo}"`;
         }
 
         return "atividade em curso";
@@ -1168,30 +1164,6 @@ export default function Projetos() {
     setShowModal(true);
   }
 
-  /** Apaga o projeto (só a linha de projetos; falha se a BD tiver filhos que o impeçam). */
-  function askDeleteProjeto(e, id, titulo) {
-      e.stopPropagation();
-      setConfirmDialog({
-          show: true,
-          message: `Tens a certeza que queres apagar o projeto "${titulo}"?\nApaga também as atividades e os tempos associados. Depois de confirmares, tens uns segundos para carregar em Desfazer.`,
-          confirmText: "Sim, Apagar",
-          isDanger: true,
-          onConfirm: async () => {
-              setConfirmDialog({ show: false, message: '', confirmText: '', isDanger: true, onConfirm: null });
-              setShowModal(false);
-              // Undo toast: sai logo da lista; só é apagado da BD se ninguém carregar em Desfazer
-              projetosAApagar.add(id);
-              setProjetos((prev) => prev.filter((p) => p.id !== id));
-              const r = await toastDesfazer(`Projeto "${titulo}" apagado.`, {
-                  executar: () => supabase.from("projetos").delete().eq("id", id),
-                  desfazer: () => { projetosAApagar.delete(id); fetchData(); },
-              });
-              projetosAApagar.delete(id);
-              if (r === "executado") fetchData();
-          }
-      });
-  }
-
   // Toggles de Pills UI
   const handleToggleParceiro = (cId) => {
       setForm(prev => {
@@ -1276,10 +1248,6 @@ export default function Projetos() {
         setCurrentStep(3);
         setIsSubmitting(false);
         return;
-    }
-
-    if (normalizedFases.length > 0) {
-        const lastPhaseDate = getLastProjetoFaseDate(normalizedFases);
     }
 
     if (!editId) {
@@ -1704,10 +1672,6 @@ export default function Projetos() {
       
   const selectedEstadoNome = selectedEstado ? getEstadoInfo(selectedEstado).nome : '';
 
-  const selectedProgramaNome = selectedProgramaNav
-      ? (selectedProgramaNav === 'sem-programa' ? 'Sem Programa' : programas.find(prog => String(prog.id) === String(selectedProgramaNav))?.nome || '')
-      : '';
-
   const matchesOverviewFilters = (project) => {
       const matchesType = !overviewTypeFilter || (
           overviewTypeFilter === "sem-tipo"
@@ -1855,41 +1819,6 @@ export default function Projetos() {
   useEffect(() => {
       // debug effect removed
   }, [form.programa_id, form.avisos_ids, programas, avisos]);
-
-  const updateProjetoFase = (index, field, value) => {
-    setForm((prev) => {
-        // Cria um novo array para o React detetar a alteração de referência
-        const novasFases = [...prev.prazos_fases];
-        
-        // Cria um novo objeto para a fase alterada
-        novasFases[index] = { ...novasFases[index], [field]: value };
-        
-        return {
-            ...prev,
-            prazos_fases: novasFases
-        };
-    });
-};
-
-  const addProjetoFase = () => {
-      setForm((prev) => {
-          const fases = normalizeProjetoFases(prev.prazos_fases);
-          return {
-              ...prev,
-              prazos_fases: [...fases, createBlankProjetoFase(fases.length)],
-          };
-      });
-  };
-
-  const removeProjetoFase = (index) => {
-      setForm((prev) => {
-          const fases = normalizeProjetoFases(prev.prazos_fases).filter((_, currentIndex) => currentIndex !== index);
-          return {
-              ...prev,
-              prazos_fases: fases,
-          };
-      });
-  };
 
   const initialsOf = (txt) => {
       const clean = String(txt || '').replace(/[[\]()\-–]/g, ' ').trim();
@@ -2415,7 +2344,6 @@ export default function Projetos() {
       };
   };
 
-  const tipoSelecionadoUI = tipos.find(t => String(t.id) === String(form.tipo_projeto_id));
   const organismoPessoas = form.has_organismo && form.organismo_id
       ? entidadePessoas.filter(p => String(p.cliente_id) === String(form.organismo_id))
       : [];
@@ -2665,7 +2593,9 @@ export default function Projetos() {
     );
 };
 
-const exportCurrentOverviewPdf = () => {
+const exportCurrentOverviewPdf = async () => {
+    // bibliotecas de PDF só descarregam ao exportar
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
     if (isMonthlyTab) {
         const pdfAnual = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
         pdfAnual.setFontSize(14);
@@ -2770,7 +2700,6 @@ const exportCurrentOverviewPdf = () => {
           });
       };
       const activeOverviewRows = sortOverviewRows(overviewProjects);
-      const unassignedOverviewProjects = activeOverviewRows.filter((project) => getProjectProgramName(project) === "Sem Programa Associado");
       const visibleOverviewRows = showUnassignedOverviewProjects
           ? activeOverviewRows
           : activeOverviewRows.filter((project) => getProjectProgramName(project) !== "Sem Programa Associado");
@@ -2783,8 +2712,6 @@ const exportCurrentOverviewPdf = () => {
       const isOverviewFiltered = Boolean(overviewTypeFilter || overviewProgramFilter || overviewStateFilter || overviewEntityFilter);
       const totalOverviewInvestimento = visibleOverviewRows.reduce((acc, p) => acc + (Number(p.investimento) || 0), 0);
       const totalOverviewIncentivo = visibleOverviewRows.reduce((acc, p) => acc + (Number(p.incentivo) || 0), 0);
-      const isAllItems = overviewItemsPerPage === "all";
-      const limit = isAllItems ? visibleOverviewRows.length : Number(overviewItemsPerPage) || 10;
       const overviewProgramColors = ["#2563eb", "#db2777", "#16a34a", "#ea580c", "#7c3aed", "#0891b2", "#ca8a04", "#dc2626", "#4f46e5", "#0f766e"];
       const overviewProgramNames = [...new Set(overviewProjects.map(getProjectProgramName))].sort((a, b) => {
           const aIsUnassigned = a === "Sem Programa Associado";
@@ -2838,7 +2765,6 @@ const exportCurrentOverviewPdf = () => {
         ? visibleOverviewRows.filter((p) => buildMonthlyRows([p]).some(monthlyRowHasRequests))
         : visibleOverviewRows;
 
-    const monthlyTotalPages = Math.max(1, Math.ceil(monthlyBaseRows.length / (ITEMS_PER_PAGE || 1)));
     const monthlyPagedRows = monthlyBaseRows.slice(
         (overviewPage - 1) * ITEMS_PER_PAGE,
         overviewPage * ITEMS_PER_PAGE

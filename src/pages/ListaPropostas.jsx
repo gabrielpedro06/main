@@ -91,6 +91,7 @@ export default function ListaPropostas() {
 
   useEffect(() => {
     loadPropostas();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir a página
   }, []);
 
   const normalizeText = (value) =>
@@ -250,7 +251,7 @@ export default function ListaPropostas() {
     if (value === null || value === undefined) return {};
     try {
       return JSON.parse(JSON.stringify(value));
-    } catch (_error) {
+    } catch {
       return { ...value };
     }
   };
@@ -271,6 +272,7 @@ export default function ListaPropostas() {
 
       return matchesType && matchesStatus && matchesSearch;
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- funções auxiliares puras, não dependem de estado
   }, [busca, filtroTipo, filtroEstado, propostas]);
 
   const counts = useMemo(() => {

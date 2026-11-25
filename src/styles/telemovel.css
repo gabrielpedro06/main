@@ -1,0 +1,81 @@
+/* =====================================================================
+   TELEMÓVEL: rede de segurança para ecrãs pequenos, em toda a app.
+   Carregado no fim de main.jsx. Só atua abaixo de 900px (ou com toque).
+   ---------------------------------------------------------------------
+   1. Campos com letra ≥16px no toque: o iPhone deixa de fazer zoom
+      sozinho quando se toca num campo.
+   2. Nada empurra a página para o lado (palavras longas, URLs, emails).
+   3. Tabelas: o contentor faz scroll horizontal em vez de rebentar o ecrã.
+   4. Grelhas escritas no código (style={{ gridTemplateColumns: '1fr 1fr' }})
+      passam a uma coluna em ecrãs estreitos. É preciso !important porque
+      o estilo inline ganha sempre ao CSS.
+   5. Cabeçalhos de página e ações: quebram linha em vez de apertar.
+   6. Widget de assiduidade (attendance.css não tinha regras para telemóvel).
+   ===================================================================== */
+
+/* 1. sem zoom automático do iPhone ao tocar num campo */
+@media (pointer: coarse) and (max-width: 900px) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]),
+  select,
+  textarea,
+  [contenteditable="true"] {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  /* 2. nada sai do ecrã para o lado */
+  html, body { overflow-x: clip; }
+  /* break-word (e não anywhere): só parte uma palavra se ela sozinha não couber */
+  :is(h1, h2, h3, h4, p, li, dd, label, .bz-dica) { overflow-wrap: break-word; }
+
+  /* 3. tabelas com scroll horizontal no próprio contentor */
+  :is(div, section, article):has(> :is(table, .bz-tabela, .rh-table, .po-table, .po-vg-table, .en-table, .pa-table, .af-table, .pd-ftable, .sgm-table, .rg-tabela, .mk-rec-table, .data-table, .propostas-pagamentos-tabela)) {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* 5. cabeçalhos e barras de ações quebram linha */
+  :is(.page-hero-tools, .jn-acoes, .bz-acoes, .page-hero-actions):not(#tm) { flex-wrap: wrap; }
+  .page-hero .fs-trigger:not(#tm) { min-width: 0; flex: 1 1 180px; }
+  .page-hero-busca:not(#tm) { flex: 1 1 100%; min-width: 0; }
+}
+
+/* 4. grelhas inline → uma coluna */
+@media (max-width: 640px) {
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="grid-template-columns: 2fr 1fr"],
+  [style*="grid-template-columns: 1fr 2fr"],
+  [style*="grid-template-columns: 1.4fr 1fr"],
+  [style*="grid-template-columns: repeat(2,"],
+  [style*="grid-template-columns: repeat(3,"],
+  [style*="grid-template-columns: repeat(4,"],
+  [style*="grid-template-columns: minmax(0, 1fr) minmax(0, 2fr)"],
+  [style*="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr)"],
+  [style*="grid-template-columns: minmax(0, 1.15fr)"],
+  [style*="grid-template-columns: 1fr 180px"],
+  [style*="grid-template-columns: 1fr 1fr 1fr 180px"],
+  [style*="grid-template-columns: 160px minmax(0, 1fr)"],
+  [style*="grid-template-columns: 150px minmax(0, 1fr)"],
+  [style*="grid-template-columns: 140px minmax(0, 1fr)"],
+  .bz-grelha-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  /* grelhas de 4 números (estatísticas): duas colunas chegam */
+  [style*="grid-template-columns: 1fr 1fr 1fr 1fr"],
+  [style*="grid-template-columns: repeat(4,"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  /* minmax(300px…) não cabe em ecrãs de 320px */
+  [style*="minmax(300px, 1fr)"] { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* 6. widget de assiduidade */
+@media (max-width: 520px) {
+  .wa-main { flex-direction: column; gap: 18px; }
+  .wa-info { width: 100%; align-items: center; text-align: center; }
+  .wa-actions { flex-wrap: wrap; }
+  .wa-btn { flex: 1 1 130px; }
+}

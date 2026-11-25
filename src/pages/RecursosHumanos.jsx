@@ -22,19 +22,15 @@
 // Regras de saldo de férias: src/utils/feriasSaldo.js e
 // docs/modulos/rh-ferias-ausencias.md.
 // =====================================================================
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
-import gerarRelatorioRecursosHumanos from "../components/pdfRecursosHumanos";
-import gerarRelatorioIndividual from "../components/pdfIndividual";
-import gerarRelatorioDeslocacoesMensais from "../components/pdfDeslocacoesMensais";
 import CalendarioColaborador from "../components/CalendarioColaborador";
 import MedalhasRH from "../components/medalhas/MedalhasRH";
 import TabelaKmsMensal from "../components/rh/TabelaKmsMensal";
 import { Car as IconCar } from "lucide-react";
 import FancySelect from "../components/FancySelect";
-import * as XLSX from "xlsx";
 import {
     calcularDiasUteis as calcularDiasUteisFerias,
     buildToleranciasSkipSet,
@@ -118,7 +114,8 @@ const composeEventHandlers = (originalHandler, nextHandler) => (event) => {
 
 const ModernTooltip = ({ content, children }) => {
     const triggerRef = useRef(null);
-    const tooltipIdRef = useRef(`rh-tooltip-${Math.random().toString(36).slice(2, 10)}`);
+    // id estável e único por instância (useId), em vez de Math.random durante o render
+    const tooltipId = `rh-tooltip-${useId()}`;
     const [isOpen, setIsOpen] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0, placement: "top" });
 
@@ -173,17 +170,19 @@ const ModernTooltip = ({ content, children }) => {
 
     return (
         <>
+            {/* eslint-disable react-hooks/refs -- falso positivo: o ref callback e os handlers só leem triggerRef em eventos, não durante o render */}
             {React.cloneElement(child, {
                 ref: setMergedRef,
                 onMouseEnter: composeEventHandlers(child.props.onMouseEnter, handleOpen),
                 onMouseLeave: composeEventHandlers(child.props.onMouseLeave, handleClose),
                 onFocus: composeEventHandlers(child.props.onFocus, handleOpen),
                 onBlur: composeEventHandlers(child.props.onBlur, handleClose),
-                "aria-describedby": isOpen ? tooltipIdRef.current : child.props["aria-describedby"],
+                "aria-describedby": isOpen ? tooltipId : child.props["aria-describedby"],
             })}
+            {/* eslint-enable react-hooks/refs */}
             {isOpen && createPortal(
                 <div
-                    id={tooltipIdRef.current}
+                    id={tooltipId}
                     role="tooltip"
                     style={{
                         position: "fixed",
@@ -316,29 +315,6 @@ const getEffectiveWorkedSeconds = (attendanceRow) => {
 
     const pausaSeg = Math.max(0, Number(attendanceRow?.tempo_pausa_acumulado) || 0);
     return Math.max(0, saidaSeg - entradaSeg - pausaSeg);
-};
-
-const countMealAllowanceEligibleDays = (attendanceRows = []) => {
-    const totalSecondsByDay = new Map();
-
-    (attendanceRows || []).forEach((row) => {
-        if (!row?.data_registo) return;
-
-        const effectiveSeconds = getEffectiveWorkedSeconds(row);
-        if (effectiveSeconds <= 0) return;
-
-        totalSecondsByDay.set(
-            row.data_registo,
-            (totalSecondsByDay.get(row.data_registo) || 0) + effectiveSeconds,
-        );
-    });
-
-    let eligibleDays = 0;
-    totalSecondsByDay.forEach((totalSeconds) => {
-        if (totalSeconds >= MIN_SA_WORK_SECONDS) eligibleDays += 1;
-    });
-
-    return eligibleDays;
 };
 
 const clampDateToRange = (dateValue, startDate, endDate) => {
@@ -623,7 +599,7 @@ export default function RecursosHumanos() {
               throw error;
           }
           return true;
-      } catch (error) {
+      } catch {
           if (showError) showNotification("Não foi possível guardar o valor €/KM na Supabase.", "error");
           return false;
       } finally {
@@ -668,6 +644,7 @@ export default function RecursosHumanos() {
         }
 
         initRhData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inicialização dos dados de RH, executa apenas uma vez
     }, []);
 
   useEffect(() => {
@@ -714,6 +691,7 @@ export default function RecursosHumanos() {
   const isProcessamentoView = activeView === 'processamento';
   useEffect(() => {
             fetchDadosMensais();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchDadosMensais é recriada a cada render; recarrega só quando mudam colaborador/mês/vista
         }, [selectedUser, currentDate, colaboradores, isProcessamentoView]);
 
     // Saldo de férias do colaborador selecionado: ano do mês visível e, a partir
@@ -2043,7 +2021,7 @@ export default function RecursosHumanos() {
               ...faltasInjustificadasAutomaticas,
           ];
 
-          await gerarRelatorioIndividual({
+          await (await import("../components/pdfIndividual")).default({
               colaborador: user,
               assiduidade: assiduidadeMes,
               ausencias: ausenciasComFaltasAuto,
@@ -2093,7 +2071,7 @@ export default function RecursosHumanos() {
 
           const diasUteisMes = calcularDiasUteis(startOfMonth, endOfMonth);
 
-          await gerarRelatorioRecursosHumanos({
+          await (await import("../components/pdfRecursosHumanos")).default({
               colaboradores,
               assiduidade: assiduidadeData || [],
               ausencias: ausenciasData || [],
@@ -2132,7 +2110,7 @@ export default function RecursosHumanos() {
 
           if (deslocacoesError) throw deslocacoesError;
 
-          await gerarRelatorioDeslocacoesMensais({
+          await (await import("../components/pdfDeslocacoesMensais")).default({
               colaboradores,
               deslocacoes: deslocacoesData || [],
               ano: year,
@@ -2469,7 +2447,7 @@ export default function RecursosHumanos() {
       ? []
       : pedidosKmPendentes.filter((p) => matchPedidoBusca(p) && (pedidosTipoFiltro === 'cancel' ? p.estado === 'pedido_cancelamento' : true));
 
-  const exportarProcessamentoExcel = () => {
+  const exportarProcessamentoExcel = async () => {
       const mesLabel = currentDate.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
       const linhas = processamentoEquipa.map((item) => ({
           'Colaborador': item.colab.nome,
@@ -2484,6 +2462,7 @@ export default function RecursosHumanos() {
           'TOTAL S.A. PAGAR (€)': Number(item.valorSA.toFixed(2)),
       }));
       linhas.push({ 'Colaborador': 'TOTAL', 'TOTAL S.A. PAGAR (€)': Number(processamentoTotal.toFixed(2)) });
+      const XLSX = await import("xlsx"); // só descarrega ao exportar
       const ws = XLSX.utils.json_to_sheet(linhas);
       ws['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 16 }, { wch: 22 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 18 }, { wch: 20 }];
       const wb = XLSX.utils.book_new();
@@ -2839,19 +2818,6 @@ export default function RecursosHumanos() {
           showNotification("Erro ao guardar formação: " + err.message, "error");
       } finally {
           setIsSubmittingFormacao(false);
-      }
-  }
-
-  // Função para apagar registo
-  async function handleDeleteFormacao(id) {
-      if (!(await confirmar("Eliminar este registo de formação?", { perigoso: true, botao: "Eliminar" }))) return;
-      try {
-          const { error } = await supabase.from("formacoes").delete().eq("id", id);
-          if (error) throw error;
-          showNotification("Registo eliminado.", "success");
-          fetchFormacoes();
-      } catch (err) {
-          showNotification("Erro ao eliminar.", "error");
       }
   }
 

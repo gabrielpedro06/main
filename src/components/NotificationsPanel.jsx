@@ -1,5 +1,5 @@
 // Painel do sino de notificações do Início (projetos novos, aprovações de Marketing,
-// alertas de segurança). Quais os tipos carregados decide o DashboardHome (filtro .in("tipo", …)).
+// alertas de segurança, lembretes e atribuições do CRM das Leads). Quais os tipos carregados decide o DashboardHome (filtro .in("tipo", …)).
 // Estilos .np-* em home.css.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,6 +13,8 @@ const I = {
   Close: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
   Stamp: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>,
   Undo: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>,
+  Bell: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /><circle cx="18" cy="5" r="3" fill="currentColor" stroke="none" /></svg>,
+  Handshake: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /><path d="m16 11 2 2 4-4" /></svg>,
   Shield: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>,
   BellCheck: () => <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="m9.5 9.5 1.8 1.8 3.2-3.3" /></svg>,
 };
@@ -29,6 +31,9 @@ const TIPO = {
   mk_aprovado: { Icon: I.Check, acao: "Abrir no Marketing", tom: "is-ok" },
   mk_alteracoes: { Icon: I.Undo, acao: "Ver alterações", tom: "is-warn" },
   seguranca: { Icon: I.Shield, acao: "Ver alerta", tom: "is-danger" },
+  crm_lembrete: { Icon: I.Bell, acao: "Abrir lead", tom: "is-approval" },
+  crm_atribuida: { Icon: I.Handshake, acao: "Abrir lead", tom: "is-ok" },
+  crm_reuniao: { Icon: I.Bell, acao: "Abrir lead", tom: "is-ok" },
 };
 const tipoDe = (n) => TIPO[n.tipo] || TIPO.project_created;
 

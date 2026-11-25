@@ -12,10 +12,9 @@
 // PDF: components/pdfFormacaoGenerator.jsx.
 // Documentação: docs/modulos/clientes-e-comercial.md
 // =====================================================================
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
-import { generateFormacaoPDF } from "../components/pdfFormacaoGenerator";
 import "./../styles/dashboard.css";
 import { Pencil } from "lucide-react";
 import SelectModerno from "../components/SelectModerno";
@@ -190,7 +189,7 @@ const normalizeModulos = (value) => {
       if (parsed && typeof parsed === "object" && Array.isArray(parsed.modulos)) {
         return normalizeModulosArray(parsed.modulos);
       }
-    } catch (_error) {
+    } catch {
       return [];
     }
   }
@@ -271,7 +270,6 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
   const [empresaConsultora, setEmpresaConsultora] = useState(INITIAL_EMPRESA);
   const [cliente, setCliente] = useState(INITIAL_CLIENTE);
   const [cursosSelecionados, setCursosSelecionados] = useState([]);
-  const [expandedCursos, setExpandedCursos] = useState({});
   const [editingModulo, setEditingModulo] = useState(null); // { cursoId, index }
   const [proposta, setProposta] = useState(INITIAL_PROPOSTA);
   const [condicoes, setCondicoes] = useState(INITIAL_CONDICOES);
@@ -325,11 +323,25 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
 
     if (isLoading || !initialEmpresaConsultoraId || empresaConsultora.id || empresasConsultoras.length === 0) return;
     selectEmpresaConsultora(initialEmpresaConsultoraId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando os dados iniciais ficam disponíveis
   }, [isLoading, initialEmpresaConsultoraId, empresaConsultora.id, empresasConsultoras]);
+
+  // Vinda do CRM das Leads (/dashboard/propostas/novo?cliente=<id>): escolhe já o cliente
+  const [pesquisaUrl] = useSearchParams();
+  const clienteDaUrl = pesquisaUrl.get("cliente");
+  const clienteDaUrlFeito = useRef(false);
+  useEffect(() => {
+    if (actualPropostaId || !clienteDaUrl || clienteDaUrlFeito.current || cliente.id || clientes.length === 0) return;
+    if (!clientes.some((c) => String(c.id) === String(clienteDaUrl))) return;
+    clienteDaUrlFeito.current = true;
+    selectCliente(clienteDaUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só uma vez, quando a lista de clientes chega
+  }, [actualPropostaId, clienteDaUrl, cliente.id, clientes]);
 
   useEffect(() => {
     if (isLoading || !actualPropostaId || empresasConsultoras.length === 0 || clientes.length === 0) return;
     void loadPropostaExistente();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega só quando chegam os dados ou muda a proposta
   }, [isLoading, actualPropostaId, empresasConsultoras, clientes, cursos]);
 
   const totais = useMemo(() => {
@@ -654,13 +666,6 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
     }
   }
 
-  function toggleCursoModulos(cursoId) {
-    setExpandedCursos((previous) => ({
-      ...previous,
-      [cursoId]: !previous[cursoId],
-    }));
-  }
-
   function updateCursoSelecionado(cursoId, field, value) {
     setCursosSelecionados((previous) =>
       previous.map((curso) =>
@@ -668,24 +673,6 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
           ? { ...curso, [field]: field === "duracao_horas" ? Number(value) || 0 : value }
           : curso
       )
-    );
-  }
-
-  function updateModuloSelecionado(cursoId, moduloIndex, field, value) {
-    setCursosSelecionados((previous) =>
-      previous.map((curso) => {
-        if (String(curso.id) !== String(cursoId)) return curso;
-
-        const modulos = normalizeModulos(curso.modulos).map((modulo, index) => {
-          if (index !== moduloIndex) return modulo;
-          return {
-            ...modulo,
-            [field]: field === "duracao_horas" ? Number(value) || 0 : value,
-          };
-        });
-
-        return { ...curso, modulos };
-      })
     );
   }
 
@@ -865,7 +852,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
       }
 
       // Gerar o PDF com os dados actuais
-      await generateFormacaoPDF({
+      await (await import("../components/pdfFormacaoGenerator")).generateFormacaoPDF({
         propostaNumero: proposta.numero || resultadoGuardar?.numero,
         proposta,
         cliente,

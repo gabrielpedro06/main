@@ -10,7 +10,7 @@
 //   enquanto uma conversa está aberta.
 // Documentação: docs/modulos/comunicacao-e-dashboard.md
 // =====================================================================
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -21,7 +21,10 @@ import StopTimerNoteModal from "../components/StopTimerNoteModal";
 import { resolveActiveTimerMeta } from "../utils/activeTimerResolver";
 import { applyStopStatusUpdateForLogTarget } from "../utils/taskTimerLifecycle";
 import "./../styles/dashboard.css";
-import EmojiPicker from 'emoji-picker-react';
+import VideoIncorporado from '../components/VideoIncorporado';
+import { limparIframes, videosDoTexto } from '../utils/videoIncorporado';
+// Seletor de emojis (pesado): só descarrega quando se abre
+const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import "../styles/forum.css";
 import ImagemPrivada from "../components/ImagemPrivada";
 import { clicavel } from "../utils/clicavel";
@@ -178,17 +181,19 @@ function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend
     <form onSubmit={handleSubmit} className="fx-chat-composer">
       {showEmoji && (
         <div className="fx-emoji-pop">
+          <Suspense fallback={<div className="fx-emoji-a-carregar" style={{ width: 320, height: 400, display: "grid", placeItems: "center", color: "var(--cor-suave)" }}>A carregar…</div>}>
           <EmojiPicker
             onEmojiClick={(emojiObject) => {
               setDraft((prev) => prev + emojiObject.emoji);
               inputRef.current?.focus();
             }}
             autoFocusSearch={false}
-            theme="light"
+            theme={document.documentElement.dataset.modo === "escuro" ? "dark" : "light"}
             searchPlaceHolder="Procurar emojis…"
             width={320}
             height={400}
           />
+          </Suspense>
         </div>
       )}
 
@@ -402,6 +407,7 @@ export default function Forum() {
 
     useEffect(() => {
         if (user?.id) checkActiveLog();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- checkActiveLog é recriada a cada render; verifica só quando muda o utilizador
     }, [user?.id]);
 
     useEffect(() => {
@@ -417,6 +423,7 @@ export default function Forum() {
             window.removeEventListener("focus", refresh);
             document.removeEventListener("visibilitychange", refresh);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- checkActiveLog é recriada a cada render; o intervalo só deve ser refeito quando muda o utilizador
     }, [user?.id]);
 
     useEffect(() => {
@@ -502,6 +509,7 @@ export default function Forum() {
         const latest = chatMessages[chatMessages.length - 1];
         markRoomAsSeen(activeChatRoom.id, latest?.created_at || new Date().toISOString());
         scrollChatToBottom();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- markRoomAsSeen é recriada a cada render; só reage a novas mensagens/sala
     }, [chatMessages, chatModal.show, activeChatRoom?.id]);
 
     useEffect(() => {
@@ -572,6 +580,7 @@ export default function Forum() {
         if (!user?.id) return;
         loadChatCollaborators();
         if (!chatRlsNeedsFix) loadMyChatRooms();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- funções de carregamento recriadas a cada render; carrega só quando muda o utilizador
     }, [user?.id, chatRlsNeedsFix]);
 
     useEffect(() => {
@@ -721,6 +730,7 @@ export default function Forum() {
         return () => {
             supabase.removeChannel(channel);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMyChatRooms é recriada a cada render; a subscrição só deve ser refeita quando muda o utilizador
     }, [user?.id, chatRlsNeedsFix]);
 
   const showToast = (message, type = 'success') => {
@@ -2066,7 +2076,7 @@ async function sendChatMessage(rawContent) {
                   setChatError("Por favor, selecione um utilizador.");
                   return;
               }
-              const room = await getOrCreatePrivateRoomByName(selectedUserForChat.nome);
+              await getOrCreatePrivateRoomByName(selectedUserForChat.nome);
               closeNewChatModal();
               await openInternalChat({ title: selectedUserForChat.nome, subtitle: "Chat", avatar_url: selectedUserForChat.avatar_url });
           }
@@ -2139,7 +2149,7 @@ async function sendChatMessage(rawContent) {
       return name.substring(0, 2).toUpperCase();
   };
 
-  const renderAvatar = (name, avatarUrl, size = 40, fontSize = "1rem") => {
+  const renderAvatar = (name, avatarUrl, _size, fontSize = "1rem") => {
       if (avatarUrl) {
           return (
               <img
@@ -2165,8 +2175,10 @@ async function sendChatMessage(rawContent) {
       return collaborator?.nome || "Utilizador";
   };
 
-  const renderWithLinks = (text) => {
-      if (!text) return text;
+  const renderWithLinks = (rawText) => {
+      if (!rawText) return rawText;
+      // código de incorporação (<iframe…>) colado: mostra só o endereço
+      const text = limparIframes(rawText);
       const urlRegex = /(https?:\/\/[^\s]+)/g;
       const parts = text.split(urlRegex);
 
@@ -2252,17 +2264,6 @@ async function sendChatMessage(rawContent) {
       showToast(`${imageFiles.length} imagem(ns) adicionada(s) por drag & drop.`, "success");
   };
 
-  const moveBlock = (index, direction) => {
-      const nextIndex = index + direction;
-      setPostBlocks((prev) => {
-          if (nextIndex < 0 || nextIndex >= prev.length) return prev;
-          const next = [...prev];
-          const [item] = next.splice(index, 1);
-          next.splice(nextIndex, 0, item);
-          return next;
-      });
-  };
-
   const reorderBlock = (fromIndex, toIndex) => {
       if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
 
@@ -2327,9 +2328,12 @@ async function sendChatMessage(rawContent) {
 
                   if (!String(block.text || "").trim()) return null;
                   return (
-                      <div key={`txt_${idx}`} className="fx-block-text" style={{ textAlign: block.align || "left" }}>
-                          {renderWithLinks(block.text)}
-                      </div>
+                      <React.Fragment key={`txt_${idx}`}>
+                          <div className="fx-block-text" style={{ textAlign: block.align || "left" }}>
+                              {renderWithLinks(block.text)}
+                          </div>
+                          {videosDoTexto(block.text).map((v) => <VideoIncorporado key={`${v.fornecedor}:${v.id}`} video={v} />)}
+                      </React.Fragment>
                   );
               })}
           </div>
@@ -3398,7 +3402,12 @@ async function sendChatMessage(rawContent) {
                                                     <span className="fx-bubble-call-ico"><Icons.Video size={16} /></span>
                                                     <span className="fx-bubble-call-txt">Chamada terminada{msg.content.slice(MSG_CHAMADA_FIM.length) && <small>Duração{msg.content.slice(MSG_CHAMADA_FIM.length).replace(" · ", ": ")}</small>}</span>
                                                 </div>
-                                            ) : msg.content && <div className="fx-bubble-text">{msg.content}</div>}
+                                            ) : msg.content && (
+                                                <>
+                                                    <div className="fx-bubble-text">{limparIframes(msg.content)}</div>
+                                                    {videosDoTexto(msg.content).map((v) => <VideoIncorporado key={`${v.fornecedor}:${v.id}`} video={v} compacto />)}
+                                                </>
+                                            )}
                                             <span className="fx-bubble-meta">
                                                 {timeLabel.includes(' às ') ? timeLabel.split(' às ')[1] : timeLabel}
                                                 {mine && <span className={`fx-tick ${tick === '✓✓' ? 'is-read' : ''}`}>{tick}</span>}

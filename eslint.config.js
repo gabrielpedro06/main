@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // código de terceiros (pdf.js copiado para public/, ferramentas em .agents): não é nosso
+  globalIgnores(['dist', 'public/pdfjs/**', '.agents/**']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

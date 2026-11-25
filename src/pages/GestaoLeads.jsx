@@ -1,148 +1,170 @@
 // =====================================================================
 // Gestão de Leads (rota /dashboard/leads; admin, administrador, gestor, marketing).
 //
-// Dois separadores: "prospects" (marketing_prospects, contactos frios em grelha)
-// e "leads" (marketing_leads, em kanban por estado):
-//   novo -> contactado -> reuniao -> proposta -> convertido ("Ganho") | perdido
-// Fluxo: prospect "Promover a Lead" (copia e desativa o prospect) e lead
-// "Tornar Cliente" (cria linha em clientes e arquiva a lead como convertido).
-// Também: filtros por setor/localidade/CAE, importação CSV (separador ";",
+// Dois separadores: "prospects" (marketing_prospects, contactos frios) e
+// "leads" (marketing_leads): o CRM (components/crm/CrmLeads.jsx), com funil
+//   novo -> contactado -> reuniao -> proposta -> convertido ("Ganho") | perdido,
+//   valor, responsável, próxima ação com lembrete, histórico e ficha lateral.
+// Prospects: primeiro escolhe-se o setor (cartões), depois vê-se em cartões
+// ou em tabela.
+// Fluxo: prospect "Promover a lead" (copia e desativa o prospect) e lead
+// "Tornar cliente" (cria linha em clientes e arquiva a lead como convertido).
+// Também: filtros por localidade/CAE, importação CSV (separador ";",
 // ignora NIF já existentes), exportação CSV, copiar emails e envio de campanhas
 // Brevo pelo servidor de marketing (services/marketingSender).
+// Aspeto: cabeçalho comum (PageHero), janelas comuns (Janela), estilos .ld-* em
+// styles/crm.css.
 // Documentação: docs/modulos/clientes-e-comercial.md
 // =====================================================================
-import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { checkMarketingApiHealth, sendMarketingCampaign } from "../services/marketingSender";
-import "./../styles/dashboard.css";
 import { clicavel } from "../utils/clicavel";
-
-import AvisoToast from "../components/AvisoToast";
+import { toast } from "../utils/toast";
+import { confirmar } from "../utils/dialogo";
 import { registarEvento } from "../utils/registarEvento";
-// --- ÍCONES SVG PROFISSIONAIS ---
+import PageHero from "../components/PageHero";
+import SlidingTabs from "../components/SlidingTabs";
+import Janela from "../components/Janela";
+import SelectModerno from "../components/SelectModerno";
+import CrmLeads from "../components/crm/CrmLeads";
+import { estaAberta, ORIGENS } from "../components/crm/crm";
+import "../styles/crm.css";
+
+// --- ÍCONES ---
+const S = ({ children, s = 16 }) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>;
 const Icons = {
-  Search: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
-  MapPin: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
-  Building: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>,
-  Phone: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
-  Mail: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>,
-  User: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
-  Eye: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
-  Edit: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
-  Rocket: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg>,
-  Handshake: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>,
-  Archive: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>,
-  Restore: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>,
-  Download: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
-  Upload: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>,
-  Copy: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
-  Close: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-  Alert: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
-  Doc: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
-  FolderOpen: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>,
-  ArrowRight: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
-  ArrowLeft: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>,
-  Plus: ({ size = 16, color = "currentColor" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
-  Inbox: ({ size = 48, color = "#cbd5e1" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
+  Search: () => <S><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></S>,
+  MapPin: () => <S s={14}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></S>,
+  Building: () => <S><rect x="4" y="2" width="16" height="20" rx="2" /><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01" /></S>,
+  Phone: () => <S s={14}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></S>,
+  Mail: () => <S><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" /></S>,
+  User: () => <S s={14}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></S>,
+  Edit: () => <S><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></S>,
+  Rocket: () => <S><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" /><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" /><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" /></S>,
+  Archive: () => <S><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" /></S>,
+  Restore: () => <S><path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></S>,
+  Download: () => <S><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5M12 15V3" /></S>,
+  Upload: () => <S><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5M12 3v12" /></S>,
+  Copy: () => <S><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></S>,
+  Alert: () => <S><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></S>,
+  Doc: () => <S s={26}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M16 13H8M16 17H8" /></S>,
+  Arrow: () => <S s={14}><path d="M5 12h14M12 5l7 7-7 7" /></S>,
+  Back: () => <S s={15}><path d="M19 12H5M12 19l-7-7 7-7" /></S>,
+  Plus: () => <S><path d="M12 5v14M5 12h14" /></S>,
+  Funnel: () => <S s={24}><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" /></S>,
+  Grid: () => <S><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></S>,
+  List: () => <S><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></S>,
+  Send: () => <S><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></S>,
 };
 
-const ModalPortal = ({ children }) => createPortal(children, document.body);
-
-// Cores Dinâmicas para Setores
-const setorColors = ['var(--color-btnPrimary)', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
+// Cores por setor (estáveis pelo nome)
+const setorColors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#0ea5e9', '#6366f1'];
 const getColorForSetor = (nome) => {
-    if (!nome) return '#94a3b8';
-    const hash = String(nome).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return setorColors[hash % setorColors.length];
+  if (!nome) return '#94a3b8';
+  const hash = String(nome).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return setorColors[hash % setorColors.length];
 };
+
+const baseSetores = ["Indústria", "Saúde", "Tecnologia", "Audiovisual", "Turismo", "Comércio", "Serviços"];
+const initialForm = { nome: "", nif: "", localidade: "", contacto: "", email: "", titular: "", cae: "", setor: "", estado: "novo", ativo: true };
+const TIPO_TOAST = { success: "sucesso", error: "erro", warning: "aviso" };
+
+/**
+ * Insere em marketing_leads; se a coluna "origem" ainda não existir (migração
+ * 085 por correr), tenta de novo sem ela, para não partir importações.
+ */
+async function inserirLeads(linhas, opcoes) {
+  let q = supabase.from("marketing_leads").insert(linhas);
+  if (opcoes?.select) q = q.select().single();
+  let res = await q;
+  if (res.error && /origem/i.test(res.error.message || "")) {
+    const sem = linhas.map((l) => { const c = { ...l }; delete c.origem; return c; });
+    q = supabase.from("marketing_leads").insert(sem);
+    if (opcoes?.select) q = q.select().single();
+    res = await q;
+  }
+  return res;
+}
 
 export default function GestaoLeads() {
+  const [, setParams] = useSearchParams();
   const [dataList, setDataList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("leads");
-  
-  // 💡 NOVO: Estado para a Categoria/Setor Selecionado
+
+  // Prospects: setor escolhido (null = cartões de setores) e vista (cartões | tabela)
   const [selectedSetor, setSelectedSetor] = useState(null);
-  const [viewMode, setViewMode] = useState("kanban"); 
-
-  const [notification, setNotification] = useState(null);
-  const [confirmDialog, setConfirmDialog] = useState({ show: false, message: '', confirmText: '', onConfirm: null, isDanger: false });
-
-  const [draggedItemId, setDraggedItemId] = useState(null);
+  const [viewMode, setViewMode] = useState("grid");
 
   const [filterLocalidade, setFilterLocalidade] = useState("");
-  const [filterCae, setFilterCae] = useState(""); 
-  const [searchTerm, setSearchTerm] = useState(""); 
-  const [mostrarInativos, setMostrarInativos] = useState(false); 
+  const [filterCae, setFilterCae] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [mostrarInativos, setMostrarInativos] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
   const [showImportModal, setShowImportModal] = useState(false);
-    const [showSendModal, setShowSendModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
   const [modalForm, setModalForm] = useState({ show: false, isEdit: false, data: {} });
-    const [sendingCampaign, setSendingCampaign] = useState(false);
-    const [lastCampaignSummary, setLastCampaignSummary] = useState(null);
-    const [campaignForm, setCampaignForm] = useState({
-        mode: "template",
-        templateId: "",
-        subject: "",
-        htmlContent: "",
-        batchSize: 75,
-        batchDelayMs: 1200,
-        maxRetries: 3,
-    });
-  
+  const [aGravar, setAGravar] = useState(false);
+  const [sendingCampaign, setSendingCampaign] = useState(false);
+  const [lastCampaignSummary, setLastCampaignSummary] = useState(null);
+  const [campaignForm, setCampaignForm] = useState({
+    mode: "template",
+    templateId: "",
+    subject: "",
+    htmlContent: "",
+    batchSize: 75,
+    batchDelayMs: 1200,
+    maxRetries: 3,
+  });
+
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
-  const [importSetor, setImportSetor] = useState(""); 
+  const [importSetor, setImportSetor] = useState("");
 
-  // Estado para controlo do Setor "Outro" no Formulário
+  // Setor "Outro" no formulário
   const [isOutroSetor, setIsOutroSetor] = useState(false);
 
-  const initialForm = { nome: "", nif: "", localidade: "", contacto: "", email: "", titular: "", cae: "", setor: "", estado: "novo", ativo: true };
+  const isLeads = activeTab === "leads";
+  const tableName = isLeads ? "marketing_leads" : "marketing_prospects";
 
-  const statusOptions = [
-    { value: "novo", label: "Novo", color: "var(--color-btnPrimary)", bg: "var(--color-bgSecondary)", border: "var(--color-borderColor)" },
-    { value: "contactado", label: "Contactado", color: "#eab308", bg: "#fefce8", border: "#fef08a" },
-    { value: "reuniao", label: "Reunião", color: "#a855f7", bg: "#faf5ff", border: "#e9d5ff" },
-    { value: "proposta", label: "Proposta", color: "#f97316", bg: "#fff7ed", border: "#fed7aa" },
-    { value: "convertido", label: "Ganho", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-    { value: "perdido", label: "Perdido", color: "#64748b", bg: "#f1f5f9", border: "#e2e8f0" },
-  ];
-
-  // 💡 Geração Dinâmica de Setores (Junta os base com os que já existem na BD)
-  const baseSetores = ["Indústria", "Saúde", "Tecnologia", "Audiovisual", "Turismo", "Comércio", "Serviços"];
+  // Setores base + os que já existem na BD
   const dynamicSetores = [...new Set([...baseSetores, ...dataList.map(d => d.setor).filter(Boolean)])].sort();
 
+  // Cada pedido tem um número: se entretanto se mudou de separador, a resposta
+  // antiga é ignorada (senão podia escrever prospects por cima das leads).
+  const pedidoAtual = useRef(0);
+
   useEffect(() => {
+    setDataList([]); // nunca mostrar a lista do separador anterior
     fetchData();
     setCurrentPage(1);
-    setSelectedSetor(null); // Reseta a vista de setor ao mudar de tab
-    if (activeTab === "leads" && viewMode === "grid") setViewMode("kanban");
-    if (activeTab === "prospects" && viewMode === "kanban") setViewMode("grid");
+    setSelectedSetor(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega só ao mudar de separador
   }, [activeTab]);
 
-  const showToast = (message, type = 'success') => {
-      setNotification({ message, type });
-      setTimeout(() => setNotification(null), 3000);
-  };
+  const showToast = (message, type = 'success') => toast(message, { tipo: TIPO_TOAST[type] || "info" });
 
   async function fetchData() {
+    const pedido = ++pedidoAtual.current;
+    const tabela = tableName;
     setLoading(true);
-    const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
     const batchSize = 1000;
     let allData = [];
     let from = 0;
 
     while (true) {
       const { data, error } = await supabase
-        .from(tableName)
+        .from(tabela)
         .select("*")
         .order("created_at", { ascending: false })
         .range(from, from + batchSize - 1);
 
+      if (pedido !== pedidoAtual.current) return; // separador mudou entretanto
       if (error) break;
       if (!data || data.length === 0) break;
       allData = [...allData, ...data];
@@ -150,146 +172,131 @@ export default function GestaoLeads() {
       from += batchSize;
     }
 
+    if (pedido !== pedidoAtual.current) return;
     setDataList(allData);
     setLoading(false);
   }
 
-  /** Muda o estado (kanban); atualiza o ecrã antes da BD e não verifica erro. */
-  async function updateStatus(id, newStatus) {
-    const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
-    setDataList(prev => prev.map(item => item.id === id ? { ...item, estado: newStatus } : item));
-    await supabase.from(tableName).update({ estado: newStatus }).eq("id", id);
-  }
-
   async function toggleAtivo(id, estadoAtual) {
-      const novoEstado = !estadoAtual;
-      const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
-      setConfirmDialog({
-          show: true,
-          message: `Tem a certeza que deseja ${novoEstado ? 'reativar' : 'arquivar'} este registo?`,
-          confirmText: novoEstado ? "Reativar" : "Arquivar",
-          isDanger: !novoEstado,
-          onConfirm: async () => {
-              setConfirmDialog({ show: false });
-              const { error } = await supabase.from(tableName).update({ ativo: novoEstado }).eq("id", id);
-              if (!error) {
-                  setDataList(prev => prev.map(item => item.id === id ? { ...item, ativo: novoEstado } : item));
-                  showToast(`Registo ${novoEstado ? 'reativado' : 'arquivado'}.`);
-              }
-          }
-      });
+    const novoEstado = !(estadoAtual !== false);
+    const ok = await confirmar(novoEstado ? "Reativar este registo?" : "Arquivar este registo?", {
+      mensagem: novoEstado ? "Volta a aparecer nas listas." : "Deixa de aparecer nas listas; podes vê-lo em \"Arquivo\".",
+      botao: novoEstado ? "Reativar" : "Arquivar",
+      perigoso: !novoEstado,
+    });
+    if (!ok) return;
+    const { error } = await supabase.from(tableName).update({ ativo: novoEstado }).eq("id", id);
+    if (error) { showToast("Não foi possível: " + error.message, "error"); return; }
+    setDataList(prev => prev.map(item => item.id === id ? { ...item, ativo: novoEstado } : item));
+    showToast(`Registo ${novoEstado ? 'reativado' : 'arquivado'}.`);
   }
 
   /** Prospect -> Lead: cria em marketing_leads (estado "novo") e desativa o prospect. */
   async function promoteToLead(prospect) {
-    setConfirmDialog({
-        show: true, message: `Promover "${prospect.nome}" para os Leads?`, confirmText: "Promover a Lead", isDanger: false,
-        onConfirm: async () => {
-            setConfirmDialog({ show: false });
-            const { error } = await supabase.from("marketing_leads").insert([{
-              nome: prospect.nome, nif: prospect.nif, localidade: prospect.localidade,
-              email: prospect.email, contacto: prospect.contacto, titular: prospect.titular,
-              setor: prospect.setor, cae: prospect.cae, estado: "novo", ativo: true
-            }]);
-            if (!error) {
-                await supabase.from("marketing_prospects").update({ ativo: false }).eq("id", prospect.id); 
-                setDataList(dataList.map(l => l.id === prospect.id ? {...l, ativo: false} : l));
-                showToast("Promovido a Lead com sucesso!");
-            } else showToast("Erro: " + error.message, "error");
-        }
+    const ok = await confirmar(`Promover "${prospect.nome}" a lead?`, {
+      mensagem: "Passa para o CRM (etapa Novo) e sai da lista de prospects.",
+      botao: "Promover a lead",
     });
+    if (!ok) return;
+    const { error } = await inserirLeads([{
+      nome: prospect.nome, nif: prospect.nif, localidade: prospect.localidade,
+      email: prospect.email, contacto: prospect.contacto, titular: prospect.titular,
+      setor: prospect.setor, cae: prospect.cae, estado: "novo", ativo: true, origem: "Prospeção"
+    }]);
+    if (error) { showToast("Erro: " + error.message, "error"); return; }
+    await supabase.from("marketing_prospects").update({ ativo: false }).eq("id", prospect.id);
+    setDataList(prev => prev.map(l => l.id === prospect.id ? { ...l, ativo: false } : l));
+    showToast("Promovido a lead.");
   }
 
   /** Lead -> Cliente: cria em clientes (marca, entidade, NIF) e arquiva a lead como "convertido". */
   async function promoteToClient(lead) {
-      setConfirmDialog({
-          show: true, message: `Promover "${lead.nome}" a Cliente Oficial no sistema?\nA Lead será transferida para a carteira de Clientes e arquivada.`, confirmText: "Tornar Cliente", isDanger: false,
-          onConfirm: async () => {
-              setConfirmDialog({ show: false });
-              const { error } = await supabase.from("clientes").insert([{
-                marca: lead.nome, entidade: lead.nome, nif: lead.nif, ativo: true
-              }]);
-              if (!error) {
-                  await supabase.from("marketing_leads").update({ ativo: false, estado: 'convertido' }).eq("id", lead.id);
-                  setDataList(dataList.map(l => l.id === lead.id ? {...l, ativo: false, estado: 'convertido'} : l));
-                  showToast("Cliente criado e Lead arquivada!");
-              } else showToast("Erro: NIF duplicado ou inválido nas regras de clientes.", "error");
-          }
-      });
+    const ok = await confirmar(`Tornar "${lead.nome}" cliente?`, {
+      mensagem: lead.cliente_id ? "A empresa já está em Entidades; a lead é arquivada como ganha." : "Cria a entidade na carteira de Clientes e arquiva a lead.",
+      botao: "Tornar cliente",
+    });
+    if (!ok) return;
+    if (!lead.cliente_id) {
+      const { error } = await supabase.from("clientes").insert([{ marca: lead.nome, entidade: lead.nome, nif: lead.nif, ativo: true }]);
+      if (error) { showToast("Não foi possível criar o cliente: NIF repetido ou inválido.", "error"); return; }
+    }
+    await supabase.from("marketing_leads").update({ ativo: false, estado: 'convertido' }).eq("id", lead.id);
+    setDataList(prev => prev.map(l => l.id === lead.id ? { ...l, ativo: false, estado: 'convertido' } : l));
+    showToast("Cliente criado e lead arquivada.");
   }
 
   function openForm(isEdit = false, data = null) {
-      setIsOutroSetor(false); // Reseta a flag ao abrir o form
-      setModalForm({ show: true, isEdit, data: data ? { ...data } : { ...initialForm } });
+    setIsOutroSetor(false);
+    setModalForm({ show: true, isEdit, data: data ? { ...data } : { ...initialForm } });
   }
+  const fecharForm = () => setModalForm({ show: false, isEdit: false, data: {} });
+  const setCampo = (campo, valor) => setModalForm(m => ({ ...m, data: { ...m.data, [campo]: valor } }));
 
   async function handleSaveForm(e) {
-      e.preventDefault();
-      const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
-      const payload = { ...modalForm.data };
-
-      try {
-          if (modalForm.isEdit) {
-              const { error } = await supabase.from(tableName).update(payload).eq("id", payload.id);
-              if (error) throw error;
-              setDataList(prev => prev.map(item => item.id === payload.id ? payload : item));
-              showToast("Dados atualizados com sucesso.");
-          } else {
-              const { data, error } = await supabase.from(tableName).insert([payload]).select().single();
-              if (error) throw error;
-              setDataList([data, ...dataList]);
-              showToast("Registo criado com sucesso.");
-          }
-          setModalForm({ show: false, isEdit: false, data: {} });
-      } catch (err) { showToast("Erro: " + err.message, "error"); }
+    e.preventDefault();
+    const payload = { ...modalForm.data };
+    setAGravar(true);
+    try {
+      if (modalForm.isEdit) {
+        const { error } = await supabase.from(tableName).update(payload).eq("id", payload.id);
+        if (error) throw error;
+        setDataList(prev => prev.map(item => item.id === payload.id ? { ...item, ...payload } : item));
+        showToast("Dados atualizados.");
+      } else {
+        const { data, error } = isLeads
+          ? await inserirLeads([payload], { select: true })
+          : await supabase.from(tableName).insert([payload]).select().single();
+        if (error) throw error;
+        setDataList(prev => [data, ...prev]);
+        showToast(isLeads ? "Lead criada." : "Prospect criado.");
+        // lead nova: abre logo a ficha do CRM para definir valor e próximo passo
+        if (isLeads && data?.id) setParams(p => { const n = new URLSearchParams(p); n.set("lead", data.id); return n; });
+      }
+      fecharForm();
+    } catch (err) {
+      showToast("Erro: " + err.message, "error");
+    } finally {
+      setAGravar(false);
+    }
   }
 
   const isDuplicateNif = modalForm.data.nif && dataList.some(d => d.nif === modalForm.data.nif && d.id !== modalForm.data.id);
   const isMissingCrucialData = modalForm.isEdit && (!modalForm.data.email && !modalForm.data.contacto);
 
   function exportToCSV() {
-      if (filteredList.length === 0) return showToast("Nenhum dado para exportar.", "warning");
-      const headers = ["Nome", "NIF", "Localidade", "Setor", "CAE", "Titular", "Email", "Contacto", "Estado"];
-      const csvRows = [headers.join(",")];
-      
-      filteredList.forEach(item => {
-          const row = [
-              `"${item.nome || ''}"`, `"${item.nif || ''}"`, `"${item.localidade || ''}"`, `"${item.setor || ''}"`,
-              `"${item.cae || ''}"`, `"${item.titular || ''}"`, `"${item.email || ''}"`, `"${item.contacto || ''}"`, `"${item.estado || ''}"`
-          ];
-          csvRows.push(row.join(","));
-      });
-      
-      const blob = new Blob([csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
-      registarEvento("exportacao", { area: "Leads", linhas: filteredList.length });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `Exportacao_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    if (filteredList.length === 0) return showToast("Nenhum dado para exportar.", "warning");
+    const headers = ["Nome", "NIF", "Localidade", "Setor", "CAE", "Titular", "Email", "Contacto", "Estado"];
+    const csvRows = [headers.join(",")];
+    filteredList.forEach(item => {
+      const row = [item.nome, item.nif, item.localidade, item.setor, item.cae, item.titular, item.email, item.contacto, item.estado]
+        .map(v => `"${String(v || '').replace(/"/g, '""')}"`);
+      csvRows.push(row.join(","));
+    });
+    const blob = new Blob([csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+    registarEvento("exportacao", { area: "Leads", linhas: filteredList.length });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Exportacao_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   function copyAllEmails() {
-      const emails = filteredList.map(item => item.email).filter(e => e && e.includes('@'));
-      if (emails.length === 0) return showToast("Nenhum email válido encontrado.", "warning");
-      const emailString = emails.join("; ");
-      navigator.clipboard.writeText(emailString);
-      showToast(`${emails.length} emails copiados!`);
+    const emails = filteredList.map(item => item.email).filter(e => e && e.includes('@'));
+    if (emails.length === 0) return showToast("Nenhum email válido encontrado.", "warning");
+    navigator.clipboard.writeText(emails.join("; "));
+    showToast(`${emails.length} emails copiados.`);
   }
 
   function getFilteredEmailsForCampaign() {
-      const normalized = filteredList
-          .map(item => String(item.email || "").trim().toLowerCase())
-          .filter(Boolean);
-
-      return [...new Set(normalized)];
+    const normalized = filteredList.map(item => String(item.email || "").trim().toLowerCase()).filter(Boolean);
+    return [...new Set(normalized)];
   }
 
   function getFirstFailureReason(summary) {
-      const firstFailure = summary?.failedRecipients?.[0];
-      return firstFailure?.reason || "Motivo desconhecido.";
+    return summary?.failedRecipients?.[0]?.reason || "Motivo desconhecido.";
   }
 
   /**
@@ -297,105 +304,74 @@ export default function GestaoLeads() {
    * ou HTML livre, em lotes (batchSize, batchDelayMs, maxRetries).
    */
   async function handleSendCampaign() {
-      const emails = getFilteredEmailsForCampaign();
-      const isTemplateMode = campaignForm.mode === "template";
+    const emails = getFilteredEmailsForCampaign();
+    const isTemplateMode = campaignForm.mode === "template";
 
-      if (emails.length === 0) {
-          showToast("Sem emails válidos na lista filtrada.", "warning");
-          return;
-      }
+    if (emails.length === 0) { showToast("Sem emails válidos na lista filtrada.", "warning"); return; }
 
-      let templateId = null;
-            let params = undefined;
+    let templateId = null;
     let recipientParamsByEmail = null;
 
-      if (isTemplateMode) {
-          const parsedTemplateId = Number(campaignForm.templateId);
-          if (!parsedTemplateId || parsedTemplateId <= 0) {
-              showToast("Define um Template ID válido.", "warning");
-              return;
-          }
+    if (isTemplateMode) {
+      const parsedTemplateId = Number(campaignForm.templateId);
+      if (!parsedTemplateId || parsedTemplateId <= 0) { showToast("Indica um Template ID válido.", "warning"); return; }
+      templateId = parsedTemplateId;
+      const map = {};
+      filteredList.forEach((item) => {
+        const email = String(item.email || "").trim().toLowerCase();
+        if (!email || map[email]) return;
+        const bestName = String(item.titular || item.nome || "Cliente").trim();
+        if (bestName) map[email] = { nome: bestName, firstName: bestName, FIRSTNAME: bestName };
+      });
+      if (Object.keys(map).length > 0) recipientParamsByEmail = map;
+      if (!recipientParamsByEmail) { showToast("Não foi possível gerar o nome automático dos contactos.", "warning"); return; }
+    } else {
+      if (!campaignForm.subject.trim()) { showToast("Indica o assunto da campanha.", "warning"); return; }
+      if (!campaignForm.htmlContent.trim()) { showToast("Indica o conteúdo HTML da campanha.", "warning"); return; }
+    }
 
-          templateId = parsedTemplateId;
-          const map = {};
-          filteredList.forEach((item) => {
-              const email = String(item.email || "").trim().toLowerCase();
-              if (!email || map[email]) return;
+    setSendingCampaign(true);
+    setLastCampaignSummary(null);
 
-              const bestName = String(item.titular || item.nome || "Cliente").trim();
-              if (bestName) {
-                  map[email] = {
-                      nome: bestName,
-                      firstName: bestName,
-                      FIRSTNAME: bestName,
-                  };
-              }
-          });
+    try {
+      await checkMarketingApiHealth();
+      const summary = await sendMarketingCampaign({
+        emails,
+        templateId,
+        params: undefined,
+        recipientParamsByEmail,
+        subject: isTemplateMode ? undefined : campaignForm.subject.trim(),
+        htmlContent: isTemplateMode ? undefined : campaignForm.htmlContent,
+        batchSize: Number(campaignForm.batchSize),
+        batchDelayMs: Number(campaignForm.batchDelayMs),
+        maxRetries: Number(campaignForm.maxRetries),
+      });
 
-          if (Object.keys(map).length > 0) {
-              recipientParamsByEmail = map;
-          }
-
-          if (!params && !recipientParamsByEmail) {
-              showToast("Faltam variáveis do template e não foi possível gerar o nome automático dos contactos.", "warning");
-              return;
-          }
+      setLastCampaignSummary(summary);
+      const failedCount = summary?.failedRecipients?.length || 0;
+      if (summary?.repetido) {
+        showToast("Esta campanha já tinha sido enviada há poucos minutos (mesmos destinatários e conteúdo). Não foi enviada outra vez.", "warning");
+      } else if (failedCount > 0) {
+        const reason = getFirstFailureReason(summary);
+        if (reason.toLowerCase().includes("unrecognised ip address")) {
+          showToast("Falha Brevo: IP não autorizado. Adiciona este IP em Brevo > Security > Authorised IPs.", "error");
+        } else if (reason.toLowerCase().includes("params is blank")) {
+          showToast("Falha Brevo: este template exige variáveis. O sistema envia nome automático; reinicia o backend e tenta novamente.", "error");
+        } else {
+          showToast(`Campanha com falhas (${failedCount}): ${reason}`, "warning");
+        }
       } else {
-          if (!campaignForm.subject.trim()) {
-              showToast("Define um assunto para a campanha.", "warning");
-              return;
-          }
-
-          if (!campaignForm.htmlContent.trim()) {
-              showToast("Define o conteúdo HTML da campanha.", "warning");
-              return;
-          }
+        showToast(`Campanha enviada para ${summary?.sentRecipients || 0} contactos.`);
       }
-
-      setSendingCampaign(true);
-      setLastCampaignSummary(null);
-
-      try {
-          await checkMarketingApiHealth();
-
-          const summary = await sendMarketingCampaign({
-              emails,
-              templateId,
-              params,
-              recipientParamsByEmail,
-              subject: isTemplateMode ? undefined : campaignForm.subject.trim(),
-              htmlContent: isTemplateMode ? undefined : campaignForm.htmlContent,
-              batchSize: Number(campaignForm.batchSize),
-              batchDelayMs: Number(campaignForm.batchDelayMs),
-              maxRetries: Number(campaignForm.maxRetries),
-          });
-
-          setLastCampaignSummary(summary);
-
-          const failedCount = summary?.failedRecipients?.length || 0;
-          if (summary?.repetido) {
-              showToast("Esta campanha já tinha sido enviada há poucos minutos (mesmos destinatários e conteúdo). Não foi enviada outra vez.", "warning");
-          } else if (failedCount > 0) {
-              const reason = getFirstFailureReason(summary);
-              if (reason.toLowerCase().includes("unrecognised ip address")) {
-                  showToast("Falha Brevo: IP não autorizado. Adiciona este IP em Brevo > Security > Authorised IPs.", "error");
-              } else if (reason.toLowerCase().includes("params is blank")) {
-                  showToast("Falha Brevo: este template exige variáveis. O sistema envia nome automático; reinicia o backend e tenta novamente.", "error");
-              } else {
-                  showToast(`Campanha com falhas (${failedCount}): ${reason}`, "warning");
-              }
-          } else {
-              showToast(`Campanha enviada com sucesso para ${summary?.sentRecipients || 0} contactos.`);
-          }
-      } catch (error) {
-          if (String(error.message || "").includes("API de marketing indisponivel")) {
-              showToast("Backend de marketing offline. Inicia 'npm run dev:full' e tenta novamente.", "error");
-          } else {
-              showToast(`Erro no envio: ${error.message}`, "error");
-          }
-      } finally {
-          setSendingCampaign(false);
+    } catch (error) {
+      if (String(error.message || "").includes("API de marketing indisponivel")) {
+        showToast("Servidor de marketing desligado. Inicia 'npm run dev:full' e tenta novamente.", "error");
+      } else {
+        showToast(`Erro no envio: ${error.message}`, "error");
       }
+    } finally {
+      setSendingCampaign(false);
+    }
   }
 
   /**
@@ -406,859 +382,513 @@ export default function GestaoLeads() {
     e.preventDefault();
     if (!file) return showToast("Escolhe um ficheiro CSV primeiro.", "warning");
     setImporting(true);
-    const tableName = activeTab === "leads" ? "marketing_leads" : "marketing_prospects";
 
     const reader = new FileReader();
     reader.onload = async ({ target }) => {
       try {
-          const lines = target.result.split("\n");
-          const rawData = [];
-          const regexSplit = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        const lines = target.result.split("\n");
+        const rawData = [];
+        const regexSplit = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
 
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            const cols = line.split(regexSplit);
-            const clean = (val) => val ? val.trim().replace(/^"|"$/g, '') : null;
-            
-            if (cols.length >= 2) {
-              rawData.push({
-                nome: clean(cols[0]) || "Sem Nome", 
-                nif: clean(cols[1]), 
-                localidade: clean(cols[2]),
-                contacto: clean(cols[3]), 
-                email: clean(cols[4]), 
-                titular: clean(cols[5]),
-                cae: clean(cols[6]), 
-                setor: importSetor || null, 
-                estado: "novo", 
-                ativo: true
-              });
-            }
-          }
-
-          if (rawData.length > 0) {
-            const nifsToCheck = rawData.map(item => item.nif).filter(nif => nif && nif.trim() !== "");
-            let existingNifs = new Set();
-
-            if (nifsToCheck.length > 0) {
-                const chunkSize = 100;
-                for (let i = 0; i < nifsToCheck.length; i += chunkSize) {
-                    const chunk = nifsToCheck.slice(i, i + chunkSize);
-                    const { data: existingRecords, error: checkError } = await supabase
-                        .from(tableName)
-                        .select('nif')
-                        .in('nif', chunk);
-                        
-                    if (checkError) throw checkError;
-                    
-                    if (existingRecords) {
-                        existingRecords.forEach(r => existingNifs.add(r.nif));
-                    }
-                }
-            }
-
-            const newRecords = rawData.filter(item => {
-                if (!item.nif || item.nif.trim() === "") return true; 
-                return !existingNifs.has(item.nif);
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const cols = line.split(regexSplit);
+          const clean = (val) => val ? val.trim().replace(/^"|"$/g, '') : null;
+          if (cols.length >= 2) {
+            rawData.push({
+              nome: clean(cols[0]) || "Sem Nome",
+              nif: clean(cols[1]),
+              localidade: clean(cols[2]),
+              contacto: clean(cols[3]),
+              email: clean(cols[4]),
+              titular: clean(cols[5]),
+              cae: clean(cols[6]),
+              setor: importSetor || null,
+              estado: "novo",
+              ativo: true,
+              ...(isLeads ? { origem: "Importação CSV" } : {})
             });
-            
-            const duplicateCount = rawData.length - newRecords.length;
-
-            if (newRecords.length > 0) {
-                const insertChunkSize = 200;
-                for (let i = 0; i < newRecords.length; i += insertChunkSize) {
-                    const insertChunk = newRecords.slice(i, i + insertChunkSize);
-                    const { error } = await supabase.from(tableName).insert(insertChunk);
-                    if (error) throw error;
-                }
-                
-                showToast(`${newRecords.length} importados. ${duplicateCount > 0 ? `(${duplicateCount} ignorados repetidos)` : ''}`);
-                setShowImportModal(false); 
-                fetchData();
-            } else {
-                showToast("Todos os registos do CSV já existem no sistema.", "warning");
-            }
-          } else {
-            showToast("O ficheiro CSV parece estar vazio.", "warning");
           }
+        }
+
+        if (rawData.length === 0) { showToast("O ficheiro CSV parece estar vazio.", "warning"); return; }
+
+        const nifsToCheck = rawData.map(item => item.nif).filter(nif => nif && nif.trim() !== "");
+        const existingNifs = new Set();
+        for (let i = 0; i < nifsToCheck.length; i += 100) {
+          const chunk = nifsToCheck.slice(i, i + 100);
+          const { data: existingRecords, error: checkError } = await supabase.from(tableName).select('nif').in('nif', chunk);
+          if (checkError) throw checkError;
+          (existingRecords || []).forEach(r => existingNifs.add(r.nif));
+        }
+
+        const newRecords = rawData.filter(item => !item.nif || item.nif.trim() === "" || !existingNifs.has(item.nif));
+        const duplicateCount = rawData.length - newRecords.length;
+
+        if (newRecords.length === 0) { showToast("Todos os registos do CSV já existem.", "warning"); return; }
+        for (let i = 0; i < newRecords.length; i += 200) {
+          const lote = newRecords.slice(i, i + 200);
+          const { error } = isLeads ? await inserirLeads(lote) : await supabase.from(tableName).insert(lote);
+          if (error) throw error;
+        }
+        showToast(`${newRecords.length} importados.${duplicateCount > 0 ? ` (${duplicateCount} repetidos ignorados)` : ''}`);
+        setShowImportModal(false);
+        fetchData();
       } catch (err) {
-          showToast("Erro inesperado a processar ficheiro: " + err.message, "error");
+        showToast("Erro a processar o ficheiro: " + err.message, "error");
       } finally {
-          setImporting(false); 
-          setFile(null);
+        setImporting(false);
+        setFile(null);
       }
     };
     reader.readAsText(file);
   }
 
-  // 💡 LÓGICA DE CONTAGEM PARA OS CARTÕES DE SETORES
-  const countsPerSetor = {};
-  dataList.forEach(item => {
-      if (!mostrarInativos && item.ativo === false) return;
-      const matchLocalidade = filterLocalidade ? item.localidade?.toLowerCase().includes(filterLocalidade.toLowerCase()) : true;
-      const matchCae = filterCae ? item.cae?.toLowerCase().includes(filterCae.toLowerCase()) : true;
-      const matchSearch = searchTerm ? item.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || item.nif?.includes(searchTerm) : true;
-      
-      if (matchLocalidade && matchCae && matchSearch) {
-          const s = item.setor || 'sem-setor';
-          countsPerSetor[s] = (countsPerSetor[s] || 0) + 1;
-      }
-  });
-
-  // 💡 FILTRAGEM FINAL DA LISTA
-  const filteredList = dataList.filter((item) => {
+  // ---------- filtros ----------
+  const passaFiltros = (item) => {
     if (!mostrarInativos && item.ativo === false) return false;
+    const t = searchTerm.toLowerCase();
     const matchLocalidade = filterLocalidade ? item.localidade?.toLowerCase().includes(filterLocalidade.toLowerCase()) : true;
     const matchCae = filterCae ? item.cae?.toLowerCase().includes(filterCae.toLowerCase()) : true;
-    const matchSearch = searchTerm ? item.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || item.nif?.includes(searchTerm) : true;
-    
-    if (selectedSetor) {
-        if (selectedSetor === 'sem-setor' && item.setor) return false;
-        if (selectedSetor !== 'sem-setor' && item.setor !== selectedSetor) return false;
-    }
-
+    const matchSearch = searchTerm ? [item.nome, item.titular, item.email].some(v => v?.toLowerCase().includes(t)) || item.nif?.includes(searchTerm) : true;
     return matchLocalidade && matchCae && matchSearch;
+  };
+
+  const countsPerSetor = {};
+  dataList.forEach(item => {
+    if (!passaFiltros(item)) return;
+    const s = item.setor || 'sem-setor';
+    countsPerSetor[s] = (countsPerSetor[s] || 0) + 1;
+  });
+
+  const filteredList = dataList.filter((item) => {
+    if (!passaFiltros(item)) return false;
+    if (!isLeads && selectedSetor) {
+      if (selectedSetor === 'sem-setor' && item.setor) return false;
+      if (selectedSetor !== 'sem-setor' && item.setor !== selectedSetor) return false;
+    }
+    return true;
   });
 
   const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredList.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredList.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);
   const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+  const haFiltros = !!(searchTerm || filterLocalidade || filterCae || mostrarInativos);
 
-  const inputStyle = { padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', color: '#334155' };
-  const labelStyle = { display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' };
+  const abertas = isLeads ? dataList.filter(estaAberta).length : 0;
+  const ativos = dataList.filter(d => d.ativo !== false).length;
 
-  const CardActions = ({ item, isInactive, isMissingData }) => (
-    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '15px', borderTop: '1px solid var(--n-100)'}}>
-        <button aria-label="Ver Dados Completos" onClick={() => openForm(true, item)} title="Ver Dados Completos" style={{background: 'var(--n-50)', border: '1px solid var(--n-300)', color: 'var(--n-700)', width: '30px', height: '30px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
-            <Icons.Eye />
-            {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', border: '2px solid var(--sup-1)'}}></span>}
+  const setoresVisiveis = dynamicSetores.filter(s => (countsPerSetor[s] || 0) > 0 || haFiltros);
+
+  // ---------- peças ----------
+  const acoesProspect = (item) => {
+    const isInactive = item.ativo === false;
+    return (
+      <div className="ld-acoes">
+        <button type="button" className="ld-ico" onClick={() => openForm(true, item)} title="Ver / editar dados" aria-label="Ver / editar dados">
+          <Icons.Edit />
+          {!item.email && !item.contacto && <i className="ld-ponto" aria-hidden="true" />}
         </button>
-
-        <div style={{display: 'flex', gap: '6px'}}>
-            <button aria-label="Editar" onClick={() => openForm(true, item)} title="Editar" className="action-btn hover-orange-text"><Icons.Edit /></button>
-            
-            {!isInactive && activeTab === "prospects" && (
-                <button aria-label="Promover a Lead" onClick={() => promoteToLead(item)} title="Promover a Lead" className="action-btn hover-blue-text"><Icons.Rocket /></button>
-            )}
-            {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
-                <button aria-label="Tornar Cliente Oficial" onClick={() => promoteToClient(item)} title="Tornar Cliente Oficial" className="action-btn hover-green-text"><Icons.Handshake /></button>
-            )}
-
-            <button aria-label={isInactive ? "Restaurar" : "Arquivar"} onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} className={`action-btn ${isInactive ? "hover-green-text" : "hover-red-text"}`}>
-                {isInactive ? <Icons.Restore /> : <Icons.Archive />}
-            </button>
-        </div>
-    </div>
-  );
+        {!isInactive && (
+          <button type="button" className="ld-ico is-acento" onClick={() => promoteToLead(item)} title="Promover a lead" aria-label="Promover a lead"><Icons.Rocket /></button>
+        )}
+        <button type="button" className={`ld-ico ${isInactive ? "is-ok" : "is-perigo"}`} onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} aria-label={isInactive ? "Restaurar" : "Arquivar"}>
+          {isInactive ? <Icons.Restore /> : <Icons.Archive />}
+        </button>
+      </div>
+    );
+  };
 
   return (
-    <div className="page-container" style={{maxWidth: '100%', margin: '0 auto', paddingBottom: '50px'}}>
-      
-      {/* HEADER */}
-      <div className="card" style={{ marginBottom: 20, padding: '25px', display: "flex", justifyContent: "space-between", alignItems: 'center', flexWrap: 'wrap', gap: '15px', background: 'var(--sup-1)', border: '1px solid var(--n-200)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-        <div>
-          <h1 style={{fontSize: '1.8rem', color: 'var(--n-900)', margin: '0 0 5px 0', fontWeight: '900', letterSpacing: '-0.02em'}}>Marketing Hub</h1>
-          <p style={{color: 'var(--n-500)', margin: 0, fontWeight: '500'}}>Gestão de {activeTab === 'leads' ? 'Leads Comerciais' : 'Prospects'}</p>
-        </div>
-        <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-            <button className="btn-outline hover-shadow" onClick={() => setShowSendModal(true)}><Icons.Mail /> Campanha</button>
-            <button className="btn-outline hover-shadow" onClick={copyAllEmails}><Icons.Copy /> Copiar Emails</button>
-            <button className="btn-outline hover-shadow" onClick={exportToCSV}><Icons.Upload /> Exportar CSV</button>
-            <button className="btn-outline hover-shadow" onClick={() => setShowImportModal(true)}><Icons.Download /> Importar</button>
-            <button className="btn-cta" onClick={() => openForm(false)}>Novo {activeTab === 'leads' ? 'Lead' : 'Prospect'}</button>
-        </div>
-      </div>
-
-      {/* TABS */}
-      <div style={{display:'flex', gap:'5px', paddingLeft: '10px'}}>
-          <button onClick={() => {setActiveTab("leads"); setViewMode('kanban'); setCurrentPage(1);}} style={{padding: '12px 25px', background: activeTab === 'leads' ? 'white' : '#e2e8f0', color: activeTab === 'leads' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Rocket /> Leads</button>
-          <button onClick={() => {setActiveTab("prospects"); setViewMode('table'); setCurrentPage(1);}} style={{padding: '12px 25px', background: activeTab === 'prospects' ? 'white' : '#e2e8f0', color: activeTab === 'prospects' ? 'var(--color-btnPrimary)' : '#64748b', border: 'none', borderRadius: '12px 12px 0 0', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', display:'flex', alignItems:'center', gap:'8px'}}><Icons.Building /> Prospects</button>
-      </div>
-
-      <div key={activeTab} className="card bz-tab-panel" style={{ padding: '20px', borderRadius: '0 12px 12px 12px', background: (!selectedSetor && viewMode === 'kanban') ? 'transparent' : 'white', border: (!selectedSetor && viewMode === 'kanban') ? 'none' : '1px solid #e2e8f0', boxShadow: (!selectedSetor && viewMode === 'kanban') ? 'none' : '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-        
-        {/* FILTROS */}
-        <div style={{ display: "flex", flexWrap: 'wrap', gap: 15, marginBottom: 20, paddingBottom: 20, borderBottom: (!selectedSetor && viewMode === 'kanban') ? 'none' : '1px solid #f1f5f9', alignItems: 'center', background: (!selectedSetor && viewMode==='kanban') ? 'white' : 'transparent', padding: (!selectedSetor && viewMode==='kanban') ? '20px' : '0', borderRadius: (!selectedSetor && viewMode==='kanban') ? '12px' : '0', border: (!selectedSetor && viewMode==='kanban') ? '1px solid #e2e8f0' : 'none' }}>
-          <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>
-            <span style={{position: 'absolute', left: '12px', top: '12px', color: 'var(--n-500)'}}><Icons.Search /></span>
-            <input aria-label="Pesquisar empresa ou NIF" placeholder="Pesquisar empresa ou NIF…" value={searchTerm} onChange={e => {setSearchTerm(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100%', paddingLeft: '38px'}} />
-          </div>
-          <input aria-label="Localidade" placeholder="Localidade…" value={filterLocalidade} onChange={(e) => {setFilterLocalidade(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '150px'}} />
-          <input aria-label="CAE" placeholder="CAE…" value={filterCae} onChange={(e) => {setFilterCae(e.target.value); setCurrentPage(1);}} style={{...inputStyle, width: '100px'}} />
-          
-          <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--n-700)', background: 'var(--n-50)', padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--n-200)'}}>
-              <input type="checkbox" checked={mostrarInativos} onChange={e => {setMostrarInativos(e.target.checked); setCurrentPage(1);}} style={{accentColor:'#1e293b', width:'14px', height:'14px'}} /> Arquivo
+    <div className="page-container ld">
+      <PageHero
+        icon={<Icons.Funnel />}
+        kicker="Marketing · Comercial"
+        title="Leads"
+        subtitle={isLeads ? "O funil comercial: de contacto a cliente." : "Base de empresas para prospeção, por setor."}
+        stats={loading ? [] : isLeads
+          ? [{ valor: abertas, label: "em aberto" }]
+          : [{ valor: ativos, label: "prospects" }]}
+        side={<>
+          <button type="button" className="page-hero-btn is-vidro" onClick={() => setShowSendModal(true)}><Icons.Send /> Campanha</button>
+          <button type="button" className="page-hero-btn is-vidro" onClick={() => setShowImportModal(true)}><Icons.Download /> Importar</button>
+          <button type="button" className="page-hero-btn" onClick={() => openForm(false)}><Icons.Plus /> {isLeads ? "Nova lead" : "Novo prospect"}</button>
+        </>}
+        tools={<>
+          <SlidingTabs
+            ariaLabel="Separadores"
+            value={activeTab}
+            onChange={(t) => { setActiveTab(t); setCurrentPage(1); }}
+            tabs={[
+              { id: "leads", label: "Leads", icon: <Icons.Rocket /> },
+              { id: "prospects", label: "Prospects", icon: <Icons.Building /> },
+            ]}
+          />
+          <label className="page-hero-busca">
+            <Icons.Search />
+            <input
+              aria-label="Pesquisar"
+              placeholder={isLeads ? "Empresa, pessoa, email ou NIF…" : "Empresa ou NIF…"}
+              value={searchTerm}
+              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            />
           </label>
-          
-          {selectedSetor && (
-              <div style={{display: 'flex', background: 'var(--n-100)', borderRadius: '8px', padding: '4px', border: '1px solid var(--n-200)', marginLeft: 'auto'}}>
-                  <button onClick={() => setViewMode("table")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "table" ? 'white' : 'transparent', color: viewMode === "table" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: viewMode === "table" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
-                      Lista
-                  </button>
-                  {activeTab === 'prospects' ? (
-                      <button onClick={() => setViewMode("grid")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "grid" ? 'white' : 'transparent', color: viewMode === "grid" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: viewMode === "grid" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
-                          Cartões
-                      </button>
-                  ) : (
-                      <button onClick={() => setViewMode("kanban")} style={{padding: '6px 12px', borderRadius: '6px', border: 'none', background: viewMode === "kanban" ? 'white' : 'transparent', color: viewMode === "kanban" ? 'var(--color-btnPrimary)' : '#64748b', boxShadow: viewMode === "kanban" ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', transition: '0.2s', fontWeight: 'bold'}}>
-                          Cartões
-                      </button>
-                  )}
+          <input className="ld-hero-campo" aria-label="Localidade" placeholder="Localidade" value={filterLocalidade} onChange={(e) => { setFilterLocalidade(e.target.value); setCurrentPage(1); }} />
+          <input className="ld-hero-campo is-curto" aria-label="CAE" placeholder="CAE" value={filterCae} onChange={(e) => { setFilterCae(e.target.value); setCurrentPage(1); }} />
+          <button type="button" className={`ld-hero-toggle${mostrarInativos ? " is-on" : ""}`} aria-pressed={mostrarInativos} onClick={() => { setMostrarInativos(v => !v); setCurrentPage(1); }}>
+            <Icons.Archive /> Arquivo
+          </button>
+          <span className="ld-hero-mais">
+            <button type="button" className="ld-hero-toggle" onClick={copyAllEmails} title="Copiar os emails da lista filtrada"><Icons.Copy /> Emails</button>
+            <button type="button" className="ld-hero-toggle" onClick={exportToCSV} title="Exportar a lista filtrada"><Icons.Upload /> CSV</button>
+          </span>
+        </>}
+      />
+
+      <div key={activeTab} className="bz-tab-panel ld-corpo">
+        {isLeads && loading ? (
+          <div className="ld-setores">{[0, 1, 2, 3].map(i => <div key={i} className="ld-setor is-a-carregar" />)}</div>
+        ) : isLeads ? (
+          <CrmLeads
+            leads={filteredList}
+            setLeads={setDataList}
+            setores={dynamicSetores}
+            onEditar={(lead) => openForm(true, lead)}
+            onTornarCliente={promoteToClient}
+            onArquivar={(lead) => toggleAtivo(lead.id, lead.ativo)}
+          />
+        ) : !selectedSetor ? (
+          /* PROSPECTS · escolher o setor */
+          <section className="ld-setores-bloco">
+            <h2 className="ld-titulo"><Icons.Building /> Setores</h2>
+            {loading ? (
+              <div className="ld-setores">{[0, 1, 2, 3].map(i => <div key={i} className="ld-setor is-a-carregar" />)}</div>
+            ) : (
+              <div className="ld-setores">
+                {setoresVisiveis.map(setor => {
+                  const count = countsPerSetor[setor] || 0;
+                  return (
+                    <div key={setor} {...clicavel(() => setSelectedSetor(setor))} className="ld-setor" style={{ "--c": getColorForSetor(setor) }}>
+                      <span className="ld-setor-ico"><Icons.Building /></span>
+                      <h3>{setor}</h3>
+                      <strong>{count}</strong>
+                      <span className="ld-setor-ver">Ver empresas <Icons.Arrow /></span>
+                    </div>
+                  );
+                })}
+                {countsPerSetor['sem-setor'] > 0 && (
+                  <div {...clicavel(() => setSelectedSetor('sem-setor'))} className="ld-setor" style={{ "--c": "#94a3b8" }}>
+                    <span className="ld-setor-ico"><Icons.Building /></span>
+                    <h3>Sem setor</h3>
+                    <strong>{countsPerSetor['sem-setor']}</strong>
+                    <span className="ld-setor-ver">Ver não categorizados <Icons.Arrow /></span>
+                  </div>
+                )}
               </div>
-          )}
-        </div>
-
-        {/* 💡 VISTA DE CATEGORIAS (SETORES) - Inicial */}
-        {!selectedSetor ? (
-            <div className="fade-in">
-                <h2 style={{fontSize: '1.2rem', color: 'var(--n-700)', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.FolderOpen /> Áreas de Negócio (Setores)</h2>
-                
-                <div className="category-grid">
-                    {dynamicSetores.map(setor => {
-                        const count = countsPerSetor[setor] || 0;
-                        const color = getColorForSetor(setor);
-                        if (count === 0 && !searchTerm && !mostrarInativos && !filterLocalidade && !filterCae) return null; 
-
-                        return (
-                            <div 
-                                key={setor} 
-                                {...clicavel(() => setSelectedSetor(setor))}
-                                className="category-card"
-                                style={{ borderTop: `5px solid ${color}` }}
-                            >
-                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                    <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.2rem'}}>{setor}</h3>
-                                    <span style={{background: `${color}20`, color: color, padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{count}</span>
-                                </div>
-                                <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: 'var(--n-500)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver Mais <Icons.ArrowRight /></p>
-                            </div>
-                        );
-                    })}
-
-                    {(countsPerSetor['sem-setor'] > 0) && (
-                        <div 
-                            {...clicavel(() => setSelectedSetor('sem-setor'))}
-                            className="category-card"
-                            style={{ borderTop: `5px solid #94a3b8` }}
-                        >
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.2rem'}}>Sem Setor Definido</h3>
-                                <span style={{background: `#f1f5f9`, color: 'var(--n-500)', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem'}}>{countsPerSetor['sem-setor']}</span>
-                            </div>
-                            <p style={{margin: '15px 0 0 0', fontSize: '0.85rem', color: 'var(--n-500)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px'}}>Ver não categorizados <Icons.ArrowRight /></p>
-                        </div>
-                    )}
-                </div>
-                
-                {Object.keys(countsPerSetor).length === 0 && (
-                    <div style={{textAlign: 'center', padding: '60px', background: 'var(--sup-1)', borderRadius: '16px', border: '1px dashed var(--n-300)'}}>
-                        <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px', color: 'var(--n-300)'}}><Icons.Inbox size={48} /></div>
-                        <h3 style={{color: 'var(--n-900)', margin: '0 0 5px 0'}}>Nenhuma empresa encontrada.</h3>
-                        <p style={{color: 'var(--n-500)', margin: 0}}>Verifica os teus filtros ou importa novos contactos.</p>
-                    </div>
-                )}
-            </div>
+            )}
+            {!loading && Object.keys(countsPerSetor).length === 0 && (
+              <div className="bz-vazio-grande">
+                <span className="bz-vazio-ico"><Icons.Building /></span>
+                <h3>{haFiltros ? "Nenhuma empresa com estes filtros" : "Ainda não há prospects"}</h3>
+                <p>{haFiltros ? "Experimenta limpar a pesquisa ou os filtros." : "Importa um CSV ou cria o primeiro prospect."}</p>
+                {!haFiltros && <button type="button" className="bz-btn is-primary" onClick={() => setShowImportModal(true)}><Icons.Download /> Importar CSV</button>}
+              </div>
+            )}
+          </section>
         ) : (
-            <div className="fade-in">
-                <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: '1px solid var(--n-300)', paddingBottom: '15px'}}>
-                    <button 
-                        onClick={() => setSelectedSetor(null)}
-                        style={{background: 'var(--sup-1)', border: '1px solid var(--n-300)', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: 'var(--n-700)', display: 'flex', alignItems: 'center', gap: '6px', transition: '0.2s'}}
-                        className="hover-shadow"
-                    >
-                        <Icons.ArrowLeft /> Voltar aos Setores
-                    </button>
-                    <h2 style={{margin: 0, fontSize: '1.4rem', color: 'var(--n-900)', fontWeight: '800'}}>
-                        {selectedSetor === 'sem-setor' ? 'Sem Setor Definido' : selectedSetor}
-                    </h2>
-                </div>
-
-                {/* 💡 VISTA 1: KANBAN BOARD */}
-                {viewMode === "kanban" && activeTab === "leads" && (
-                    <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '20px', minHeight: '600px', alignItems: 'flex-start' }} className="custom-scrollbar">
-                        {statusOptions.map(col => {
-                            const colItems = filteredList.filter(item => item.estado === col.value); 
-                            
-                            return (
-                                <div 
-                                    key={col.value}
-                                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.background = col.bg; }}
-                                    onDragLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        e.currentTarget.style.background = '#f8fafc';
-                                        if (draggedItemId) {
-                                            updateStatus(draggedItemId, col.value);
-                                            setDraggedItemId(null);
-                                        }
-                                    }}
-                                    style={{ flex: 1, minWidth: '220px', background: 'var(--n-50)', borderRadius: '12px', border: '1px solid var(--n-200)', display: 'flex', flexDirection: 'column', transition: 'background 0.2s', overflow: 'hidden' }}
-                                >
-                                    <div style={{ padding: '12px 15px', borderBottom: `2px solid ${col.color}`, background: 'var(--sup-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <h4 style={{ margin: 0, color: col.color, fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase' }}>
-                                            {col.label}
-                                        </h4>
-                                        <span style={{background: col.bg, color: col.color, padding: '2px 6px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold', border: `1px solid ${col.border}`}}>{colItems.length}</span>
-                                    </div>
-                                    
-                                    <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', maxHeight: 'calc(70 * var(--bz-vh, 1vh))' }} className="custom-scrollbar hide-scrollbar-kanban">
-                                        {colItems.map(item => {
-                                            const isInactive = item.ativo === false;
-                                            const isMissingData = !item.email && !item.contacto;
-                                            
-                                            return (
-                                            <div
-                                                key={item.id}
-                                                draggable={!isInactive}
-                                                onDragStart={() => setDraggedItemId(item.id)}
-                                                onDragEnd={() => setDraggedItemId(null)}
-                                                style={{ 
-                                                    background: isInactive ? '#f1f5f9' : 'white', padding: '12px', borderRadius: '8px', 
-                                                    border: '1px solid var(--n-300)', cursor: isInactive ? 'default' : 'grab', opacity: draggedItemId === item.id ? 0.4 : (isInactive ? 0.6 : 1), 
-                                                    boxShadow: draggedItemId === item.id ? 'none' : '0 2px 4px rgba(0,0,0,0.04)',
-                                                    transition: 'transform 0.1s', position: 'relative'
-                                                }}
-                                                className={isInactive ? "" : "hover-shadow-kanban drag-item"}
-                                            >
-                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
-                                                    <strong style={{color: 'var(--n-900)', fontSize: '0.9rem', lineHeight: '1.2'}}>{item.nome}</strong>
-                                                    <button aria-label="Editar lead" onClick={() => openForm(true, item)} style={{background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--n-500)', padding: '0 0 0 5px'}} className="hover-blue-text"><Icons.Edit/></button>
-                                                </div>
-                                                
-                                                <div style={{fontSize: '0.7rem', color: 'var(--n-500)', display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                                                    {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
-                                                    {item.setor && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Building/> {item.setor}</span>}
-                                                    {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
-                                                    {isMissingData && <span style={{color: 'var(--cx-b45309, #b45309)', background: 'var(--cx-fef3c7, #fef3c7)', padding: '2px 4px', borderRadius: '4px', width: 'fit-content', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
-                                                </div>
-
-                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--n-100)'}}>
-                                                    <span style={{fontFamily: 'monospace', fontSize: '0.65rem', background: 'var(--n-50)', padding: '2px 6px', borderRadius: '4px', color: 'var(--n-500)'}}>{item.nif || 'S/ NIF'}</span>
-                                                    
-                                                    {item.estado === 'convertido' && !isInactive && (
-                                                        <button onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: 'var(--cx-dcfce7, #dcfce7)', color: '#16a34a', border: '1px solid #bbf7d0', padding: '4px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Rocket /> Cliente</button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )})}
-                                        {colItems.length === 0 && <div style={{textAlign: 'center', padding: '15px', color: 'var(--n-300)', fontSize: '0.75rem', fontStyle: 'italic', border: '1px dashed var(--n-200)', borderRadius: '8px'}}>Larga aqui…</div>}
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                )}
-
-                {/* 💡 VISTA 2: GRID DE CARTÕES */}
-                {viewMode === "grid" && (
-                    <div className="leads-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
-                        {currentItems.map((item) => {
-                            const isInactive = item.ativo === false;
-                            const isMissingData = !item.email && !item.contacto;
-                            const statusObj = statusOptions.find(o => o.value === item.estado) || {};
-
-                            return (
-                                <div key={item.id} className="lead-card hover-shadow" style={{background: isInactive ? '#f8fafc' : 'white', border: '1px solid var(--n-200)', borderRadius: '12px', padding: '15px', display: 'flex', flexDirection: 'column', opacity: isInactive ? 0.6 : 1, transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', borderTop: `4px solid ${activeTab === 'leads' ? statusObj.color : 'var(--n-300)'}`}}>
-                                    
-                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
-                                        <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
-                                            {item.nif && <span style={{fontFamily: 'monospace', fontSize: '0.7rem', background: 'var(--n-100)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', color: 'var(--n-500)'}}>{item.nif}</span>}
-                                            {isInactive && <span style={{fontSize: '0.65rem', background: 'var(--cx-fee2e2, #fee2e2)', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
-                                        </div>
-                                        {activeTab === "leads" && (
-                                            <span style={{fontSize: '0.65rem', background: statusObj.bg, color: statusObj.color, padding: '2px 8px', borderRadius: '12px', fontWeight: '800', textTransform: 'uppercase'}}>{statusObj.label}</span>
-                                        )}
-                                    </div>
-
-                                    <h3 style={{margin: '0 0 8px 0', fontSize: '1.1rem', color: 'var(--n-900)', fontWeight: '800', lineHeight: '1.2'}}>{item.nome}</h3>
-                                    
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '15px', flex: 1}}>
-                                        <div style={{fontSize: '0.8rem', color: 'var(--n-500)', display: 'flex', alignItems: 'center', gap: '6px'}}><Icons.MapPin/> {item.localidade || 'Sem Localidade'}</div>
-                                        <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center'}}>
-                                            {item.setor && <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid var(--color-borderColor)'}}>{item.setor}</span>}
-                                            {item.cae && <span style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '600'}}>CAE: {item.cae}</span>}
-                                        </div>
-                                    </div>
-
-                                    <CardActions item={item} isInactive={isInactive} isMissingData={isMissingData} />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {/* 💡 VISTA 3: TABELA CLÁSSICA */}
-                {viewMode === "table" && (
-                    <div className="table-responsive" style={{overflowX: 'auto'}}>
-                        <table className="data-table" style={{ width: "100%", borderCollapse: 'collapse', minWidth: '900px' }}>
-                        <thead>
-                            <tr style={{color: 'var(--n-500)', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em', borderBottom: '2px solid var(--n-100)'}}>
-                                <th style={{padding: '15px', textAlign: 'left', width: '30%'}}>Empresa / Local</th>
-                                <th style={{padding: '15px', textAlign: 'left', width: '25%'}}>Contactos</th>
-                                <th style={{padding: '15px', textAlign: 'left', width: '15%'}}>Setor & CAE</th>
-                                {activeTab === "leads" && <th style={{padding: '15px', textAlign: 'left', width: '15%'}}>Estado</th>}
-                                <th style={{padding: '15px', textAlign: 'right', width: '15%'}}>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {currentItems.map((item) => {
-                                const isInactive = item.ativo === false;
-                                const isMissingData = !item.email && !item.contacto;
-
-                                return (
-                                <tr key={item.id} style={{borderBottom: '1px solid var(--n-50)', opacity: isInactive ? 0.6 : 1, background: isInactive ? '#f8fafc' : 'white', transition: '0.2s'}} className={!isInactive ? "table-row-hover" : ""}>
-                                    <td style={{padding: '15px'}}>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                            <span style={{fontWeight: '800', color: isInactive ? '#94a3b8' : '#1e293b', fontSize: '0.95rem'}}>{item.nome}</span>
-                                            {isInactive && <span style={{fontSize: '0.6rem', background: 'var(--cx-fee2e2, #fee2e2)', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold'}}>ARQUIVADO</span>}
-                                        </div>
-                                        <div style={{display: 'flex', gap: '10px', fontSize: '0.8rem', color: 'var(--n-500)', marginTop: '4px', alignItems: 'center'}}>
-                                            {item.nif && <span style={{background: 'var(--n-100)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 'bold'}}>{item.nif}</span>}
-                                            {item.localidade && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.MapPin/> {item.localidade}</span>}
-                                        </div>
-                                    </td>
-
-                                    <td style={{padding: '15px'}}>
-                                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem'}}>
-                                            {item.titular && <span style={{fontWeight: '600', color: 'var(--n-700)', display:'flex', alignItems:'center', gap:'4px'}}><Icons.User/> {item.titular}</span>}
-                                            {item.contacto && <span style={{display:'flex', alignItems:'center', gap:'4px'}}><Icons.Phone/> {item.contacto}</span>}
-                                            {item.email && <span style={{color: 'var(--color-btnPrimary)', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Mail/> <a href={`mailto:${item.email}`} style={{color: 'inherit', textDecoration: 'none'}}>{item.email}</a></span>}
-                                            {isMissingData && <span style={{fontSize: '0.7rem', color: 'var(--cx-b45309, #b45309)', background: 'var(--cx-fef3c7, #fef3c7)', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 'bold', display:'flex', alignItems:'center', gap:'4px'}}><Icons.Alert/> Faltam Contactos</span>}
-                                        </div>
-                                    </td>
-
-                                    <td style={{padding: '15px'}}>
-                                        <div style={{display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start'}}>
-                                            {item.setor ? <span style={{fontSize: '0.7rem', background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold'}}>{item.setor}</span> : <span style={{color: 'var(--n-300)'}}>-</span>}
-                                            {item.cae && <span style={{fontSize: '0.7rem', color: 'var(--n-500)', fontWeight: '600'}}>CAE: {item.cae}</span>}
-                                        </div>
-                                    </td>
-
-                                    {activeTab === "leads" && (
-                                    <td style={{padding: '15px'}}>
-                                        <select
-                                            value={item.estado}
-                                            onChange={(e) => updateStatus(item.id, e.target.value)}
-                                            disabled={isInactive}
-                                            style={{
-                                                padding: '6px 12px', borderRadius: '8px', border: '1px solid transparent', fontSize: '0.8rem', fontWeight: 'bold', cursor: isInactive ? 'not-allowed' : 'pointer',
-                                                background: statusOptions.find(o => o.value === item.estado)?.bg || '#f1f5f9',
-                                                color: statusOptions.find(o => o.value === item.estado)?.color || '#64748b',
-                                            }}
-                                        >
-                                        {statusOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-                                        </select>
-                                    </td>
-                                    )}
-
-                                    <td style={{padding: '15px', textAlign: 'right'}}>
-                                        <div style={{display: 'flex', justifyContent: 'flex-end', gap: '6px'}}>
-                                            <button aria-label="Ver / Completar Dados" onClick={() => openForm(true, item)} title="Ver / Completar Dados" style={{background: 'var(--sup-1)', border: '1px solid var(--n-300)', color: 'var(--n-700)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', position: 'relative'}} className="hover-shadow">
-                                                <Icons.Eye />
-                                                {isMissingData && <span style={{position: 'absolute', top: '-4px', right: '-4px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', border: '2px solid var(--sup-1)'}}></span>}
-                                            </button>
-
-                                            {!isInactive && activeTab === "prospects" && (
-                                                <button aria-label="Mover para Leads" onClick={() => promoteToLead(item)} title="Mover para Leads" style={{background: 'var(--color-bgSecondary)', color: 'var(--color-btnPrimary)', border: '1px solid var(--color-borderColor)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Rocket /></button>
-                                            )}
-                                            {!isInactive && activeTab === "leads" && item.estado === 'convertido' && (
-                                                <button aria-label="Criar Cliente Oficial" onClick={() => promoteToClient(item)} title="Criar Cliente Oficial" style={{background: 'var(--cx-dcfce7, #dcfce7)', color: '#16a34a', border: '1px solid #bbf7d0', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow"><Icons.Handshake /></button>
-                                            )}
-
-                                            <button aria-label={isInactive ? "Restaurar" : "Arquivar"} onClick={() => toggleAtivo(item.id, item.ativo)} title={isInactive ? "Restaurar" : "Arquivar"} style={{background: isInactive ? '#dcfce7' : '#fee2e2', color: isInactive ? '#16a34a' : '#ef4444', border: 'none', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s'}} className="hover-shadow">
-                                                {isInactive ? <Icons.Restore /> : <Icons.Archive />}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )})}
-                        </tbody>
-                        </table>
-                    </div>
-                )}
-                
-                {/* MENSAGEM VAZIA */}
-                {filteredList.length === 0 && viewMode !== "kanban" && (
-                    <div style={{textAlign: 'center', padding: '60px', color: 'var(--n-500)'}}>
-                        <span style={{display: 'block', marginBottom: '10px', opacity: 0.5}}><Icons.Search /></span>
-                        <p style={{margin: 0, fontWeight: '500'}}>Nenhum registo encontrado com estes filtros.</p>
-                    </div>
-                )}
-
-                {/* CONTROLOS DE PAGINAÇÃO */}
-                {totalPages > 1 && viewMode !== "kanban" && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--n-200)', flexWrap: 'wrap', gap: '15px' }}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--n-500)' }}>Mostrar:</span>
-                            <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '6px', borderRadius: '6px', border: '1px solid var(--n-300)', outline: 'none', background: 'var(--sup-1)', fontSize: '0.85rem' }}>
-                                <option value={10}>10</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                            </select>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="btn-small" style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', background: 'var(--sup-1)', border: '1px solid var(--n-300)' }}>◀ Ant</button>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--n-700)', fontWeight: 'bold' }}>Pág {currentPage} de {totalPages}</span>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="btn-small" style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', background: 'var(--sup-1)', border: '1px solid var(--n-300)' }}>Seg ▶</button>
-                        </div>
-                    </div>
-                )}
+          /* PROSPECTS · empresas de um setor */
+          <section className="ld-setor-vista">
+            <div className="ld-setor-barra">
+              <button type="button" className="bz-btn" onClick={() => setSelectedSetor(null)}><Icons.Back /> Setores</button>
+              <h2 style={{ "--c": getColorForSetor(selectedSetor === 'sem-setor' ? null : selectedSetor) }}>
+                <i />{selectedSetor === 'sem-setor' ? 'Sem setor' : selectedSetor}
+                <span>{filteredList.length}</span>
+              </h2>
+              <div className="crm-vistas" role="group" aria-label="Vista">
+                <button type="button" className={viewMode === "grid" ? "is-on" : ""} aria-pressed={viewMode === "grid"} onClick={() => setViewMode("grid")}><Icons.Grid /> <span>Cartões</span></button>
+                <button type="button" className={viewMode === "table" ? "is-on" : ""} aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")}><Icons.List /> <span>Tabela</span></button>
+              </div>
             </div>
+
+            {viewMode === "grid" && (
+              <div className="ld-cartoes">
+                {currentItems.map((item) => {
+                  const isInactive = item.ativo === false;
+                  const semContactos = !item.email && !item.contacto;
+                  return (
+                    <article key={item.id} className={`ld-cartao${isInactive ? " is-arquivado" : ""}`}>
+                      <div className="ld-cartao-topo">
+                        <h3>{item.nome}</h3>
+                        {isInactive && <span className="crm-chip">Arquivado</span>}
+                      </div>
+                      <div className="ld-cartao-info">
+                        {item.localidade && <span><Icons.MapPin /> {item.localidade}</span>}
+                        {item.titular && <span><Icons.User /> {item.titular}</span>}
+                        {item.contacto && <span><Icons.Phone /> {item.contacto}</span>}
+                        {item.email && <a href={`mailto:${item.email}`}><Icons.Mail /> {item.email}</a>}
+                      </div>
+                      <div className="ld-cartao-meta">
+                        {item.nif && <span className="crm-mono">{item.nif}</span>}
+                        {item.cae && <span className="crm-chip">CAE {item.cae}</span>}
+                        {semContactos && <span className="crm-chip is-aviso">Sem contactos</span>}
+                      </div>
+                      {acoesProspect(item)}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {viewMode === "table" && (
+              <div className="bz-tabela-wrap">
+                <table className="bz-tabela">
+                  <thead>
+                    <tr>
+                      <th>Empresa</th>
+                      <th>Contactos</th>
+                      <th>CAE</th>
+                      <th style={{ textAlign: 'right' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentItems.map((item) => (
+                      <tr key={item.id} className={item.ativo === false ? "ld-linha-arquivada" : ""}>
+                        <td>
+                          <b className="ld-forte">{item.nome}</b>
+                          <span className="crm-sub">{[item.nif, item.localidade].filter(Boolean).join(" · ") || "—"}</span>
+                        </td>
+                        <td>
+                          <div className="ld-contactos">
+                            {item.titular && <span><Icons.User /> {item.titular}</span>}
+                            {item.contacto && <span><Icons.Phone /> {item.contacto}</span>}
+                            {item.email && <a href={`mailto:${item.email}`}><Icons.Mail /> {item.email}</a>}
+                            {!item.email && !item.contacto && <span className="crm-chip is-aviso">Sem contactos</span>}
+                          </div>
+                        </td>
+                        <td>{item.cae || <span className="crm-sub">—</span>}</td>
+                        <td>{acoesProspect(item)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {filteredList.length === 0 && (
+              <div className="bz-vazio-grande">
+                <span className="bz-vazio-ico"><Icons.Search /></span>
+                <h3>Nenhum registo</h3>
+                <p>Não há empresas neste setor com estes filtros.</p>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="ld-paginas">
+                <label>
+                  Mostrar
+                  <SelectModerno value={String(itemsPerPage)} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="ld-paginas-sel">
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </SelectModerno>
+                </label>
+                <div className="ld-paginas-nav">
+                  <button type="button" className="bz-btn" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Anterior</button>
+                  <span>Página <b>{currentPage}</b> de {totalPages}</span>
+                  <button type="button" className="bz-btn" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>Seguinte</button>
+                </div>
+              </div>
+            )}
+          </section>
         )}
       </div>
 
-      {/* --- MODAL FORMULÁRIO (CRIAR / COMPLETAR DADOS) --- */}
-      {modalForm.show && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                  <div style={{background: 'var(--sup-1)', width: '95%', maxWidth: '700px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden'}}>
-                      <div style={{padding: '20px 25px', background: 'var(--n-50)', borderBottom: '1px solid var(--n-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.25rem', fontWeight: '800'}}>
-                              {modalForm.isEdit ? `Completar Dados: ${modalForm.data.nome}` : `Novo Registo (${activeTab === 'leads' ? 'Lead' : 'Prospect'})`}
-                          </h3>
-                          <button aria-label="Fechar" onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{background: 'none', border: 'none', color: 'var(--n-500)', cursor: 'pointer'}}><Icons.Close /></button>
-                      </div>
-
-                      <form onSubmit={handleSaveForm} style={{padding: '25px'}}>
-                          {isMissingCrucialData && (
-                              <div style={{background: 'var(--cx-fffbeb, #fffbeb)', border: '1px solid #fde68a', color: 'var(--cx-b45309, #b45309)', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                  <Icons.Alert /> Este registo não tem dados de contacto.
-                              </div>
-                          )}
-
-                          <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '15px'}}>
-                              <div>
-                                  <label style={labelStyle}>Nome da Empresa *</label>
-                                  <input type="text" value={modalForm.data.nome || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, nome: e.target.value}})} required style={{...inputStyle, width: '100%', fontWeight: 'bold'}} />
-                              </div>
-                              <div>
-                                  <label style={labelStyle}>NIF</label>
-                                  <input aria-label="NIF" type="text" value={modalForm.data.nif || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, nif: e.target.value}})} maxLength="9" style={{...inputStyle, width: '100%', borderColor: isDuplicateNif ? '#ef4444' : '#cbd5e1', background: isDuplicateNif ? '#fef2f2' : 'white'}} placeholder="Ex: 500000000" />
-                                  {isDuplicateNif && <span style={{fontSize: '0.7rem', color: '#ef4444', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px'}}><Icons.Alert /> NIF já existe!</span>}
-                              </div>
-                          </div>
-
-                          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '15px'}}>
-                              <div><label style={labelStyle}>Localidade</label><input type="text" value={modalForm.data.localidade || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, localidade: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
-                              <div>
-                                  <label style={labelStyle}>Setor</label>
-                                  {/* 💡 MODIFICADO: PERMITE SELECIONAR SETOR OU INSERIR NOVO */}
-                                  <select 
-                                      value={isOutroSetor ? "__outro__" : (modalForm.data.setor || "")} 
-                                      onChange={e => {
-                                          const selected = e.target.value;
-                                          if (selected === "__outro__") {
-                                              setIsOutroSetor(true);
-                                              setModalForm({...modalForm, data: {...modalForm.data, setor: ""}});
-                                          } else {
-                                              setIsOutroSetor(false);
-                                              setModalForm({...modalForm, data: {...modalForm.data, setor: selected}});
-                                          }
-                                      }} 
-                                      style={{...inputStyle, width: '100%', background: 'var(--sup-1)'}}
-                                  >
-                                      <option value="">-- Selecione --</option>
-                                      {dynamicSetores.map(s => <option key={s} value={s}>{s}</option>)}
-                                      <option value="__outro__">Outro (Criar novo)…</option>
-                                  </select>
-                                  {isOutroSetor && (
-                                      <input aria-label="Escreva o novo setor" 
-                                          type="text" 
-                                          autoFocus
-                                          placeholder="Escreva o novo setor" 
-                                          value={modalForm.data.setor || ""} 
-                                          onChange={e => setModalForm({...modalForm, data: {...modalForm.data, setor: e.target.value}})} 
-                                          style={{...inputStyle, width: '100%', marginTop: '8px', borderColor: 'var(--color-btnPrimary)', background: 'var(--color-bgSecondary)'}} 
-                                      />
-                                  )}
-                              </div>
-                              <div><label style={labelStyle}>Código CAE</label><input type="text" value={modalForm.data.cae || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, cae: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
-                          </div>
-
-                          <div style={{background: 'var(--n-50)', padding: '15px', borderRadius: '12px', border: '1px solid var(--n-200)', marginBottom: '25px'}}>
-                              <h4 style={{margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--n-900)'}}>Informação de Contacto</h4>
-                              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                                  <div style={{gridColumn: '1 / -1'}}><label style={labelStyle}>Pessoa Titular / Responsável</label><input aria-label="Pessoa Titular / Responsável" type="text" value={modalForm.data.titular || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, titular: e.target.value}})} style={{...inputStyle, width: '100%'}} placeholder="Nome da pessoa…" /></div>
-                                  <div><label style={labelStyle}>Email</label><input type="email" value={modalForm.data.email || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, email: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
-                                  <div><label style={labelStyle}>Telefone / Telemóvel</label><input type="text" value={modalForm.data.contacto || ''} onChange={e => setModalForm({...modalForm, data: {...modalForm.data, contacto: e.target.value}})} style={{...inputStyle, width: '100%'}} /></div>
-                              </div>
-                          </div>
-
-                          <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid var(--n-100)'}}>
-                              <button type="button" onClick={() => setModalForm({show: false, isEdit: false, data: {}})} style={{padding: '12px 20px', borderRadius: '8px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-500)', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
-                              <button type="submit" disabled={isDuplicateNif && !modalForm.isEdit} className="btn-primary" style={{padding: '12px 30px', borderRadius: '8px', fontSize: '0.95rem'}}>{modalForm.isEdit ? 'Guardar Alterações' : 'Adicionar Registo'}</button>
-                          </div>
-                      </form>
-                  </div>
-              </div>
-          </ModalPortal>
-      )}
-
-      {/* --- MODAL DE IMPORTAÇÃO CSV --- */}
-      {showImportModal && (
-        <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                <div style={{background: 'var(--sup-1)', width: '90%', maxWidth: '500px', borderRadius: '16px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
-                    <div style={{marginBottom: '20px'}}>
-                        <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px'}}><Icons.Download /> Importar CSV</h3>
-                        <p style={{margin: '5px 0 0 0', color: 'var(--n-500)', fontSize: '0.9rem'}}>Destino: <b>{activeTab === 'leads' ? 'Leads' : 'Prospects'}</b></p>
-                    </div>
-
-                    <div style={{background: 'var(--color-bgSecondary)', border: '1px solid var(--color-borderColor)', borderRadius: '8px', padding: '15px', marginBottom: '25px'}}>
-                        <p style={{margin: 0, fontSize: '0.85rem', color: 'var(--color-btnPrimaryHover)', lineHeight: '1.5'}}>
-                            <strong>Colunas Obrigatórias (nesta ordem exata):</strong><br/>
-                            Nome, NIF, Localidade, Contacto, Email, Titular, CAE
-                        </p>
-                    </div>
-
-                    <div style={{marginBottom: '20px'}}>
-                        <label style={labelStyle}>Atribuir Setor em Lote (Opcional)</label>
-                        <select value={importSetor} onChange={(e) => setImportSetor(e.target.value)} style={{...inputStyle, background: 'var(--sup-1)', width: '100%'}}>
-                            <option value="">-- Deixar em branco --</option>
-                            {dynamicSetores.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                    </div>
-
-                    <div style={{marginBottom: '25px'}}>
-                        <label 
-                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px', border: '2px dashed var(--n-300)', borderRadius: '12px', cursor: 'pointer', background: 'var(--n-50)', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s' }}
-                            onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-btnPrimary)'}
-                            onMouseOut={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
-                        >
-                            <span style={{marginBottom: '10px', color: 'var(--n-500)'}}><Icons.Doc /></span>
-                            <span style={{fontSize: '0.9rem', color: 'var(--n-500)', fontWeight: '500', textAlign: 'center'}}>
-                                {file ? file.name : "Clica aqui para escolher o ficheiro CSV"}
-                            </span>
-                            <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0])} style={{display: 'none'}} />
-                        </label>
-                    </div>
-
-                    <div style={{display: 'flex', gap: '10px'}}>
-                        <button onClick={() => setShowImportModal(false)} style={{flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-500)', fontWeight: 'bold', cursor: 'pointer'}}>Cancelar</button>
-                        <button className="btn-primary" onClick={handleFileUpload} disabled={importing} style={{flex: 1, borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'}}>
-                            {importing ? "A processar…" : "Carregar Dados"}
-                        </button>
-                    </div>
-                </div>
+      {/* --- FORMULÁRIO (criar / completar dados) --- */}
+      <Janela
+        aberta={modalForm.show}
+        aoFechar={fecharForm}
+        bloquear={aGravar}
+        largura={680}
+        camada="calc(var(--z-modal) + 40)"
+        icone={modalForm.isEdit ? <Icons.Edit /> : <Icons.Plus />}
+        titulo={modalForm.isEdit ? (modalForm.data.nome || "Editar") : (isLeads ? "Nova lead" : "Novo prospect")}
+        subtitulo={modalForm.isEdit ? "Dados da empresa e contactos" : (isLeads ? "Entra no CRM na etapa Novo." : "Fica na lista de prospeção do setor.")}
+        rodape={<>
+          <button type="button" onClick={fecharForm}>Cancelar</button>
+          <button type="submit" form="ld-form" className="is-primary" disabled={aGravar || (isDuplicateNif && !modalForm.isEdit)}>
+            {aGravar ? "A gravar…" : modalForm.isEdit ? "Guardar" : "Criar"}
+          </button>
+        </>}
+      >
+        <form id="ld-form" onSubmit={handleSaveForm}>
+          {isMissingCrucialData && (
+            <div className="ld-aviso"><Icons.Alert /> Este registo não tem email nem telefone.</div>
+          )}
+          <div className="bz-secao is-primeira"><Icons.Building /> Empresa</div>
+          <div className="ld-grelha-nif">
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-nome">Nome da empresa *</label>
+              <input id="ld-nome" className="bz-campo is-forte" type="text" value={modalForm.data.nome || ''} onChange={e => setCampo("nome", e.target.value)} required />
             </div>
-        </ModalPortal>
-      )}
-
-      {showSendModal && (
-        <ModalPortal>
-            <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal) + 13)"}}>
-                <div style={{background: 'var(--sup-1)', width: '95%', maxWidth: '760px', borderRadius: '16px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                        <h3 style={{margin: 0, color: 'var(--n-900)', fontSize: '1.35rem'}}>Enviar Campanha por Email</h3>
-                        <button aria-label="Fechar" onClick={() => setShowSendModal(false)} style={{background: 'none', border: 'none', color: 'var(--n-500)', cursor: 'pointer'}}><Icons.Close /></button>
-                    </div>
-
-                    <div style={{background: 'var(--n-50)', border: '1px solid var(--n-200)', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: 'var(--n-700)'}}>
-                        Destino atual: <b>{getFilteredEmailsForCampaign().length}</b> emails únicos da lista filtrada.
-                    </div>
-
-                    <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
-                        <button
-                            onClick={() => setCampaignForm(prev => ({ ...prev, mode: "template" }))}
-                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--n-300)', background: campaignForm.mode === "template" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "template" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
-                        >
-                            Template Brevo (principal)
-                        </button>
-                        <button
-                            onClick={() => setCampaignForm(prev => ({ ...prev, mode: "html" }))}
-                            style={{padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--n-300)', background: campaignForm.mode === "html" ? 'var(--color-btnPrimary)' : 'white', color: campaignForm.mode === "html" ? 'white' : '#475569', fontWeight: '700', cursor: 'pointer'}}
-                        >
-                            HTML (secundário)
-                        </button>
-                    </div>
-
-                    {campaignForm.mode === "template" ? (
-                        <>
-                            <div style={{display: 'grid', gridTemplateColumns: '180px 1fr 130px 130px 120px', gap: '10px', marginBottom: '12px'}}>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={campaignForm.templateId}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, templateId: e.target.value }))}
-                                    placeholder="Template ID"
-                                    style={{...inputStyle, width: '100%'}}
-                                />
-                                <input
-                                    type="text"
-                                    disabled
-                                    value="Template gerido no Brevo"
-                                    style={{...inputStyle, width: '100%', background: 'var(--n-50)', color: 'var(--n-500)'}}
-                                />
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    value={campaignForm.batchSize}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchSize: e.target.value }))}
-                                    style={{...inputStyle, width: '100%'}}
-                                    title="Batch size"
-                                />
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={campaignForm.batchDelayMs}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchDelayMs: e.target.value }))}
-                                    style={{...inputStyle, width: '100%'}}
-                                    title="Delay ms"
-                                />
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="10"
-                                    value={campaignForm.maxRetries}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, maxRetries: e.target.value }))}
-                                    style={{...inputStyle, width: '100%'}}
-                                    title="Retries"
-                                />
-                            </div>
-
-                            <div style={{display: 'grid', gridTemplateColumns: '180px 1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: 'var(--n-500)', fontWeight: '700', textTransform: 'uppercase'}}>
-                                <span>Template ID</span>
-                                <span>Conteúdo</span>
-                                <span>Batch size</span>
-                                <span>Delay (ms)</span>
-                                <span>Retries</span>
-                            </div>
-
-                            <div style={{padding: '10px 12px', borderRadius: '8px', border: '1px solid #bae6fd', background: '#ecfeff', color: '#155e75', fontSize: '0.82rem', fontWeight: '700', marginBottom: '12px'}}>
-                                Nome automático ativo: cada email recebe o nome do titular ou da empresa sem configuração manual.
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 130px 130px 120px', gap: '10px', marginBottom: '12px'}}>
-                                <input aria-label="Assunto da campanha"
-                                    type="text"
-                                    value={campaignForm.subject}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, subject: e.target.value }))}
-                                    placeholder="Assunto da campanha"
-                                    style={{...inputStyle, width: '100%'}}
-                                />
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    value={campaignForm.batchSize}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchSize: e.target.value }))}
-                                    style={{...inputStyle, width: '100%'}}
-                                    title="Batch size"
-                                />
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={campaignForm.batchDelayMs}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, batchDelayMs: e.target.value }))}
-                                    style={{...inputStyle, width: '100%'}}
-                                    title="Delay ms"
-                                />
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="10"
-                                    value={campaignForm.maxRetries}
-                                    onChange={(e) => setCampaignForm(prev => ({ ...prev, maxRetries: e.target.value }))}
-                                    style={{...inputStyle, width: '100%'}}
-                                    title="Retries"
-                                />
-                            </div>
-
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 130px 130px 120px', gap: '10px', marginBottom: '8px', fontSize: '0.72rem', color: 'var(--n-500)', fontWeight: '700', textTransform: 'uppercase'}}>
-                                <span>Assunto</span>
-                                <span>Batch size</span>
-                                <span>Delay (ms)</span>
-                                <span>Retries</span>
-                            </div>
-
-                            <textarea aria-label="Cole aqui o HTML da campanha"
-                                value={campaignForm.htmlContent}
-                                onChange={(e) => setCampaignForm(prev => ({ ...prev, htmlContent: e.target.value }))}
-                                placeholder="Cole aqui o HTML da campanha…"
-                                style={{...inputStyle, width: '100%', minHeight: '180px', resize: 'vertical', marginBottom: '14px', fontFamily: 'monospace'}}
-                            />
-                        </>
-                    )}
-
-                    {lastCampaignSummary && (
-                        <div style={{background: 'var(--n-50)', border: '1px solid var(--n-200)', borderRadius: '10px', padding: '12px 15px', marginBottom: '15px', fontSize: '0.85rem', color: 'var(--n-700)'}}>
-                            <b>Resumo:</b> enviados {lastCampaignSummary.sentRecipients}/{lastCampaignSummary.acceptedRecipients} | inválidos {lastCampaignSummary.invalidEmails?.length || 0} | repetidos {lastCampaignSummary.duplicates?.length || 0} | falhados {lastCampaignSummary.failedRecipients?.length || 0}
-                            {(lastCampaignSummary.failedRecipients?.length || 0) > 0 && (
-                                <div style={{marginTop: '8px', background: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239', padding: '8px 10px', borderRadius: '8px'}}>
-                                    <b>Motivo principal:</b> {getFirstFailureReason(lastCampaignSummary)}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div style={{display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                        <button onClick={() => setShowSendModal(false)} style={{padding: '12px 18px', borderRadius: '8px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-500)', fontWeight: 'bold', cursor: 'pointer'}}>Fechar</button>
-                        <button onClick={handleSendCampaign} disabled={sendingCampaign} className="btn-primary" style={{padding: '12px 20px', borderRadius: '8px'}}>
-                            {sendingCampaign ? "A enviar…" : "Enviar Agora"}
-                        </button>
-                    </div>
-                </div>
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-nif">NIF</label>
+              <input id="ld-nif" className="bz-campo" type="text" inputMode="numeric" maxLength="9" placeholder="500000000" value={modalForm.data.nif || ''} onChange={e => setCampo("nif", e.target.value)} aria-invalid={!!isDuplicateNif} />
+              {isDuplicateNif && <div className="bz-erro">⚠ Este NIF já existe</div>}
             </div>
-        </ModalPortal>
-      )}
+          </div>
+          <div className="bz-grelha-3 ld-grelha-3">
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-local">Localidade</label>
+              <input id="ld-local" className="bz-campo" type="text" value={modalForm.data.localidade || ''} onChange={e => setCampo("localidade", e.target.value)} />
+            </div>
+            <div>
+              <label className="bz-rotulo">Setor</label>
+              <SelectModerno
+                className="ld-sel-largo"
+                value={isOutroSetor ? "__outro__" : (modalForm.data.setor || "")}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === "__outro__") { setIsOutroSetor(true); setCampo("setor", ""); }
+                  else { setIsOutroSetor(false); setCampo("setor", v); }
+                }}
+              >
+                <option value="">— Sem setor —</option>
+                {dynamicSetores.map(s => <option key={s} value={s}>{s}</option>)}
+                <option value="__outro__">Outro (criar novo)…</option>
+              </SelectModerno>
+              {isOutroSetor && (
+                <input className="bz-campo" style={{ marginTop: 8 }} type="text" autoFocus placeholder="Nome do novo setor" aria-label="Nome do novo setor" value={modalForm.data.setor || ""} onChange={e => setCampo("setor", e.target.value)} />
+              )}
+            </div>
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-cae">CAE</label>
+              <input id="ld-cae" className="bz-campo" type="text" value={modalForm.data.cae || ''} onChange={e => setCampo("cae", e.target.value)} />
+            </div>
+          </div>
 
-      {/* --- MODAL CONFIRMAÇÃO GLOBAL --- */}
-      {confirmDialog.show && (
-          <ModalPortal>
-              <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: "calc(var(--z-modal-max) + 1)"}}>
-                  <div style={{background: 'var(--sup-1)', padding: '30px', borderRadius: '16px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.2s ease-out'}}>
-                      <div style={{display: 'flex', justifyContent: 'center', marginBottom: '15px'}}><Icons.Alert color={confirmDialog.isDanger ? "#ef4444" : "var(--color-btnPrimary)"} /></div>
-                      <h3 style={{margin: '0 0 10px 0', color: 'var(--n-900)', fontSize: '1.25rem'}}>Confirmação</h3>
-                      <p style={{color: 'var(--n-500)', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.5', whiteSpace: 'pre-line'}}>{confirmDialog.message}</p>
-                      <div style={{display: 'flex', gap: '10px'}}>
-                          <button onClick={() => setConfirmDialog({show: false})} style={{flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--n-300)', background: 'var(--sup-1)', color: 'var(--n-700)', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">Cancelar</button>
-                          <button onClick={confirmDialog.onConfirm} style={{flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: confirmDialog.isDanger ? '#ef4444' : 'var(--color-btnPrimary)', color: 'white', fontWeight: 'bold', cursor: 'pointer'}} className="hover-shadow">{confirmDialog.confirmText}</button>
-                      </div>
-                  </div>
-              </div>
-          </ModalPortal>
-      )}
+          {isLeads && !modalForm.isEdit && (
+            <>
+              <label className="bz-rotulo" style={{ marginTop: 12 }}>Origem</label>
+              <SelectModerno className="ld-sel-largo" value={modalForm.data.origem || ""} onChange={e => setCampo("origem", e.target.value || null)}>
+                <option value="">— Por indicar —</option>
+                {ORIGENS.filter(o => o !== "Importação CSV").map(o => <option key={o} value={o}>{o}</option>)}
+              </SelectModerno>
+            </>
+          )}
 
-      {notification && <AvisoToast tipo={notification.type} mensagem={notification.message} />}
+          <div className="bz-secao"><Icons.User /> Contacto</div>
+          <label className="bz-rotulo" htmlFor="ld-titular">Pessoa de contacto</label>
+          <input id="ld-titular" className="bz-campo" type="text" placeholder="Nome da pessoa…" value={modalForm.data.titular || ''} onChange={e => setCampo("titular", e.target.value)} />
+          <div className="bz-grelha-2" style={{ marginTop: 12 }}>
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-email">Email</label>
+              <input id="ld-email" className="bz-campo" type="email" value={modalForm.data.email || ''} onChange={e => setCampo("email", e.target.value)} />
+            </div>
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-tel">Telefone</label>
+              <input id="ld-tel" className="bz-campo" type="tel" value={modalForm.data.contacto || ''} onChange={e => setCampo("contacto", e.target.value)} />
+            </div>
+          </div>
+        </form>
+      </Janela>
 
-      <style>{`
-        .table-row-hover:hover { background-color: #f8fafc !important; }
-        .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .hover-orange-text:hover { color: #f97316 !important; opacity: 1 !important; }
-        .hover-blue-text:hover { color: var(--color-btnPrimary) !important; opacity: 1 !important; }
-        .hover-green-text:hover { color: #16a34a !important; opacity: 1 !important; }
-        .hover-red-text:hover { color: #ef4444 !important; opacity: 1 !important; }
-        
-        .hover-shadow-kanban:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1) !important; border-color: #cbd5e1 !important; }
-        .drag-item { cursor: grab; }
-        .drag-item:active { cursor: grabbing; opacity: 0.8 !important; transform: scale(0.98); }
-        .hide-scrollbar-kanban::-webkit-scrollbar { display: none; }
-        
-        /* Outline Buttons */
-        .btn-outline { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
-        
-        /* Action Buttons */
-        .action-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; transition: 0.2s; display: flex; align-items: center; justify-content: center; padding: 4px; }
-        .action-btn:hover { opacity: 1; transform: scale(1.1); }
+      {/* --- IMPORTAÇÃO CSV --- */}
+      <Janela
+        aberta={showImportModal}
+        aoFechar={() => { setShowImportModal(false); setFile(null); }}
+        bloquear={importing}
+        largura={520}
+        icone={<Icons.Download />}
+        titulo="Importar CSV"
+        subtitulo={<>Destino: <b>{isLeads ? "Leads" : "Prospects"}</b></>}
+        rodape={<>
+          <button type="button" onClick={() => { setShowImportModal(false); setFile(null); }}>Cancelar</button>
+          <button type="button" className="is-primary" onClick={handleFileUpload} disabled={importing || !file}>{importing ? "A importar…" : "Importar"}</button>
+        </>}
+      >
+        <div className="bz-dica ld-dica-caixa">
+          <b>Colunas, por esta ordem</b> (separadas por <code>;</code>, 1.ª linha é o cabeçalho):<br />
+          Nome · NIF · Localidade · Contacto · Email · Titular · CAE<br />
+          NIF que já existam são ignorados.
+        </div>
+        <label className="bz-rotulo">Setor para todas as linhas (opcional)</label>
+        <SelectModerno className="ld-sel-largo" value={importSetor} onChange={(e) => setImportSetor(e.target.value)}>
+          <option value="">— Deixar em branco —</option>
+          {dynamicSetores.map((s) => <option key={s} value={s}>{s}</option>)}
+        </SelectModerno>
+        <label className={`ld-ficheiro${file ? " is-escolhido" : ""}`}>
+          <Icons.Doc />
+          <span>{file ? file.name : "Clica para escolher o ficheiro CSV"}</span>
+          {file && <small>{Math.max(1, Math.round(file.size / 1024))} KB · clica para trocar</small>}
+          <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0] || null)} />
+        </label>
+      </Janela>
 
-        .fade-in { animation: fadeIn 0.4s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      {/* --- CAMPANHA DE EMAIL --- */}
+      <Janela
+        aberta={showSendModal}
+        aoFechar={() => setShowSendModal(false)}
+        bloquear={sendingCampaign}
+        largura={720}
+        icone={<Icons.Send />}
+        titulo="Campanha por email"
+        subtitulo={<>Para <b>{getFilteredEmailsForCampaign().length}</b> emails únicos da lista filtrada</>}
+        rodape={<>
+          <button type="button" onClick={() => setShowSendModal(false)}>Fechar</button>
+          <button type="button" className="is-primary" onClick={handleSendCampaign} disabled={sendingCampaign}>{sendingCampaign ? "A enviar…" : "Enviar agora"}</button>
+        </>}
+      >
+        <div className="crm-vistas ld-modos" role="radiogroup" aria-label="Tipo de campanha">
+          <button type="button" role="radio" aria-checked={campaignForm.mode === "template"} className={campaignForm.mode === "template" ? "is-on" : ""} onClick={() => setCampaignForm(p => ({ ...p, mode: "template" }))}>Template Brevo</button>
+          <button type="button" role="radio" aria-checked={campaignForm.mode === "html"} className={campaignForm.mode === "html" ? "is-on" : ""} onClick={() => setCampaignForm(p => ({ ...p, mode: "html" }))}>HTML</button>
+        </div>
 
-        .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .category-card {
-            background: white; padding: 25px; border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
-            cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
-        }
-        .category-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #cbd5e1; }
-      `}</style>
+        {campaignForm.mode === "template" ? (
+          <>
+            <label className="bz-rotulo" htmlFor="ld-tpl">Template ID (Brevo)</label>
+            <input id="ld-tpl" className="bz-campo" type="number" min="1" value={campaignForm.templateId} onChange={(e) => setCampaignForm(p => ({ ...p, templateId: e.target.value }))} placeholder="Ex.: 12" />
+            <div className="bz-dica">O conteúdo é gerido no Brevo. Cada email recebe o nome do titular (ou da empresa) automaticamente.</div>
+          </>
+        ) : (
+          <>
+            <label className="bz-rotulo" htmlFor="ld-assunto">Assunto</label>
+            <input id="ld-assunto" className="bz-campo" type="text" value={campaignForm.subject} onChange={(e) => setCampaignForm(p => ({ ...p, subject: e.target.value }))} />
+            <label className="bz-rotulo" htmlFor="ld-html" style={{ marginTop: 12 }}>Conteúdo HTML</label>
+            <textarea id="ld-html" className="bz-campo ld-html" rows={8} value={campaignForm.htmlContent} onChange={(e) => setCampaignForm(p => ({ ...p, htmlContent: e.target.value }))} placeholder="Cola aqui o HTML da campanha…" />
+          </>
+        )}
+
+        <details className="ld-avancado">
+          <summary>Envio avançado</summary>
+          <div className="bz-grelha-3 ld-grelha-3">
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-lote">Emails por lote</label>
+              <input id="ld-lote" className="bz-campo" type="number" min="1" max="100" value={campaignForm.batchSize} onChange={(e) => setCampaignForm(p => ({ ...p, batchSize: e.target.value }))} />
+            </div>
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-pausa">Pausa entre lotes (ms)</label>
+              <input id="ld-pausa" className="bz-campo" type="number" min="0" value={campaignForm.batchDelayMs} onChange={(e) => setCampaignForm(p => ({ ...p, batchDelayMs: e.target.value }))} />
+            </div>
+            <div>
+              <label className="bz-rotulo" htmlFor="ld-rep">Repetições se falhar</label>
+              <input id="ld-rep" className="bz-campo" type="number" min="0" max="10" value={campaignForm.maxRetries} onChange={(e) => setCampaignForm(p => ({ ...p, maxRetries: e.target.value }))} />
+            </div>
+          </div>
+        </details>
+
+        {lastCampaignSummary && (
+          <div className="ld-resumo">
+            <div><b>{lastCampaignSummary.sentRecipients}</b><span>enviados</span></div>
+            <div><b>{lastCampaignSummary.invalidEmails?.length || 0}</b><span>inválidos</span></div>
+            <div><b>{lastCampaignSummary.duplicates?.length || 0}</b><span>repetidos</span></div>
+            <div className={(lastCampaignSummary.failedRecipients?.length || 0) > 0 ? "is-mau" : ""}><b>{lastCampaignSummary.failedRecipients?.length || 0}</b><span>falhados</span></div>
+            {(lastCampaignSummary.failedRecipients?.length || 0) > 0 && (
+              <p><b>Motivo principal:</b> {getFirstFailureReason(lastCampaignSummary)}</p>
+            )}
+          </div>
+        )}
+      </Janela>
     </div>
   );
 }

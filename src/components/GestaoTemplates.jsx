@@ -55,7 +55,6 @@ export default function GestaoTemplates() {
   });
   
   const [inputValue, setInputValue] = useState("");
-  const [inputOrdem, setInputOrdem] = useState(1);
   const [inputDias, setInputDias] = useState(0);
   const [inputDescricao, setInputDescricao] = useState("");
   const [inputEhFormacao, setInputEhFormacao] = useState(false);
@@ -78,6 +77,7 @@ export default function GestaoTemplates() {
   const dragItemIndex = useRef(null);
   const dragOverItemIndex = useRef(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- carregamento inicial, executa apenas uma vez
   useEffect(() => { fetchTipos(); }, []);
 
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function GestaoTemplates() {
         const { data, error } = await supabase.from("tipos_projeto").select("*").order("nome");
         if (error) throw error;
         setTipos(data || []);
-    } catch (err) { showToast("Erro ao carregar Tipos.", "error"); setTipos([]); } 
+    } catch { showToast("Erro ao carregar Tipos.", "error"); setTipos([]); } 
     finally { setLoading(false); }
   }
 
@@ -179,7 +179,7 @@ export default function GestaoTemplates() {
         const { data, error } = await supabase.from("template_atividades").select("*").eq("tipo_projeto_id", tipoId).order("ordem", { ascending: true }).order("created_at", { ascending: true });
         if (error) throw error;
         setAtividades(data || []);
-    } catch (err) { setAtividades([]); }
+    } catch { setAtividades([]); }
   }
 
   async function fetchTarefasE_Subtarefas(ativId) {
@@ -197,7 +197,7 @@ export default function GestaoTemplates() {
         } else {
             setSubtarefas([]);
         }
-    } catch (err) { setTarefas([]); setSubtarefas([]); }
+    } catch { setTarefas([]); setSubtarefas([]); }
   }
 
   // --- LÓGICA DE DRAG & DROP (REORDENAR) ---
@@ -343,7 +343,7 @@ export default function GestaoTemplates() {
           let infoAdicional = null;
           if (modalConfig.tipo === 'atividade' || modalConfig.tipo === 'tarefa') {
             if (exigeInfoAdicional) {
-              const campos = Object.entries(camposInfoAdicional).filter(([k, v]) => v).map(([k]) => k);
+              const campos = Object.entries(camposInfoAdicional).filter(([, v]) => v).map(([k]) => k);
               infoAdicional = { exige: true, campos };
             } else {
               infoAdicional = { exige: false, campos: [] };

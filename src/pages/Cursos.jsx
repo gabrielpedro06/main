@@ -13,7 +13,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../services/supabase';
 import './gestao.css';
 import { confirmar } from "../utils/dialogo";
@@ -534,7 +533,6 @@ function SideDrawer({ show, isClosing, title, subtitle, onClose, children }) {
 
 export default function Cursos() {
   const { user } = useAuth();
-  const { themeColors } = useTheme();
   const [cursos, setCursos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -552,6 +550,7 @@ export default function Cursos() {
 
   useEffect(() => {
     if (user?.id) fetchCursos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só deve carregar quando muda o utilizador
   }, [user?.id]);
 
   async function fetchCursos() {

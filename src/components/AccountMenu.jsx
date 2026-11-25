@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import ThemeSelector from "./ThemeSelector";
-import { seccaoDaRota } from "../content/ajuda";
 import { isNotifySoundEnabled, playNotifySound, setNotifySoundEnabled } from "../utils/notifySound";
 import { rectCss, alturaEcra, lerTamanho, definirTamanho, TAMANHOS } from "../utils/tamanhoInterface";
 
@@ -120,7 +119,7 @@ export default function AccountMenu({ open, onClose, anchorRef, placement = "up"
               <button type="button" role="menuitem" className="bz-account-item" onClick={() => go("/dashboard/pedido-km")}>
                 <Icon.Car /> Pedido de deslocação
               </button>
-              <button type="button" role="menuitem" className="bz-account-item" onClick={() => { const id = seccaoDaRota(pathname); go(id ? `/dashboard/ajuda?s=${id}` : "/dashboard/ajuda"); }}>
+              <button type="button" role="menuitem" className="bz-account-item" onClick={async () => { const { seccaoDaRota } = await import("../content/ajuda"); const id = seccaoDaRota(pathname); go(id ? `/dashboard/ajuda?s=${id}` : "/dashboard/ajuda"); }}>
                 <Icon.Help /> Ajuda
               </button>
               <button

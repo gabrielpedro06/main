@@ -13,7 +13,7 @@
 //      pedido na BD e envia email aos admins com link para AprovarPedido.
 // Cancelar: pendente → "cancelado"; aprovado → "pedido_cancelamento" (RH decide).
 // =====================================================================
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
@@ -28,7 +28,8 @@ import {
     parseLocalDate,
     validarSaldoFeriasParaIntervalo,
 } from "../utils/feriasSaldo";
-import CalculadoraKm from "../components/CalculadoraKm";
+// Calculadora de km com mapa (leaflet, pesado): só descarrega quando se abre
+const CalculadoraKm = lazy(() => import("../components/CalculadoraKm"));
 import "./../styles/dashboard.css";
 import "../styles/absences.css";
 import FancySelect from "../components/FancySelect";
@@ -196,6 +197,7 @@ export default function Ferias({ forcedType = null }) {
         fetchDiasReais();
         fetchTolerancias();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só deve recarregar quando muda o utilizador
   }, [user]);
 
   // Dias úteis do pedido em edição (sem fins de semana, feriados e tolerâncias).
@@ -237,7 +239,7 @@ export default function Ferias({ forcedType = null }) {
       } else { 
           setDiasUteis(0); 
       }
-  }, [form.data_inicio, form.data_fim, form.is_parcial, form.hora_inicio, form.hora_fim, tolerancias]);
+  }, [form.data_inicio, form.data_fim, form.is_parcial, form.hora_inicio, form.hora_fim, tolerancias, user?.id]);
 
   /**
    * Lê do perfil o limite anual (dias_ferias_total), a data de admissão e os
@@ -911,7 +913,9 @@ export default function Ferias({ forcedType = null }) {
                                             </div>
                                         </div>
                                         <div className="ab-km">
-                                            <CalculadoraKm form={form} setForm={setForm} />
+                                            <Suspense fallback={<div style={{ padding: 24, textAlign: "center", color: "var(--cor-suave)" }}>A carregar o mapa…</div>}>
+                                                <CalculadoraKm form={form} setForm={setForm} />
+                                            </Suspense>
                                         </div>
                                         <div className="ab-summary is-ok"><Icons.Info size={16} /><span>A deslocação vai para aprovação dos RH e fica refletida nos relatórios mensal individual e geral.</span></div>
                                     </>

@@ -16,9 +16,8 @@
 // Documentação: docs/modulos/clientes-e-comercial.md
 // =====================================================================
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../services/supabase";
-import { generateProposalPDF } from "../components/pdfProposalGenerator";
 import "./../styles/dashboard.css";
 import { confirmar } from "../utils/dialogo";
 import SelectModerno from "../components/SelectModerno";
@@ -371,14 +370,6 @@ const normalizePropostaEstado = (estado) => {
     : "em_preparacao";
 };
 
-const escapeHtml = (value) =>
-  String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-
 const formatCurrency = (value) => currencyFormatter.format(Number(value) || 0);
 
 const formatDatePt = (isoDate) => {
@@ -387,20 +378,6 @@ const formatDatePt = (isoDate) => {
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("pt-PT");
 };
-const normalizeLookup = (value) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-const findByName = (items, name) => {
-  const target = normalizeLookup(name);
-  if (!target) return null;
-
-  return (items || []).find((item) => normalizeLookup(item?.nome) === target) || null;
-};
-
 const normalizeAvisoFases = (value) => {
   if (!Array.isArray(value) || value.length === 0) return [];
 
@@ -415,24 +392,6 @@ const normalizeAvisoFases = (value) => {
       };
     })
     .filter((fase) => fase.nome || fase.prazo);
-};
-
-const addDays = (isoDate, days) => {
-  if (!isoDate) return "—";
-  const date = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "—";
-  date.setDate(date.getDate() + Number(days || 0));
-  return date.toLocaleDateString("pt-PT");
-};
-
-const downloadFile = (filename, content, mimeType = "text/html;charset=utf-8") => {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 };
 
 const setField = (setter, field) => (event) => {
@@ -465,12 +424,10 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   const [programa, setPrograma] = useState(null);
   const [orcamentoTiposProjeto, setOrcamentoTiposProjeto] = useState([]);
   const [ordemTiposServico, setOrdemTiposServico] = useState([]);
-  const [dragTipoProjetoId, setDragTipoProjetoId] = useState("");
-  const [dragAutoExpandTipoProjetoId, setDragAutoExpandTipoProjetoId] = useState("");
-  const [tiposServicoColapsados, setTiposServicoColapsados] = useState({});
+  const [, setDragTipoProjetoId] = useState("");
+  const [, setDragAutoExpandTipoProjetoId] = useState("");
+  const [, setTiposServicoColapsados] = useState({});
 
-  const dragTipoServicoItem = useRef(null);
-  const dragTipoServicoOverItem = useRef(null);
 
   // Proposal data
   const [proposta, setProposta] = useState(INITIAL_PROPOSTA);
@@ -479,7 +436,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   const [servicos, setServicos] = useState(initialServicos);
   const [modeloEstrutura, setModeloEstrutura] = useState([]);
   const [notasExclusoes, setNotasExclusoes] = useState(initialNotas);
-  const [planoPagamentos, setPlanoPagamentos] = useState(INITIAL_PLANO_PAGAMENTOS);
+  const [, setPlanoPagamentos] = useState(INITIAL_PLANO_PAGAMENTOS);
 
   // Preview do número/ID da proposta antes de gravar
   const [previewNumero, setPreviewNumero] = useState("");
@@ -491,7 +448,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   // Tipo de proposta (detectado automaticamente)
-  const [tipoProposta, setTipoProposta] = useState("financiamento"); // financiamento | formacao
+  const [, setTipoProposta] = useState("financiamento"); // financiamento | formacao
 
   // Gera um preview do número da proposta (não grava nada)
   /** Mostra o número que a proposta vai ter (não reserva nada; pode mudar até gravar). */
@@ -531,6 +488,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
   useEffect(() => {
     void gerarPreviewNumero();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcula só quando muda a empresa ou a proposta
   }, [empresaConsultora?.sigla, proposta?.db_id]);
 
   // ========================================================================
@@ -708,6 +666,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     };
 
     void loadContatosCliente();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega só quando muda o cliente
   }, [cliente.id]);
 
   useEffect(() => {
@@ -1103,7 +1062,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
       };
       const proposalData = recolherDados();
 
-      await generateProposalPDF({
+      await (await import("../components/pdfProposalGenerator")).generateProposalPDF({
         propostaNumero: propostaParaPdf.numero || propostaParaPdf.db_id,
         proposta: propostaParaPdf,
         cliente,
@@ -1180,7 +1139,20 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
     if (!initialEmpresaConsultoraId || empresaConsultora.id || empresasConsultoras.length === 0) return;
     selectEmpresaConsultora(initialEmpresaConsultoraId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando os dados iniciais ficam disponíveis
   }, [actualPropostaId, initialEmpresaConsultoraId, empresaConsultora.id, empresasConsultoras]);
+
+  // Vinda do CRM das Leads (/dashboard/propostas/novo?cliente=<id>): escolhe já o cliente
+  const [pesquisaUrl] = useSearchParams();
+  const clienteDaUrl = pesquisaUrl.get("cliente");
+  const clienteDaUrlFeito = useRef(false);
+  useEffect(() => {
+    if (actualPropostaId || !clienteDaUrl || clienteDaUrlFeito.current || cliente.id || clientes.length === 0) return;
+    if (!clientes.some((c) => String(c.id) === String(clienteDaUrl))) return;
+    clienteDaUrlFeito.current = true;
+    selectCliente(clienteDaUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só uma vez, quando a lista de clientes chega
+  }, [actualPropostaId, clienteDaUrl, cliente.id, clientes]);
 
   const selectContatoConsultora = (contactoId) => {
     const contacto = contatosConsultora.find((c) => String(c.id) === String(contactoId));
@@ -1309,114 +1281,6 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     });
   };
 
-  const handleDragStartTipoServico = (tipoProjetoId) => {
-    const id = String(tipoProjetoId || "");
-    if (!id) return;
-
-    setDragTipoProjetoId(id);
-    dragTipoServicoItem.current = id;
-    dragTipoServicoOverItem.current = id;
-    setTiposServicoColapsados((previous) => {
-      const alreadyCollapsed = !!previous[id];
-      if (!alreadyCollapsed) {
-        setDragAutoExpandTipoProjetoId(id);
-      }
-      return {
-        ...previous,
-        [id]: true,
-      };
-    });
-  };
-
-  const handleDragOverTipoServico = (event) => {
-    event.preventDefault();
-  };
-
-  const handleDragEnterTipoServico = (targetTipoProjetoId) => {
-    const dragId = String(dragTipoServicoItem.current || "");
-    const targetId = String(targetTipoProjetoId || "");
-
-    if (!dragId || !targetId || dragId === targetId) {
-      dragTipoServicoOverItem.current = targetId || dragTipoServicoOverItem.current;
-      return;
-    }
-
-    dragTipoServicoOverItem.current = targetId;
-
-    setOrdemTiposServico((previous) => {
-      const baseOrder = previous.length > 0
-        ? [...previous]
-        : tiposProjetoSelecionados
-            .slice()
-            .sort((a, b) => String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-PT"))
-            .map((item) => String(item.id));
-
-      const fromIndex = baseOrder.indexOf(dragId);
-      const toIndex = baseOrder.indexOf(targetId);
-
-      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
-        return previous.length > 0 ? previous : baseOrder;
-      }
-
-      const nextOrder = [...baseOrder];
-      const [moved] = nextOrder.splice(fromIndex, 1);
-      nextOrder.splice(toIndex, 0, moved);
-      return nextOrder;
-    });
-  };
-
-  const finalizeDragTipoServico = (dragIdOverride = "") => {
-    const dragId = String(dragIdOverride || dragTipoProjetoId || "");
-    const shouldReopenId = String(dragAutoExpandTipoProjetoId || "");
-
-    if (shouldReopenId && shouldReopenId === dragId) {
-      setTiposServicoColapsados((previous) => ({
-        ...previous,
-        [shouldReopenId]: false,
-      }));
-    }
-
-    setDragAutoExpandTipoProjetoId("");
-    setDragTipoProjetoId("");
-    dragTipoServicoItem.current = null;
-    dragTipoServicoOverItem.current = null;
-  };
-
-  const toggleCollapseTipoServico = (tipoProjetoId) => {
-    const id = String(tipoProjetoId || "");
-    if (!id) return;
-
-    setTiposServicoColapsados((previous) => ({
-      ...previous,
-      [id]: !previous[id],
-    }));
-  };
-
-  const handleDropTipoServico = (targetTipoProjetoId) => {
-    const dragId = String(dragTipoProjetoId || "");
-    const targetId = String(targetTipoProjetoId || "");
-    if (!dragId || !targetId || dragId === targetId) {
-      finalizeDragTipoServico(dragId);
-      return;
-    }
-
-    setOrdemTiposServico((previous) => {
-      const list = Array.isArray(previous) ? [...previous] : [];
-      const fromIndex = list.indexOf(dragId);
-      const toIndex = list.indexOf(targetId);
-
-      if (fromIndex === -1 || toIndex === -1) {
-        return previous;
-      }
-
-      const [moved] = list.splice(fromIndex, 1);
-      list.splice(toIndex, 0, moved);
-      return list;
-    });
-
-    finalizeDragTipoServico(dragId);
-  };
-
   const updateAtividadeModelo = (atividadeId, field, value) => {
     setModeloEstrutura((previous) =>
       previous.map((atividade) =>
@@ -1476,22 +1340,6 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
           tarefas: (atividade.tarefas || [])
             .filter((tarefa) => tarefa.id !== tarefaId)
             .map((tarefa, index) => ({ ...tarefa, ordem: index + 1 })),
-        };
-      })
-    );
-  };
-
-  const addPagamentoServico = (atividadeId) => {
-    setModeloEstrutura((previous) =>
-      previous.map((atividade) => {
-        if (atividade.id !== atividadeId) return atividade;
-
-        return {
-          ...atividade,
-          plano_pagamentos: [
-            ...(Array.isArray(atividade.plano_pagamentos) ? atividade.plano_pagamentos : []),
-            { percentagem: 0, descricao: "", dias_apos_aceite: 0 },
-          ],
         };
       })
     );
@@ -1770,14 +1618,6 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
     }
   };
 
-  const updateServicoField = (id, field, value) => {
-    setServicos((previous) =>
-      previous.map((servico) =>
-        servico.id === id ? { ...servico, [field]: value } : servico
-      )
-    );
-  };
-
   const addNota = () => {
     setNotasExclusoes((previous) => [...previous, "Nova nota"]);
   };
@@ -1788,23 +1628,6 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
   const removeNota = (index) => {
     setNotasExclusoes((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
-  };
-
-  const addPagamento = () => {
-    setPlanoPagamentos((previous) => [
-      ...previous,
-      { percentagem: 0, descricao: "", dias_apos_aceite: 0 },
-    ]);
-  };
-
-  const updatePagamento = (index, field, value) => {
-    setPlanoPagamentos((previous) =>
-      previous.map((pag, i) => (i === index ? { ...pag, [field]: value } : pag))
-    );
-  };
-
-  const removePagamento = (index) => {
-    setPlanoPagamentos((previous) => previous.filter((_, i) => i !== index));
   };
 
   // ========================================================================

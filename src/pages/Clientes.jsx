@@ -24,7 +24,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "../styles/entidades.css";
-import * as XLSX from "xlsx";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import { supabase } from "../services/supabase";
 import { toastDesfazer } from "../utils/toast";
@@ -177,7 +176,7 @@ const getCargoSelectValue = (cargo) => {
 };
 
 export default function Clientes() {
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -295,42 +294,16 @@ export default function Clientes() {
   const [isOutroCargo, setIsOutroCargo] = useState(false);
   const [novaMorada, setNovaMorada] = useState(initMorada);
   const [novoAcesso, setNovoAcesso] = useState(initAcesso);
-
-  const normalizeParceirosIds = (rawParceiros) => {
-    if (Array.isArray(rawParceiros)) return rawParceiros.map(id => String(id));
-
-    if (typeof rawParceiros === "string") {
-      const raw = rawParceiros.trim();
-      if (!raw) return [];
-
-      // Handles Postgres array literal format: {id1,id2}
-      if (raw.startsWith("{") && raw.endsWith("}")) {
-        return raw
-          .slice(1, -1)
-          .split(",")
-          .map(item => item.replace(/^"|"$/g, "").trim())
-          .filter(Boolean);
-      }
-
-      // Handles JSON string format: ["id1","id2"]
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed.map(id => String(id));
-      } catch (err) {
-        return [];
-      }
-    }
-
-    return [];
-  };
   const [novoCae, setNovoCae] = useState(initCae);
 
   useEffect(() => {
     fetchClientes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carregamento inicial, executa apenas uma vez
   }, []);
 
   useEffect(() => {
     if (user?.id) checkActiveLog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- checkActiveLog é recriada a cada render; verifica só quando muda o utilizador
   }, [user?.id]);
 
   useEffect(() => {
@@ -346,6 +319,7 @@ export default function Clientes() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- checkActiveLog é recriada a cada render; o intervalo só deve ser refeito quando muda o utilizador
   }, [user?.id]);
 
   useEffect(() => {
@@ -846,7 +820,7 @@ export default function Clientes() {
         let catalogCaes = [];
         try {
           catalogCaes = await fetchCatalogDescriptionsByCodes(codigosParaAtualizar);
-        } catch (_catalogError) {
+        } catch {
           catalogCaes = [];
         }
 
@@ -970,7 +944,7 @@ export default function Clientes() {
           .select("cliente_id, localidade, concelho");
 
       // 3. Vamos buscar TODOS os projetos de forma independente para cruzar os dados
-      const { data: projData, error: errProj } = await supabase
+      const { data: projData } = await supabase
           .from("projetos")
           .select("id, estado, cliente_id, parceiros_ids");
 
@@ -1398,6 +1372,7 @@ export default function Clientes() {
     }
 
     navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleView é recriada a cada render; só reage a um novo pedido de abertura vindo da navegação
   }, [location.state, clientes, navigate]);
 
   function closeClientePanel() {
@@ -1653,7 +1628,7 @@ export default function Clientes() {
   }
 
   /** Hoje todos os utilizadores com sessão veem o separador Acessos (sem verificação extra). */
-  async function verificarPermissaoAcessos(clienteId) {
+  async function verificarPermissaoAcessos() {
     // Todos os users registados têm acesso aos acessos/credenciais
     setPodeVerAcessos(true);
   }
@@ -1959,10 +1934,6 @@ export default function Clientes() {
       setShowForm(true);
   }
 
-  const getAcessoByTipoId = (tipoId) => {
-    return acessos.find((acesso) => String(acesso.tipo_acesso_id) === String(tipoId)) || null;
-  };
-
   // Pede a password ao cofre (fica registado no histórico)
   /** Pede a palavra-passe ao cofre (fica registado no histórico quem a viu). */
   async function obterPassword(acesso) {
@@ -2015,7 +1986,7 @@ export default function Clientes() {
       }
 
       showToast(`${label} copiado para a área de transferência.`, "success");
-    } catch (err) {
+    } catch {
       showToast(`Não foi possível copiar ${label.toLowerCase()}.`, "error");
     }
   }
@@ -2157,6 +2128,7 @@ export default function Clientes() {
         })
         .sort((a, b) => a['Entidade'].localeCompare(b['Entidade'], 'pt-PT') || a['Nome'].localeCompare(b['Nome'], 'pt-PT'));
 
+      const XLSX = await import("xlsx"); // só descarrega ao exportar
       const wb = XLSX.utils.book_new();
       const wsEnt = XLSX.utils.json_to_sheet(folhaEntidades);
       wsEnt['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 12 }, { wch: 34 }, { wch: 24 }, { wch: 18 }, { wch: 18 }, { wch: 11 }, { wch: 12 }, { wch: 11 }];

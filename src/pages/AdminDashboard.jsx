@@ -36,24 +36,6 @@ function normalizeRole(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function toArray(value) {
-  if (Array.isArray(value)) return value;
-  if (!value) return [];
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-      return trimmed.slice(1, -1).split(",").map((part) => part.replace(/^"|"$/g, "").trim()).filter(Boolean);
-    }
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
 function getMinutesFromLog(log) {
   const duration = Number(log?.duration_minutes);
   if (Number.isFinite(duration) && duration > 0) return duration;
@@ -342,6 +324,7 @@ export default function AdminDashboard() {
       if (selectedUserId !== "all" && String(log.user_id) !== String(selectedUserId)) return false;
       return true;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveProjectIdForLog depende só dos mapas já listados; incluí-la anularia o useMemo
   }, [mode, selectedDate, selectedMonth, startDate, endDate, selectedProjectId, selectedUserId, taskLogs, activityById, taskById, subtaskById]);
 
   const totalMinutesFiltered = useMemo(() => logsFiltered.reduce((acc, log) => acc + getMinutesFromLog(log), 0), [logsFiltered]);

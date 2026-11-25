@@ -98,20 +98,6 @@ export default function WidgetCalendar({ onClose }) {
         }
     }, [user]);
 
-  useEffect(() => {
-    if(user) fetchEventos();
-  }, [mesAtual, anoAtual, user, aniversariosAno]);
-
-  // Ao abrir um dia, a linha do tempo vai para a hora atual (hoje) ou para as 8h
-  useEffect(() => {
-      if ((viewMode === 'day' || viewMode === 'month') && timelineRef.current) {
-          const t = new Date();
-          const sameDay = dataAtual.toDateString() === t.toDateString();
-          const hour = sameDay ? Math.max(7, t.getHours() - 1) : 8;
-          timelineRef.current.scrollTo({ top: (hour - 7) * 56, behavior: 'smooth' });
-      }
-  }, [viewMode, dataAtual]);
-
   async function fetchEventos() {
     setLoading(true);
     let listaEventos = [];
@@ -202,6 +188,21 @@ export default function WidgetCalendar({ onClose }) {
     setEventos(listaEventos);
     setLoading(false);
   }
+
+  useEffect(() => {
+    if(user) fetchEventos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchEventos é recriada a cada render; as dependências reais já estão listadas
+  }, [mesAtual, anoAtual, user, aniversariosAno]);
+
+  // Ao abrir um dia, a linha do tempo vai para a hora atual (hoje) ou para as 8h
+  useEffect(() => {
+      if ((viewMode === 'day' || viewMode === 'month') && timelineRef.current) {
+          const t = new Date();
+          const sameDay = dataAtual.toDateString() === t.toDateString();
+          const hour = sameDay ? Math.max(7, t.getHours() - 1) : 8;
+          timelineRef.current.scrollTo({ top: (hour - 7) * 56, behavior: 'smooth' });
+      }
+  }, [viewMode, dataAtual]);
 
   // --- NAVEGAÇÃO DE DATAS ---
   function handlePrev() {

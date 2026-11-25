@@ -379,7 +379,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                     } else {
                         setSelectedTasks(parsed); 
                     }
-                } catch(e){}
+                } catch { /* ignora: tarefas guardadas em formato inválido */ }
             } else {
                 setSelectedTasks([]);
             }
@@ -876,13 +876,6 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         }
       } catch (err) { console.error(err); } finally { setLoading(false); }
   }
-
-  const formatTime = (s) => {
-    const h = Math.floor(s/3600).toString().padStart(2,"0");
-    const m = Math.floor((s%3600)/60).toString().padStart(2,"0");
-    const sc = (s%60).toString().padStart(2,"0");
-    return `${h}:${m}:${sc}`;
-  };
 
   // --- ESTILOS VISUAIS PREMIUM ---
   // Janelas: moldura do design comum (styles/janelas.css: jn-fundo / jn-caixa); aqui só a camada e o tamanho

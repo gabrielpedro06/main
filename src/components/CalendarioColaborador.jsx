@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
 import "../styles/calendario-colaborador.css";
 import {
-  calcularDiasUteis,
   calcularDiasUteisNoMes,
   buildToleranciasSkipSet,
   formatAbsenceTypeLabel,
@@ -252,6 +251,7 @@ export default function CalendarioColaborador({
   useEffect(() => {
     if (!userId) return;
     fetchDadosMes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchDadosMes é recriada a cada render; só deve recarregar quando muda o mês/utilizador
   }, [mesAtual, anoAtual, userId, dataAdmissao]);
 
   async function fetchDadosMes() {

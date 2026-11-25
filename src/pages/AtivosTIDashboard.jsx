@@ -10,8 +10,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../services/supabase";
-import { gerarPdfAtivosTI } from "../components/pdfAtivosTI";
-import * as XLSX from "xlsx";
 import FancySelect from "../components/FancySelect";
 import { guardarPalavraPasse, revelarPalavraPasse, semPalavraPasse } from "../utils/cofre";
 import "../styles/ativos-ti.css";
@@ -935,7 +933,7 @@ export default function AtivosTIDashboard() {
       return;
     }
     try {
-      await gerarPdfAtivosTI({
+      await (await import("../components/pdfAtivosTI")).gerarPdfAtivosTI({
         porPessoa: atribuidosPorPessoa,
         emStock,
         estadoTxt: (estado) => ESTADO_MAP_EQUIP[estado]?.txt || estado,
@@ -947,7 +945,7 @@ export default function AtivosTIDashboard() {
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
       // 1. Preparar dados dos Equipamentos Atribuídos
       const equipamentosEmUso = equipamentos.filter((e) => e.estado === "em_uso" && e.colaborador);
@@ -975,6 +973,7 @@ export default function AtivosTIDashboard() {
         return;
       }
 
+      const XLSX = await import("xlsx"); // só descarrega ao exportar
       const wb = XLSX.utils.book_new();
       if (dadosAtribuidos.length > 0) {
         const wsAtribuidos = XLSX.utils.json_to_sheet(dadosAtribuidos);

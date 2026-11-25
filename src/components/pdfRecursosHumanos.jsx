@@ -172,27 +172,6 @@ const overlapsMonth = (startDate, endDate, monthStart, monthEnd) => {
 	return startDate <= monthEnd && endDate >= monthStart;
 };
 
-const calcBusinessDaysInRange = (startDate, endDate, feriadosSet) => {
-	let count = 0;
-	const current = new Date(startDate);
-	const end = new Date(endDate);
-
-	while (current <= end) {
-		const day = current.getDay();
-		const yyyy = current.getFullYear();
-		const mm = String(current.getMonth() + 1).padStart(2, "0");
-		const dd = String(current.getDate()).padStart(2, "0");
-		const key = `${yyyy}-${mm}-${dd}`;
-		const isWeekend = day === 0 || day === 6;
-		const isHoliday = feriadosSet.has(key);
-
-		if (!isWeekend && !isHoliday) count += 1;
-		current.setDate(current.getDate() + 1);
-	}
-
-	return count;
-};
-
 const createFeriadosSet = (feriados = []) => {
 	const set = new Set();
 	(feriados || []).forEach((f) => {
@@ -445,7 +424,6 @@ export const generateRecursosHumanosPDF = async ({
 		});
 
 		const tableWidth = pageWidth - marginX * 2;
-		const tableRadius = 0;
 		const headerHeight = 13;
 		const createTableOptions = () => ({
 			startY: tableStartY,

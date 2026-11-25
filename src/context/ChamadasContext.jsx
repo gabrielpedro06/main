@@ -7,13 +7,14 @@
 //    com toque, em qualquer página. Sem resposta em 45 s → "perdida".
 //  - A janela <VideoChamada> vive aqui, por isso a chamada continua ao mudar de página.
 // =====================================================================
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Phone, PhoneOff, Video } from "lucide-react";
 import { supabase } from "../services/supabase";
 import { useAuth } from "./AuthContext";
 import { playNotifySound } from "../utils/notifySound";
-import VideoChamada from "../components/VideoChamada";
+// Janela da videochamada: só descarrega quando há uma chamada
+const VideoChamada = lazy(() => import("../components/VideoChamada"));
 import { MSG_CHAMADA, MSG_CHAMADA_FIM, duracaoChamada } from "../utils/chamadas";
 import "../styles/videochamada.css";
 
@@ -260,6 +261,7 @@ export function ChamadasProvider({ children }) {
     <ChamadasCtx.Provider value={valor}>
       {children}
       {ativa && (
+        <Suspense fallback={null}>
         <VideoChamada
           key={ativa.conversa}
           conversa={ativa.conversa}
@@ -269,6 +271,7 @@ export function ChamadasProvider({ children }) {
           convites={convites}
           onConvidar={convidar}
         />
+        </Suspense>
       )}
       {recebida && createPortal(
         <div className="vc-tocar" role="alertdialog" aria-live="assertive" aria-label={`Chamada de ${recebida.nome}`}>

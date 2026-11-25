@@ -23,6 +23,7 @@ import './styles/componentes-base.css' // botões e campos iguais em toda a app
 import './styles/cabecalhos.css' // cabeçalho de página igual em todas as páginas
 import './styles/tabelas.css' // tabelas e estados vazios iguais em toda a app
 import './styles/janelas.css' // design único das janelas (por último: ganha aos estilos antigos)
+import './styles/telemovel.css' // rede de segurança para ecrãs pequenos (tabelas, grelhas inline, zoom do iPhone)
 import { instalarAberturaSegura } from './utils/ficheirosPrivados'
 import { instalarPlaceholders } from './utils/placeholderImagem'
 import { instalarTrianguloSeguro } from './utils/trianguloSeguro'

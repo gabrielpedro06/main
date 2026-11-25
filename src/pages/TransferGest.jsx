@@ -139,7 +139,7 @@ function normalizeHeader(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[()]/g, "")
     .replace(/\s+/g, " ")
-    .replace(/[\/.?,]/g, "")
+    .replace(/[/.?,]/g, "")
     .replace(/[º°]/g, "");
 }
 
@@ -375,6 +375,7 @@ export default function TransferGest() {
       setActiveStatusTab("all");
       setSelectedIds([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só deve recarregar quando muda a campanha
   }, [selectedCampanha]);
   const filteredRows = useMemo(() => {
     const queryFilters = parseFilterQuery(searchTerm);
@@ -400,7 +401,7 @@ export default function TransferGest() {
       }
 
       if (normalizedInteresse) {
-        const interestValue = Boolean(item.interesse_email_marketing) ? "sim" : "nao";
+        const interestValue = item.interesse_email_marketing ? "sim" : "nao";
         if (!interestValue.includes(normalizedInteresse)) return false;
       }
 
@@ -416,7 +417,7 @@ export default function TransferGest() {
 
       return true;
     });
-  }, [rows, showArchived, activeStatusTab, searchTerm, selectedCampanha]);
+  }, [rows, showArchived, activeStatusTab, searchTerm]);
 
   useEffect(() => {
     const visibleSet = new Set(filteredRows.map((item) => item.id));

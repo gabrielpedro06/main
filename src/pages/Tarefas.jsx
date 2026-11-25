@@ -204,6 +204,7 @@ export default function Tarefas() {
 
   useEffect(() => {
     if (user && user.id) carregarTudo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carregarTudo é recriada a cada render; recarrega só quando muda o utilizador
   }, [user]);
 
   useEffect(() => {
@@ -295,7 +296,7 @@ export default function Tarefas() {
           if (data && ['admin', 'administrador', 'gestor'].includes(String(data.tipo).toLowerCase())) {
               userIsAdmin = true;
           }
-      } catch (err) {}
+      } catch { /* ignora: em caso de erro o utilizador fica sem permissões de admin */ }
       
       setIsAdmin(userIsAdmin);
       fetchData(userIsAdmin);
@@ -328,7 +329,7 @@ export default function Tarefas() {
           if (nome && typeof nome === 'string') return nome.trim().split(' ')[0];
           if (email && typeof email === 'string') return email.trim().split('@')[0];
           return "Colaborador";
-      } catch (e) { return "Colaborador"; }
+      } catch { return "Colaborador"; }
   };
 
   const normalizeIdsList = (raw) => {
@@ -1203,31 +1204,6 @@ export default function Tarefas() {
       return activeTaskTitle || "Tarefa em curso";
   }
 
-  function getActiveTaskLocationLabel() {
-      if (!activeTask) return "";
-
-      if (activeTask.task_id) {
-          const atividadePai = atividadesAgrupadas.find((a) => (a.tarefas || []).some((t) => String(t.id) === String(activeTask.task_id)));
-          if (!atividadePai) return "Tarefa ativa";
-          const projeto = atividadePai.projetoNome || "Sem projeto";
-          return `${projeto} > ${atividadePai.titulo}`;
-      }
-
-      if (activeTask.atividade_id) {
-          const atividadeAtiva = atividadesAgrupadas.find((a) => String(a.id) === String(activeTask.atividade_id));
-          if (!atividadeAtiva) return "Atividade ativa";
-          const projeto = atividadeAtiva.projetoNome || "Sem projeto";
-          return `${projeto}`;
-      }
-
-      if (activeTask.projeto_id) {
-          const projeto = projetosList.find((p) => String(p.id) === String(activeTask.projeto_id));
-          return projeto?.titulo || "Projeto ativo";
-      }
-
-      return "Item ativo";
-  }
-
     async function focusActiveTaskLocation() {
       if (!activeTask) return;
       navigate(activeTaskRoute || '/dashboard/tarefas');
@@ -1819,7 +1795,7 @@ export default function Tarefas() {
       if (!editId || !form.created_at) return null;
       try {
           return `Criado por: ${getSafeFirstName(form.criado_por_nome, "")} em ${new Date(form.created_at).toLocaleDateString('pt-PT')}`;
-      } catch(e) { return null; }
+      } catch { return null; }
   };
 
   const getAssociatedTasksForEditing = () => {

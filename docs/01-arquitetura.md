@@ -178,6 +178,16 @@ aberta. O ficheiro principal passou de 5,4 MB para ~780 KB.
 - **CSS:** fica todo no pacote principal (`src/estilosPaginas.js`), **pela mesma ordem de antes**,
   porque há estilos partilhados entre páginas e a ordem decide empates. Foi verificado que o CSS
   gerado é idêntico ao anterior.
+- **Bibliotecas pesadas só quando usadas** (o ficheiro principal passou de ~820 KB para ~610 KB):
+  - Excel (`xlsx`) e PDF (`jspdf`, `jspdf-autotable`, `components/pdf*`): `await import(...)` dentro
+    da função de exportar/gerar, nunca `import` no topo da página.
+  - `React.lazy` + `<Suspense>`: gráficos das Ações de Formação (`components/formacao/
+    EstatisticasFormacao.jsx`, recharts), seletor de emojis do Fórum (`emoji-picker-react`),
+    calculadora de km com mapa (`CalculadoraKm`, leaflet), calendário da barra lateral
+    (`WidgetCalendar`), Command Menu e janela de videochamada (`VideoChamada`).
+  - Os textos da Ajuda (`content/ajuda`) só carregam ao abrir a Ajuda ou o Command Menu.
+  - Regra para código novo: uma biblioteca grande que só serve um botão ou um separador entra
+    com `import()` ou `lazy`, não no topo do ficheiro.
 
 ### Command Menu (Ctrl+K / ⌘K)
 
@@ -339,6 +349,18 @@ Listas de escolha antigas (`<select>`): `components/SelectModerno.jsx` aceita as
 mostra o `FancySelect` (já usado no Detalhe do projeto e na Administração).
 **Janelas novas:** `components/Janela.jsx` (`variante="formulario"|"confirmacao"`), que já nasce com
 este design. Para "Tens a certeza?" simples, usar `confirmar()` (`utils/dialogo.js`).
+
+### Telemóvel (`styles/telemovel.css`, carregado por último)
+
+Rede de segurança abaixo de 900px, para toda a app:
+- campos com letra ≥16px em ecrãs de toque (o iPhone deixa de fazer zoom ao tocar num campo);
+- `overflow-x: clip` no `html/body`: nada empurra a página para o lado;
+- o contentor direto de qualquer tabela faz scroll horizontal (`:has(> table)`);
+- grelhas escritas no JSX (`style={{ gridTemplateColumns: '1fr 1fr' }}`, `repeat(3, …)`, `2fr 1fr`…)
+  passam a uma coluna abaixo de 640px; as de 4 colunas passam a 2. Usa `!important` porque o estilo
+  inline ganha sempre. Grelhas novas: preferir classes com `@media` ou
+  `repeat(auto-fit, minmax(220px, 1fr))`, que já se adaptam;
+- barras de ações e ferramentas do cabeçalho quebram linha; widget de assiduidade em coluna.
 
 ### Tamanho da interface (80/90/100%, só computador)
 

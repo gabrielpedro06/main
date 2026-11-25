@@ -16,7 +16,6 @@ Ver também: [base de dados](../03-base-de-dados.md) e
 | `src/pages/ProjetoDetalhe.jsx` | `/dashboard/projetos/:id` | Tudo sobre um projeto (atividades, Gantt, seguimento, tempos, execução financeira, dados) |
 | `src/pages/Tarefas.jsx` | `/dashboard/tarefas` | Trabalho de projeto de toda a equipa (por projeto, prazos ou estados) |
 | `src/pages/MinhasTarefas.jsx` | `/dashboard/minhas-tarefas` | Agenda pessoal (tarefas de projeto + tarefas avulsas) |
-| `src/pages/Atividades.jsx` | `/dashboard/atividades` | Lista simples de todas as atividades |
 | `src/components/ProjetoTracker.jsx` | — | Separador "Seguimento" (histórico de estados) |
 | `src/components/pdfGenerator.jsx` | — | Relatório PDF do projeto |
 | `src/components/StopTimerNoteModal.jsx` | — | Modal ao parar cronómetro (nota, novo estado, encaminhamento) |
@@ -140,8 +139,7 @@ também se mostra `encerrado` em alguns seletores).
 
 - Arrancar cronómetro numa tarefa/atividade `pendente` passa-a a `em_curso`
   (em `ProjetoDetalhe` a tarefa passa sempre a `em_curso`).
-- O check "concluir/reabrir" alterna `concluido` ↔ `pendente` (em `Atividades.jsx`, reabrir
-  uma atividade volta a `em_curso`).
+- O check "concluir/reabrir" alterna `concluido` ↔ `pendente`.
 - Ao gravar com estado `em_analise`, `analise_destino` fica `proprio` por omissão; noutros
   estados os campos de análise são limpos.
 
@@ -152,7 +150,7 @@ com pequenas diferenças:
 
 | Onde | Atividade | Tarefas | `data_conclusao` | Subtarefas | Fecha projeto? |
 |---|---|---|---|---|---|
-| `concludeActivityWithChildren` (usado em ProjetoDetalhe, Atividades, Projetos) | ✔ | ✔ | ✔ | ✔ | não |
+| `concludeActivityWithChildren` (usado em ProjetoDetalhe, Projetos) | ✔ | ✔ | ✔ | ✔ | não |
 | `Tarefas.jsx` (`handleToggleStatus`, `completeLogItem`) | ✔ | ✔ | ✔ | **não** | sim, se todas as atividades ficaram concluídas |
 
 Reabrir uma atividade **não** reabre as tarefas. Concluir uma tarefa não conclui subtarefas.
@@ -267,8 +265,8 @@ prazo (`data_fim` nas de projeto, `data_limite` nas avulsas; "Atrasadas" = ontem
 +3 dias). Permite criar **tarefas avulsas** (`atividade_id` nulo), anexos, cronómetro,
 histórico de concluídas (restaurar ou apagar de vez).
 
-**Atividades (`Atividades.jsx`)** — lista de todas as atividades com pesquisa,
-criar/editar, concluir (com cascata) e cronómetro.
+**Atividades**: a página própria (`/dashboard/atividades`) foi retirada por não ser usada; o
+endereço antigo leva a Tarefas. As atividades gerem-se no Projeto e nas Tarefas.
 
 ## Quem pode o quê
 

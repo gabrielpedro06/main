@@ -213,7 +213,7 @@ clientes ── projetos ── atividades ── tarefas ── subtarefas     
 * `task_logs`: registos de tempo (`user_id`, tarefa/atividade, `conteudo_id` (082, peça de Marketing),
   `start_time`, `end_time`, `duration_minutes`…). Cronómetro ativo = linha sem `end_time` (ver `utils/taskTimerLifecycle.js`,
   `utils/activeTimerResolver.js`). RLS (070): todos leem; cada um escreve os seus; staff tudo.
-* Quem usa: `Projetos.jsx`, `ProjetoDetalhe.jsx`, `Tarefas.jsx`, `MinhasTarefas.jsx`, `Atividades.jsx`,
+* Quem usa: `Projetos.jsx`, `ProjetoDetalhe.jsx`, `Tarefas.jsx`, `MinhasTarefas.jsx`,
   `DashboardHome.jsx`, `AdminDashboard.jsx`, `StopTimerNoteModal.jsx`, `WidgetAssiduidade.jsx`,
   `utils/activityStatusCascade.js`.
 
@@ -234,11 +234,12 @@ RLS: todos os autenticados leem/criam/editam; só staff apaga (070). Usado em `P
 
 ### `notificacoes_projetos` (038, 063, 075) — sino do Dashboard
 Apesar do nome, é a tabela genérica de notificações: `user_id` (destinatário), `project_id`,
-`conteudo_id → marketing_conteudos` (063), `created_by`, `tipo` (`project_created`, `seguranca`, …),
+`conteudo_id → marketing_conteudos` (063), `created_by`, `tipo` (`project_created`, `seguranca`,
+`mk_*`, `crm_lembrete`, `crm_atribuida`, `crm_reuniao`, …),
 `titulo`, `mensagem`, `link`, `is_read`, `read_at`.
 RLS: cada um lê/atualiza/apaga as suas; **qualquer autenticado insere para qualquer pessoa**.
 Excluída da auditoria. Quem usa: `utils/dashboardNotifications.js`, `DashboardHome.jsx`, `Projetos.jsx`,
-`marketing/mkAprovacao.js`, e a função `seguranca_criar_alerta` (alertas para admins).
+`marketing/mkAprovacao.js`, `components/crm/crm.js`, e a função `seguranca_criar_alerta` (alertas para admins).
 
 ### `agenda` *(fora do repo)*
 Eventos do calendário do Dashboard (`WidgetCalendar.jsx`: `titulo`, `hora`, …).
@@ -304,9 +305,26 @@ contactos, morada/NUTs, `numero_contribuinte` (único parcial), `estado`
 `interesse_email_marketing`, `ultimo_contacto_em`.
 RLS (070): só staff. Quem usa: `TransferGest.jsx`.
 
-### `marketing_leads`, `marketing_prospects` *(fora do repo)*
+### `marketing_leads`, `marketing_prospects` *(criadas fora do repo)*
 Leads e prospects (`GestaoLeads.jsx`, `AdminVisaoGeral.jsx`). Consideradas "sensíveis" pelos alertas
 de leitura volumosa.
+A 083 juntou às leads os campos do CRM: `valor`, `probabilidade` (0–100), `responsavel_id → profiles`,
+`proxima_acao`, `proxima_acao_em` (date), `ultimo_contacto_em`, `estado_desde` (o trigger
+`marketing_leads_mudou_estado` atualiza-o e escreve a mudança no histórico), `motivo_perda`, `notas`,
+`lembrete_enviado_para` (último dia lembrado no sino).
+A 085 juntou `origem` (texto) e `cliente_id → clientes` (entidade da empresa; on delete set null).
+
+### `marketing_leads_pessoas` (086)
+Outras pessoas de cada lead (o principal continua nos campos da lead): `lead_id` (cascade), `nome`,
+`cargo`, `papel` (`decisor|financeiro|tecnico|outro`), `email`, `telefone`, `notas`, `criado_por`.
+RLS: tudo para staff + `marketing`/`marketing plus`. Quem usa: `components/crm/PessoasLead.jsx`.
+
+### `marketing_leads_interacoes` (083)
+Histórico de cada lead: `lead_id` (cascade), `tipo` (`nota|chamada|email|reuniao|proposta|estado`),
+`texto`, `feito_em`, `autor_id` (por omissão `auth.uid()`). Inserir uma interação que não seja
+nota nem estado atualiza `marketing_leads.ultimo_contacto_em` (trigger).
+RLS: ler/criar só staff + `marketing`/`marketing plus` (e só como autor próprio); editar/apagar
+o autor ou staff; as linhas `estado` não se editam nem apagam. Quem usa: `components/crm/`.
 
 ---
 
@@ -612,6 +630,10 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 | 080 | chat_remover_membros | `chat_pode_gerir()`, política DELETE em `chat_participants` (criador/staff removem, cada um sai); fim do auto-adicionar a grupos | |
 | 081 | pedidos_idempotentes | Chaves de idempotência (envios de campanhas/pedidos não se repetem). Só service role; RLS sem políticas | |
 | 082 | task_logs_marketing | `task_logs.conteudo_id` → `marketing_conteudos` (on delete set null) + índice parcial: cronómetro nas peças de Marketing | |
+| 083 | crm_leads | Campos do CRM em `marketing_leads`, tabela `marketing_leads_interacoes` (RLS staff + marketing), triggers de etapa e último contacto | |
+| 084 | crm_estado_desde | Repõe `estado_desde = created_at` nas leads que não mudaram de etapa (a 1.ª versão da 083 pôs a data do dia em todas) | |
+| 085 | crm_origem_entidade | `marketing_leads.origem` e `marketing_leads.cliente_id` → `clientes` (+ índices) | |
+| 086 | crm_pessoas | Tabela `marketing_leads_pessoas` (outras pessoas de cada lead; RLS staff + marketing) | |
 | — | modulo_ativos_ti.sql | Rascunho de modelo de Ativos TI | **não aplicado, não correr** |
 
 ---

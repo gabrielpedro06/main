@@ -31,6 +31,7 @@ import { useMedalhasEquipa } from "../components/medalhas/useMedalhas";
 import NotificationsPanel from "../components/NotificationsPanel";
 import AprovacaoModal from "../components/marketing/AprovacaoModal";
 import { TIPOS_NOTIF_MK } from "../components/marketing/mkAprovacao";
+import { gerarLembretesLeads } from "../components/crm/crm";
 import { clicavel } from "../utils/clicavel";
 import Janela from "../components/Janela";
 import { lerCache, guardarCache } from "../utils/cachePaginas";
@@ -155,7 +156,6 @@ export default function DashboardHome() {
     const [userProfile, setUserProfile] = useState(null);
     const [usersOnline, setUsersOnline] = useState([]);
     const [selectedOnlineUser, setSelectedOnlineUser] = useState(null);
-    const [registosMes, setRegistosMes] = useState(() => cacheInicio().registosMes || []); 
     const [aniversarios, setAniversarios] = useState(() => cacheInicio().aniversarios || []);
     const proximosAniversarios = aniversarios.slice(0, 3);
 
@@ -223,7 +223,7 @@ export default function DashboardHome() {
                 .select("id, project_id, conteudo_id, titulo, mensagem, link, tipo, is_read, created_at, conteudo:marketing_conteudos(estado)")
                 .eq("user_id", user.id)
                 .eq("is_read", false)
-                .in("tipo", ["project_created", ...TIPOS_NOTIF_MK, "seguranca"])
+                .in("tipo", ["project_created", ...TIPOS_NOTIF_MK, "seguranca", "crm_lembrete", "crm_atribuida", "crm_reuniao"])
                 .order("created_at", { ascending: false })
                 .limit(20);
 
@@ -304,6 +304,8 @@ export default function DashboardHome() {
       fetchStats();
       fetchUserProfile();
       loadProjectNotifications();
+      // CRM: próximas ações das leads que chegaram hoje → sino (1x por dia)
+      gerarLembretesLeads(user.id).then((n) => { if (n) loadProjectNotifications(); }).catch(() => {});
       loadUsersOnline();
       fetchAniversarios(); 
       checkActiveLog(); 
@@ -354,6 +356,7 @@ export default function DashboardHome() {
           window.removeEventListener('project-notifications-updated', handleProjectNotificationsUpdated);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- arranque/subscrições só devem reiniciar quando muda o utilizador
   }, [user]);
 
     async function refreshDashboardWorkItems() {
@@ -369,6 +372,7 @@ export default function DashboardHome() {
 
   useEffect(() => {
       if (showHistoryModal && user) loadFullHistory();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- loadFullHistory é recriada a cada render; as dependências reais já estão listadas
   }, [historyDate, showHistoryModal, user]);
 
   const getSafeFirstName = (nome, email) => {
@@ -376,7 +380,7 @@ export default function DashboardHome() {
           if (nome && typeof nome === 'string') return nome.trim().split(' ')[0];
           if (email && typeof email === 'string') return email.trim().split('@')[0];
           return "Colaborador";
-      } catch (e) { return "Colaborador"; }
+      } catch { return "Colaborador"; }
   };
 
   const getInitials = (name) => {
@@ -387,7 +391,7 @@ export default function DashboardHome() {
           const parts = cleanName.split(" ");
           if (parts.length > 1) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
           return cleanName.substring(0, 2).toUpperCase();
-      } catch(e) { return "?"; }
+      } catch { return "?"; }
   };
 
   const getClientDisplayName = (client) => {
@@ -895,13 +899,6 @@ export default function DashboardHome() {
             .is("hora_saida", null)
             .order("hora_entrada", { ascending: true }); 
     if (!error && data) setUsersOnline(data);
-  }
-
-  async function fetchRegistosMes() {
-      const hoje = new Date();
-      const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
-      const { data, error } = await supabase.from("assiduidade").select("*").eq("user_id", user.id).gte("data_registo", primeiroDia).order("data_registo", { ascending: false }).limit(5);
-      if (!error && data) { setRegistosMes(data); guardarInicio({ registosMes: data }); }
   }
 
   async function fetchTarefasPessoais() {
