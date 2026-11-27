@@ -8,6 +8,7 @@
 //  - urlDaApp: só aceita links para a própria aplicação
 // (pasta com "_": não conta como função no Vercel)
 // =====================================================================
+import { Buffer } from "node:buffer";
 import { createClient } from "@supabase/supabase-js";
 
 export const PAPEIS = {
@@ -70,6 +71,24 @@ export async function autenticar(req) {
   if (perfil?.ativo === false) throw new ErroHttp(403, "Conta desativada.");
   const papel = String(perfil?.role || perfil?.tipo || "").toLowerCase();
   return { user, perfil, papel, admin };
+}
+
+/**
+ * Nível de autenticação do token ("aal1" = só palavra-passe, "aal2" = com 2FA).
+ * Só lê o payload: a assinatura tem de ter sido validada antes (auth.getUser / autenticar).
+ */
+export function nivelAal(token) {
+  try {
+    const payload = JSON.parse(Buffer.from(String(token || "").split(".")[1] || "", "base64url").toString("utf8"));
+    return payload?.aal || "";
+  } catch {
+    return "";
+  }
+}
+
+/** true se o pedido traz uma sessão com o 2FA confirmado (aal2). */
+export function temAal2(req) {
+  return nivelAal(String(req.headers?.authorization || "").replace(/^Bearer\s+/i, "")) === "aal2";
 }
 
 /** Lança ErroHttp(403) se `ctx.papel` (de autenticar) não estiver em `lista` (ex.: PAPEIS.gestao). */

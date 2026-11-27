@@ -342,7 +342,7 @@ export default function Projetos() {
           mensagem: clientName
               ? `Foi criado o projeto "${project.titulo}" para ${clientName}.`
               : `Foi criado o projeto "${project.titulo}".`,
-          link: projectUrl,
+          link: `/dashboard/projetos/${project.id}`, // link interno (a 089 só aceita links da app)
           is_read: false,
       };
 
@@ -1038,11 +1038,19 @@ export default function Projetos() {
        * têm sempre projeto_id, por isso conclui o PROJETO (ao contrário das outras
        * páginas, que concluem primeiro a tarefa/atividade).
        */
+      /**
+       * "Parar e concluir": conclui o item MAIS ESPECÍFICO do registo de tempo.
+       * Um registo de uma tarefa também traz projeto_id; antes o projeto era visto
+       * primeiro e "concluir" fechava o projeto inteiro. Ordem: tarefa → atividade → projeto.
+       */
       async function completeLogItem(logEntry) {
           if (!logEntry) return;
 
-          if (logEntry.projeto_id) {
-              await supabase.from("projetos").update({ estado: "concluido" }).eq("id", logEntry.projeto_id);
+          if (logEntry.task_id) {
+              await supabase
+                  .from("tarefas")
+                  .update({ estado: "concluido", data_conclusao: new Date().toISOString() })
+                  .eq("id", logEntry.task_id);
               return;
           }
 
@@ -1051,11 +1059,8 @@ export default function Projetos() {
               return;
           }
 
-          if (logEntry.task_id) {
-              await supabase
-                  .from("tarefas")
-                  .update({ estado: "concluido", data_conclusao: new Date().toISOString() })
-                  .eq("id", logEntry.task_id);
+          if (logEntry.projeto_id) {
+              await supabase.from("projetos").update({ estado: "concluido" }).eq("id", logEntry.projeto_id);
           }
       }
 

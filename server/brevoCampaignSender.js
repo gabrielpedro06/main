@@ -148,6 +148,15 @@ function buildPayload({
     payload.htmlContent = htmlContent;
   }
 
+  // RGPD: cada destinatário recebe uma cópia SÓ PARA SI (messageVersions da Brevo).
+  // Antes, sem parâmetros por pessoa, o lote inteiro ia no mesmo "Para" e todos viam
+  // os endereços uns dos outros. (Faz o mesmo que BCC, mas sem o "Para" vazio que os
+  // filtros de spam penalizam.)
+  if (Array.isArray(to) && to.length > 1) {
+    payload.messageVersions = to.map((email) => ({ to: [{ email }] }));
+    delete payload.to;
+  }
+
   return payload;
 }
 

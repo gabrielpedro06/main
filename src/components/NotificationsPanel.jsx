@@ -1,5 +1,5 @@
 // Painel do sino de notificações do Início (projetos novos, aprovações de Marketing,
-// alertas de segurança, lembretes e atribuições do CRM das Leads). Quais os tipos carregados decide o DashboardHome (filtro .in("tipo", …)).
+// alertas de segurança, lembretes e atribuições do CRM das Leads, decisões dos pedidos de ausência). Quais os tipos carregados decide o DashboardHome (filtro .in("tipo", …)).
 // Estilos .np-* em home.css.
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -15,6 +15,7 @@ const I = {
   Undo: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>,
   Bell: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /><circle cx="18" cy="5" r="3" fill="currentColor" stroke="none" /></svg>,
   Handshake: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /><path d="m16 11 2 2 4-4" /></svg>,
+  Calendario: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="m9 16 2 2 4-4" /></svg>,
   Shield: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>,
   BellCheck: () => <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="m9.5 9.5 1.8 1.8 3.2-3.3" /></svg>,
 };
@@ -34,8 +35,14 @@ const TIPO = {
   crm_lembrete: { Icon: I.Bell, acao: "Abrir lead", tom: "is-approval" },
   crm_atribuida: { Icon: I.Handshake, acao: "Abrir lead", tom: "is-ok" },
   crm_reuniao: { Icon: I.Bell, acao: "Abrir lead", tom: "is-ok" },
+  absence_status_changed: { Icon: I.Calendario, acao: "Ver as minhas ausências", tom: "is-ok" },
 };
-const tipoDe = (n) => TIPO[n.tipo] || TIPO.project_created;
+const tipoDe = (n) => {
+  const t = TIPO[n.tipo] || TIPO.project_created;
+  // decisão de ausência: verde se aprovado, vermelho se recusado/cancelado
+  if (n.tipo === "absence_status_changed" && /recusad|cancelad|rejeitad/i.test(`${n.titulo || ""} ${n.mensagem || ""}`)) return { ...t, tom: "is-warn" };
+  return t;
+};
 
 const MOBILE_QUERY = "(max-width: 640px)";
 const PANEL_WIDTH = 410;

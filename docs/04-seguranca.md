@@ -60,16 +60,18 @@ Todas as tabelas abaixo têm RLS ativo **e** a política restritiva `mfa_obrigat
 | `pedidos_reembolso` | todos | criar/alterar: todos; apagar: staff |
 | `entidade_configuracoes` | todos | criar: todos; alterar/apagar: criador ou staff |
 | `propostas_comerciais` | (no repo) só as próprias; há regras manuais para admin | as próprias |
-| `programas_financiamento`, `avisos` | autenticados | autenticados |
 | `cursos` | autenticados | criar: todos; alterar/apagar: criador |
-| `proposta_cursos`, `acoes_formacao*`, `areas_formacao`, `homologacoes_formacao`, `software`, `marketing_*` | autenticados | autenticados (controlo só na app) |
+| `acoes_formacao*`, `areas_formacao`, `homologacoes_formacao`, `programas_financiamento`, `avisos` (089) | autenticados | criar/alterar: autenticados; apagar: gestão |
+| `marketing_*` (089) | gestão + `marketing`/`marketing plus` (`bizin_pode_marketing()`); `marketing_marcas`: todos; `marketing_conteudos`: também os aprovadores da peça | gestão + marketing; aprovadores podem alterar as suas peças |
+| `software` (089) | `bizin_pode_acessos_ti()` | `bizin_pode_acessos_ti()` |
+| `proposta_cursos` (089) | gestão | gestão |
 | `medalhas`, `medalhas_colaboradores` | autenticados | `pode_gerir_medalhas()` (admin/gestor) |
 | `chat_rooms` | participantes | criar: autenticados |
 | `chat_participants` | o próprio; membros da sala | `chat_pode_adicionar()` (membro, criador, ou o próprio em grupos) |
 | `chat_messages` | membros | membro e `sender_id = auth.uid()` |
 | `chat_room_reads` | membros | o próprio, se membro |
 | `forum_comment_likes`, `forum_reactions`, `chat_reactions` | autenticados | o próprio |
-| `notificacoes_projetos` | o próprio | inserir: qualquer autenticado; alterar/apagar: o próprio |
+| `notificacoes_projetos` | o próprio | inserir (089): qualquer autenticado, mas só com `created_by` = o próprio (ou vazio) e `link` interno (`/…`); alterar/apagar: o próprio |
 | `projetos_estado_historico` | quem vê o projeto | só triggers |
 | `audit_log` | admin | ninguém (só funções definer e service role) |
 | `tentativas_login`, `logs_supabase_*`, `seguranca_estado` | admin | só service role |

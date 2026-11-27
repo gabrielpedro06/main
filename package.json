@@ -10,7 +10,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "send:campaign": "node scripts/sendMarketingCampaign.mjs"
+    "send:campaign": "node scripts/sendMarketingCampaign.mjs",
+    "db:esquema": "npx supabase db dump --linked --schema public,storage -f supabase/esquema-base.sql"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

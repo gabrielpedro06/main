@@ -78,7 +78,8 @@ se não for coberta por um parâmetro `:tipo`/`:op`.
 | `auditar(admin, ctx, acao, detalhes, registoId, tabela)` | insert em `audit_log`; nunca lança |
 | `consumirQuota(ctx, acao, limiteDiario)` | conta eventos `acao` do utilizador em `audit_log` desde 00:00 UTC; 429 se ≥ limite; senão regista mais um |
 
-> `autenticar` não verifica o nível 2FA (`aal`) do token. Ver secção 7 (riscos).
+> `autenticar` não verifica o nível 2FA (`aal`) do token. As rotas de administração (`adminMfa`, `adminContas`)
+> verificam-no com `temAal2(req)` (também em `seguranca.js`) e recusam sessões só com palavra-passe (`aal1`).
 
 ## 3. Endpoints
 

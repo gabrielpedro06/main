@@ -1,6 +1,7 @@
 // Anexos de um conteúdo (Marketing → painel → Design/Notas).
 // Nota: usa getPublicUrl no balde "documents" (criado público na migração 013);
 // quem tiver o link abre o ficheiro sem sessão.
+import ImagemPrivada from "../ImagemPrivada";
 import { useRef, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { I } from "./mkIcons";
@@ -58,7 +59,7 @@ export default function Anexos({ value, onChange, pasta, categoriaInicial = "out
           {lista.map((f, i) => (
             <div key={f.url || i} className="mk-anexo">
               <a className={`mk-anexo-thumb ${ehImagem(f) && f.url ? "is-img" : ""}`} href={f.url || undefined} target="_blank" rel="noreferrer">
-                {ehImagem(f) && f.url ? <img src={f.url} alt="" loading="lazy" /> : <span className={ehPdf(f) ? "is-pdf" : ""}>{ehPdf(f) ? "PDF" : (f.nome?.split(".").pop() || "?").toUpperCase().slice(0, 4)}</span>}
+                {ehImagem(f) && f.url ? <ImagemPrivada src={f.url} alt="" loading="lazy" /> : <span className={ehPdf(f) ? "is-pdf" : ""}>{ehPdf(f) ? "PDF" : (f.nome?.split(".").pop() || "?").toUpperCase().slice(0, 4)}</span>}
               </a>
               <div className="mk-anexo-txt">
                 {f.url ? <a href={f.url} target="_blank" rel="noreferrer" title={f.nome}>{f.nome}</a> : <b title="Ficheiro referido no Notion — carregue-o aqui">{f.nome}</b>}

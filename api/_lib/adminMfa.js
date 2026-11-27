@@ -8,6 +8,7 @@
 //   VITE_SUPABASE_URL           (já existe)
 // =====================================================================
 import { createClient } from "@supabase/supabase-js";
+import { temAal2 } from "./seguranca.js";
 
 // (config da função: ver api/admin/[op].js)
 
@@ -44,6 +45,12 @@ export default async function handler(req, res) {
   const { data: quem, error: quemErr } = token ? await admin.auth.getUser(token) : { data: null, error: true };
   if (quemErr || !quem?.user) {
     res.status(401).json({ ok: false, error: "Sessão expirada. Volte a entrar." });
+    return;
+  }
+  // A chave de serviço passa por cima da regra mfa_obrigatorio da BD: exigir aqui o 2FA confirmado,
+  // senão bastava a palavra-passe de um admin para repor o 2FA ou mudar papéis.
+  if (!temAal2(req)) {
+    res.status(403).json({ ok: false, error: "Confirme o código de autenticação (2FA) antes de fazer esta ação." });
     return;
   }
   const { data: perfil } = await admin.from("profiles").select("role, tipo, nome").eq("id", quem.user.id).single();

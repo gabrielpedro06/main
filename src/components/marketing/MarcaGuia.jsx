@@ -1,6 +1,7 @@
 // Separador "Marca" (Marketing): guia da marca guardado em marketing_marcas.guia
 // (jsonb): sobre, personalidade, é/não é, voz (usamos/evitamos), visual e ficheiros.
 // A lista "evitamos" é usada pelo painel do conteúdo e pela IA de ideias.
+import ImagemPrivada from "../ImagemPrivada";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { I } from "./mkIcons";
@@ -395,7 +396,7 @@ function Ficheiros({ marca, lista, onGuardar, avisar }) {
             return (
               <div key={f.url} className="mk-g-file">
                 <a href={f.url} target="_blank" rel="noreferrer" className={`mk-g-file-thumb ${img ? "is-img" : ""}`}>
-                  {img ? <img src={f.url} alt={f.nome} loading="lazy" /> : <span className={pdf ? "is-pdf" : ""}>{pdf ? "PDF" : (f.nome.split(".").pop() || "?").toUpperCase().slice(0, 4)}</span>}
+                  {img ? <ImagemPrivada src={f.url} alt={f.nome} loading="lazy" /> : <span className={pdf ? "is-pdf" : ""}>{pdf ? "PDF" : (f.nome.split(".").pop() || "?").toUpperCase().slice(0, 4)}</span>}
                 </a>
                 <div className="mk-g-file-txt">
                   <a href={f.url} target="_blank" rel="noreferrer" title={f.nome}>{f.nome}</a>

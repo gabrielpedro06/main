@@ -12,7 +12,7 @@ import { avisar } from "./dialogo";
 // =====================================================================
 
 /** Baldes do Storage que são privados (um balde novo privado tem de entrar aqui). */
-export const BALDES_PRIVADOS = ["rh_anexos", "documentos", "chat_ficheiros"];
+export const BALDES_PRIVADOS = ["rh_anexos", "documentos", "chat_ficheiros", "documents"]; // documents: privado desde a 089
 const DURACAO = 600; // 10 minutos
 const RE = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/;
 

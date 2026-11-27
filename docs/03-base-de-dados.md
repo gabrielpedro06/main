@@ -636,6 +636,7 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 | 086 | crm_pessoas | Tabela `marketing_leads_pessoas` (outras pessoas de cada lead; RLS staff + marketing) | |
 | 087 | chat_apagar_mensagens | `chat_messages.apagada_em` + `chat_apagar_mensagem()` (definer, só o autor, exige aal2); tabela `chat_mensagens_ocultas`; `mfa_obrigatorio` nas tabelas novas do CRM | |
 | 088 | chat_acoes_mensagens | `chat_messages.resposta_a`, `reencaminhada`, `afixada_em/por` + `chat_afixar_mensagem()`; `chat_apagar_mensagem()` também desafixa; tabela `chat_conversas_minhas` (arquivada, limpa_ate) | |
+| 089 | seguranca_fase3 | `bizin_pode_marketing()`; RLS de `marketing_*` (gestão + marketing; aprovadores nas suas peças), `software`, `proposta_cursos`; `notificacoes_projetos` só em nome próprio e links internos; `provisionar_saldos_ferias` só gestão; balde `documents` privado; Formação/Programas/Avisos: só a gestão apaga | |
 | — | modulo_ativos_ti.sql | Rascunho de modelo de Ativos TI | **não aplicado, não correr** |
 
 ---

@@ -5,25 +5,16 @@ Esta lista foi feita a 20/11/2026, ao documentar o código. São achados de leit
 ## 🔴 Alta prioridade
 
 ### Segurança
-1. **Dá para contornar o 2FA nas rotas de admin.** `api/_lib/seguranca.js` (`autenticar`), `adminMfa.js` e `adminContas.js` aceitam um token só com password (`aal1`), e a service_role ignora a regra `mfa_obrigatorio`. Quem souber a password de um admin pode chamar `POST /api/admin/mfa {acao:"repor"}` e reconfigurar o 2FA. **Correção:** exigir `aal2` no JWT. Ver [05](05-api-e-servidor.md).
-2. **Os emails de campanha mostram os destinatários uns aos outros (RGPD).** `server/brevoCampaignSender.js` (`buildPayload`), em modo HTML ou template sem parâmetros por destinatário, mete 75–100 endereços no mesmo `to`. Afeta o TransferGest e as Leads.
-3. **O balde `documents` é público** (migração 013; a 069 só tornou privado `documentos`). Os anexos de Marketing e o guia de marca abrem sem sessão para quem tiver o link.
-4. **RLS demasiado aberta.** Qualquer utilizador autenticado pode escrever em:
-   - `marketing_*`
-   - `acoes_formacao*`
-   - `software` (incluindo `licenca_chave` em claro)
-   - `proposta_cursos`
-   - `programas_financiamento`
-   - `avisos`
-   - `pedidos_reembolso`
-   - `notificacoes_projetos` (dá para criar notificações para qualquer pessoa, com link arbitrário)
+1. ~~**Dá para contornar o 2FA nas rotas de admin.**~~ **corrigido (27/11/2026)**: `adminMfa.js` e `adminContas.js` exigem `aal2` (`temAal2()` em `seguranca.js`). `api/_lib/seguranca.js` (`autenticar`), `adminMfa.js` e `adminContas.js` aceitam um token só com password (`aal1`), e a service_role ignora a regra `mfa_obrigatorio`. Quem souber a password de um admin pode chamar `POST /api/admin/mfa {acao:"repor"}` e reconfigurar o 2FA. **Correção:** exigir `aal2` no JWT. Ver [05](05-api-e-servidor.md).
+2. ~~**Os emails de campanha mostram os destinatários uns aos outros (RGPD).**~~ **corrigido (27/11/2026)**: `buildPayload` usa `messageVersions` — cada destinatário recebe uma cópia só para si. `server/brevoCampaignSender.js` (`buildPayload`), em modo HTML ou template sem parâmetros por destinatário, mete 75–100 endereços no mesmo `to`. Afeta o TransferGest e as Leads.
+3. ~~**O balde `documents` é público**~~ **corrigido (089)**: privado; os anexos e o guia de marca abrem com links temporários. Regras de leitura: quem tem sessão; carregar: gestão + marketing. (migração 013; a 069 só tornou privado `documentos`). Os anexos de Marketing e o guia de marca abrem sem sessão para quem tiver o link.
+4. **RLS demasiado aberta.** A 089 fechou `marketing_*` (gestão + marketing; aprovadores só nas suas peças), `software` (Ativos TI), `proposta_cursos` (gestão), `notificacoes_projetos` (só em nome próprio e com links internos) e `provisionar_saldos_ferias` (gestão). Formação (`acoes_formacao*`, `areas_formacao`, `homologacoes_formacao`), `programas_financiamento` e `avisos`: por decisão de 27/11/2026, todos veem, criam e alteram e **só a gestão apaga** (089), como já acontecia com `pedidos_reembolso`. **Resolvido.**
 
-   Além disso, qualquer utilizador autenticado pode executar `provisionar_saldos_ferias`.
-5. **Cofre:** em `acessos_cliente`, qualquer pessoa com 2FA pode revelar qualquer password, sem verificação de papel.
-6. **O esquema base não está no repositório.** `001_initial_schema.sql` está vazia. Tabelas centrais (`profiles`, `clientes`, `projetos`, `tarefas`, `ferias`, `forum_*`, `equipamentos`…) e várias políticas foram criadas no painel. **Fazer um `supabase db dump` do esquema e guardá-lo no repositório.**
+5. **Cofre:** em `acessos_cliente`, qualquer pessoa com 2FA pode revelar qualquer password, sem verificação de papel. **Risco aceite (27/11/2026)**: os colaboradores precisam destes acessos; fica o alerta `cofre_em_massa` (≥ 10 revelações/hora).
+6. **O esquema base não está no repositório.** Já há o comando `npm run db:esquema` (gera `supabase/esquema-base.sql`; precisa de `npx supabase login` e `npx supabase link --project-ref <id>` uma vez). `001_initial_schema.sql` está vazia. Tabelas centrais (`profiles`, `clientes`, `projetos`, `tarefas`, `ferias`, `forum_*`, `equipamentos`…) e várias políticas foram criadas no painel. **Fazer um `supabase db dump` do esquema e guardá-lo no repositório.**
 
 ### Funcionalidade
-7. **Notificações de decisão de férias nunca aparecem.** O tipo `absence_status_changed` não está no filtro `.in("tipo", …)` de `DashboardHome.jsx` nem no mapa `TIPO` do `NotificationsPanel`.
+7. ~~**Notificações de decisão de férias nunca aparecem.**~~ **corrigido (27/11/2026)**: o tipo está no filtro do Início e no `NotificationsPanel` (verde/vermelho conforme a decisão). O tipo `absence_status_changed` não está no filtro `.in("tipo", …)` de `DashboardHome.jsx` nem no mapa `TIPO` do `NotificationsPanel`.
 8. ~~**Recuperação de password partida**~~ **corrigido (25/11/2026)**, confirmado por um colaborador: o ecrã de 2FA aparecia e desaparecia.
    - Causa: o HashRouter + o `AuthContext` terminavam a sessão de recuperação, que não tinha o cookie `bz_mfa`.
    - Ver `utils/recuperacao.js` e a secção "Recuperação de palavra-passe" em `01-arquitetura.md`.
@@ -32,8 +23,8 @@ Esta lista foi feita a 20/11/2026, ao documentar o código. São achados de leit
    - as funções reconhecem férias com `lower(tipo) like '%fer%'`, mas a app grava "Férias" com acento;
    - SQL e JS calculam os dias gozados de maneiras diferentes (o SQL não desconta feriados nem tolerâncias);
    - `transito_expira_em` está incoerente entre os dois.
-10. **"Parar e concluir" em `Projetos.jsx` conclui o projeto inteiro**, porque `completeLogItem` dá prioridade ao `projeto_id`.
-11. **Os links de entregáveis e anexos de tarefas podem não abrir.** Usam `getPublicUrl` no balde `documentos`, que é privado.
+10. ~~**"Parar e concluir" em `Projetos.jsx` conclui o projeto inteiro**~~ **corrigido (27/11/2026)**: `completeLogItem` conclui o mais específico (tarefa → atividade → projeto)., porque `completeLogItem` dá prioridade ao `projeto_id`.
+11. ~~**Os links de entregáveis e anexos de tarefas podem não abrir.**~~ **resolvido**: os cliques em links de baldes privados passam por `instalarAberturaSegura()` (`utils/ficheirosPrivados.js`), que abre um link temporário. Usam `getPublicUrl` no balde `documentos`, que é privado.
 
 ## 🟠 Média prioridade
 
@@ -42,7 +33,7 @@ Esta lista foi feita a 20/11/2026, ao documentar o código. São achados de leit
 - A aprovação em massa de ausências não é atómica. Em `executarAcaoRH` falta o `.eq("estado", esperado)`, por isso dois RH podem decidir o mesmo pedido.
 - Os números das propostas são calculados no browser e podem repetir-se. A ordenação é por texto e falha depois do 999.
 - A cascata ao concluir atividades é diferente consoante a página: `Tarefas` / `concludeActivityWithChildren` / `ProjetoDetalhe`.
-- `Tarefas.handleSubmit` e `GestaoLeads.updateStatus` mostram sucesso mesmo quando o Supabase devolve erro. Editar ou apagar o curso de outra pessoa também diz "sucesso" sem fazer nada.
+- `Tarefas.handleSubmit` mostra sucesso mesmo quando o Supabase devolve erro (~~`GestaoLeads.updateStatus`~~ resolvido: o CRM das Leads repõe e avisa se a gravação falhar). Editar ou apagar o curso de outra pessoa também diz "sucesso" sem fazer nada.
 - Campanhas grandes podem passar os 60 s de `maxDuration` no Vercel.
 - Papéis desalinhados:
   - a Sidebar só verifica `admin`, enquanto as rotas aceitam `administrador`;
@@ -66,7 +57,7 @@ Esta lista foi feita a 20/11/2026, ao documentar o código. São achados de leit
   - os rascunhos de comentários ainda re-renderizam o `Forum.jsx` inteiro a cada tecla (o chat já foi resolvido com o `ChatComposer`);
   - polling de 1,2 s em paralelo com o Realtime;
   - o chat privado encontra a pessoa por nome.
-- `PAGE_TITLES` não tem marketing, registos nem pedidos (no telemóvel o título aparece como "Início").
+- ~~`PAGE_TITLES` não tem marketing, registos nem pedidos~~ **resolvido**.
 - TransferGest: lista de campanhas sem paginação (corta nas 1000); um NIF repetido no CSV faz falhar a importação toda.
 - Migrações:
   - números repetidos (032, 034, 039, 040) e falta a 037;
