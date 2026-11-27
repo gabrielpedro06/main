@@ -4,7 +4,7 @@
 .ts {
   --ts-ink: #0f172a;
   --ts-sub: #64748b;
-  --ts-line: #e2e8f0;
+  --ts-line: var(--n-200);
   --ts-spring: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex; flex-direction: column;
   max-height: inherit;

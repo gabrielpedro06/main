@@ -489,8 +489,10 @@ A exigência real do 2FA está na base de dados: a migração `071_mfa_obrigator
   `escuro` (o resultado). Guardado em `localStorage['app-modo']`, por browser.
 - `utils/modoInicial.js` (importado no início de `main.jsx`) põe `data-modo="escuro"` no
   `<html>` antes do primeiro desenho, para não piscar branco.
-- As cores do tema em versão escura vêm de `coresEscuras(tema)` em `constants/themes.js`
-  (fundos quase pretos com um toque da cor do tema, textos claros, botão principal mais claro).
+- As cores do tema em versão escura vêm de `coresEscuras(tema)` em `constants/themes.js`: tudo sai
+  da cor do tema. Fundos quase pretos com ~13% do tom do tema; barra lateral e cabeçalhos numa
+  versão **profunda** desse tom (52%/70% para o preto, nunca a cor clara); destaques = cor principal
+  do tema um pouco mais clara (com luminosidade mínima para se ler no escuro).
 - `styles/tokens.css`, em `html[data-modo="escuro"]`: inverte os neutros `--n-*`, as superfícies
   `--sup-1/--sup-2`, `--cor-campo` e as sombras; `--brilho` apaga os brilhos brancos do vidro
   (janelas, ícones) e `--jn-veu` escurece o fundo atrás das janelas.
@@ -500,7 +502,11 @@ A exigência real do 2FA está na base de dados: a migração `071_mfa_obrigator
     `var(--cx-HEX, #HEX)`, ex. `var(--cx-fef2f2, #fef2f2)`. No claro fica a cor original; no
     escuro usa a definição no fim do `tokens.css`. Se usares um tom que ainda não está lá,
     acrescenta-o;
-  - brilhos brancos em vidro: `rgb(255 255 255 / calc(0.5 * var(--brilho, 1)))`.
+  - brilhos brancos em vidro: `rgb(255 255 255 / calc(0.5 * var(--brilho, 1)))`;
+  - **branco em cima de faixas coloridas** (botões e textos nos cabeçalhos do tema): fica `#fff`
+    com texto escuro fixo, nos dois modos. Só as *superfícies* (cartões, painéis) usam `--sup-1`;
+  - variáveis próprias de uma página para a cor dos cartões (`--xx-surface`, `--xx-card`) também
+    têm de apontar para `var(--sup-1)`, senão os cartões ficam brancos no escuro.
 - Ficam de fora (de propósito): PDFs gerados, gráficos com cores em atributos SVG e as cores
   passadas por JavaScript fora de `style={{…}}`.
 

@@ -63,8 +63,8 @@
   background: var(--n-100); color: var(--n-700);
   font-size: 0.72rem; font-weight: 850;
 }
-.crm-rapido.is-quente b { background: color-mix(in srgb, #ea580c 15%, transparent); color: #c2410c; }
-.crm-rapido.is-aviso b { background: color-mix(in srgb, #d97706 15%, transparent); color: #b45309; }
+.crm-rapido.is-quente b { background: color-mix(in srgb, #ea580c 15%, transparent); color: var(--tx-c2410c, #c2410c); }
+.crm-rapido.is-aviso b { background: color-mix(in srgb, #d97706 15%, transparent); color: var(--tx-b45309, #b45309); }
 html[data-modo="escuro"] .crm-rapido.is-quente b { color: #fdba74; }
 html[data-modo="escuro"] .crm-rapido.is-aviso b { color: #fcd34d; }
 .crm-rapido:hover { color: var(--cor-tinta); border-color: var(--cor-linha-forte); }
@@ -365,7 +365,7 @@ textarea.crm-input { resize: vertical; line-height: 1.45; }
 }
 .crm-atalhos button:hover { color: var(--cor-tinta); border-color: var(--cor-linha-forte); }
 .crm-atalhos button.is-on { background: color-mix(in srgb, var(--cor-acento) 12%, var(--sup-1)); border-color: color-mix(in srgb, var(--cor-acento) 40%, transparent); color: var(--cor-acento); }
-.crm-atalhos button.is-limpar { margin-left: auto; color: var(--cor-sucesso, #16a34a); border-style: dashed; }
+.crm-atalhos button.is-limpar { margin-left: auto; color: var(--cor-sucesso, var(--tx-16a34a, #16a34a)); border-style: dashed; }
 .crm-atalhos.is-motivos { margin: 4px 0 10px; }
 
 .crm-contactos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; font-size: 0.86rem; font-weight: 600; color: var(--cor-tinta); }
@@ -589,7 +589,7 @@ html .ld-hero-campo:focus { background: rgba(255, 255, 255, 0.2); border-color: 
 .ld-ico:hover { color: var(--cor-tinta); border-color: var(--cor-linha-forte); transform: translateY(-1px); }
 .ld-ico.is-acento:hover { color: var(--cor-acento); background: color-mix(in srgb, var(--cor-acento) 10%, var(--sup-1)); border-color: color-mix(in srgb, var(--cor-acento) 35%, transparent); }
 .ld-ico.is-perigo:hover { color: #dc2626; background: var(--cx-fef2f2, #fef2f2); border-color: var(--cx-fecaca, #fecaca); }
-.ld-ico.is-ok:hover { color: #16a34a; background: var(--cx-f0fdf4, #f0fdf4); border-color: var(--cx-bbf7d0, #bbf7d0); }
+.ld-ico.is-ok:hover { color: var(--tx-16a34a, #16a34a); background: var(--cx-f0fdf4, #f0fdf4); border-color: var(--cx-bbf7d0, #bbf7d0); }
 .ld-ponto { position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 2px var(--sup-1); }
 .ld-forte { color: var(--cor-tinta); font-weight: 800; }
 .ld-linha-arquivada { opacity: 0.55; }
@@ -728,8 +728,8 @@ html .ld-hero-campo:focus { background: rgba(255, 255, 255, 0.2); border-color: 
 .crm-pes-nome em { color: var(--cor-suave); font-weight: 600; }
 .crm-pes-tag { padding: 1px 8px; border-radius: 99px; background: color-mix(in srgb, var(--cor-acento) 12%, transparent); color: var(--cor-acento); font-size: 0.68rem; font-weight: 850; letter-spacing: 0.02em; }
 .crm-pes-tag.is-decisor { background: color-mix(in srgb, #8b5cf6 14%, transparent); color: #7c3aed; }
-.crm-pes-tag.is-financeiro { background: color-mix(in srgb, #16a34a 14%, transparent); color: #15803d; }
-.crm-pes-tag.is-tecnico { background: color-mix(in srgb, #0ea5e9 14%, transparent); color: #0369a1; }
+.crm-pes-tag.is-financeiro { background: color-mix(in srgb, #16a34a 14%, transparent); color: var(--tx-15803d, #15803d); }
+.crm-pes-tag.is-tecnico { background: color-mix(in srgb, #0ea5e9 14%, transparent); color: var(--tx-0369a1, #0369a1); }
 .crm-pes-tag.is-outro { background: var(--n-100); color: var(--n-700); }
 html[data-modo="escuro"] .crm-pes-tag.is-decisor { color: #c4b5fd; }
 html[data-modo="escuro"] .crm-pes-tag.is-financeiro { color: #86efac; }

@@ -71,7 +71,7 @@
 }
 
 .forgot-password a {
-  color: #555;
+  color: var(--tx-555555, #555555);
   text-decoration: none;
 }
 

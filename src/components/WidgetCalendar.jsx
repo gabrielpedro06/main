@@ -112,7 +112,7 @@ export default function WidgetCalendar({ onClose }) {
             listaEventos.push({
                 dia: f.d, tipo: 'feriado', hora: null,
                 displayName: f.nome, 
-                bg: '#fee2e2', txt: '#991b1b',
+                bg: 'var(--lx-fee2e2, #fee2e2)', txt: 'var(--tx-991b1b, #991b1b)',
                 fullTitle: `Feriado: ${f.nome}`
             });
         }
@@ -125,7 +125,7 @@ export default function WidgetCalendar({ onClose }) {
             listaEventos.push({
                 dia: nasc.getDate(), tipo: 'aniversario', hora: null,
                 displayName: `Aniversário de ${p.nome.split(' ')[0]}`, 
-                bg: '#fef08a', txt: '#854d0e',
+                bg: '#fef08a', txt: 'var(--tx-854d0e, #854d0e)',
                 fullTitle: `Aniversário de ${p.nome}`
             });
         }

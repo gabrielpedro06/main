@@ -219,10 +219,10 @@ function getFirstName(value) {
 }
 
 const STATUS_STYLE = {
-  novo: { bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" },
-  contactado: { bg: "#fffbeb", color: "#b45309", border: "#fde68a" },
-  reuniao: { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
-  cancelado: { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" },
+  novo: { bg: "var(--lx-f5f3ff, #f5f3ff)", color: "#6d28d9", border: "var(--lx-ddd6fe, #ddd6fe)" },
+  contactado: { bg: "var(--lx-fffbeb, #fffbeb)", color: "var(--tx-b45309, #b45309)", border: "#fde68a" },
+  reuniao: { bg: "var(--lx-eff6ff, #eff6ff)", color: "#1d4ed8", border: "var(--lx-bfdbfe, #bfdbfe)" },
+  cancelado: { bg: "var(--lx-fef2f2, #fef2f2)", color: "var(--tx-b91c1c, #b91c1c)", border: "var(--lx-fecaca, #fecaca)" },
 };
 
 /**
@@ -935,7 +935,7 @@ export default function TransferGest() {
       {!selectedCampanha ? (
         <div style={{ padding: "20px 0" }}>
           <div className="campaign-menu-grid">
-            <button type="button" onClick={() => setSelectedCampanha("Todas")} className="campaign-menu-card all" style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "var(--n-50)", color: "#3730a3" }}>
+            <button type="button" onClick={() => setSelectedCampanha("Todas")} className="campaign-menu-card all" style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "var(--n-50)", color: "var(--tx-3730a3, #3730a3)" }}>
               <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "var(--cx-ede9fe, #ede9fe)", color: "#7c3aed", borderRadius: 8, padding: 8 }}>ALL</div>
               <div className="info">
                 <h3 style={{ margin: 0, fontWeight: 800 }}>Todas as Campanhas</h3>
@@ -950,7 +950,7 @@ export default function TransferGest() {
                 key={camp}
                 onClick={() => setSelectedCampanha(camp)}
                 className="campaign-menu-card"
-                style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "var(--sup-1)", color: "#3730a3", marginLeft: 12 }}
+                style={{ transition: "0.2s", boxShadow: "0 2px 8px rgba(59,130,246,0.08)", border: "2px solid var(--color-btnPrimary)", background: "var(--sup-1)", color: "var(--tx-3730a3, #3730a3)", marginLeft: 12 }}
               >
                 <div className="icon" style={{ fontWeight: 900, fontSize: 18, background: "var(--cx-fef3c7, #fef3c7)", color: "var(--cx-b45309, #b45309)", borderRadius: 8, padding: 8 }}>TG</div>
                 <div className="info">
@@ -972,7 +972,7 @@ export default function TransferGest() {
               borderRadius: '12px',
               border: selectedCampanha === "Todas" ? '2px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
               background: selectedCampanha === "Todas" ? 'var(--color-bgSecondary)' : 'white',
-              color: selectedCampanha === "Todas" ? 'var(--color-btnPrimaryDark)' : '#475569',
+              color: selectedCampanha === "Todas" ? 'var(--color-btnPrimaryDark)' : 'var(--tx-475569, #475569)',
               fontWeight: '800',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -993,7 +993,7 @@ export default function TransferGest() {
                  borderRadius: '12px',
                  border: selectedCampanha === c ? '2px solid var(--color-btnPrimary)' : '1px solid #cbd5e1',
                  background: selectedCampanha === c ? 'var(--color-bgSecondary)' : 'white',
-                 color: selectedCampanha === c ? 'var(--color-btnPrimaryDark)' : '#475569',
+                 color: selectedCampanha === c ? 'var(--color-btnPrimaryDark)' : 'var(--tx-475569, #475569)',
                  fontWeight: '800',
                  cursor: 'pointer',
                  whiteSpace: 'nowrap',
@@ -1573,7 +1573,7 @@ export default function TransferGest() {
           width: 100%;
           text-align: left;
           background: white;
-          border: 1px solid #e2e8f0;
+          border: 1px solid var(--lx-e2e8f0, #e2e8f0);
           border-radius: 16px;
           padding: 25px;
           display: flex;
@@ -1592,7 +1592,7 @@ export default function TransferGest() {
         }
 
         .transfergest-page .campaign-menu-card.all {
-          background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+          background: linear-gradient(135deg, var(--sup-1) 0%, var(--lx-f0f7ff, #f0f7ff) 100%);
         }
 
         .transfergest-page .campaign-menu-card .icon {
@@ -1613,13 +1613,13 @@ export default function TransferGest() {
           margin: 0;
           font-size: 1.15rem;
           font-weight: 800;
-          color: #0f172a;
+          color: var(--tx-0f172a, #0f172a);
         }
 
         .transfergest-page .campaign-menu-card p {
           margin: 4px 0 0;
           font-size: 0.85rem;
-          color: #64748b;
+          color: var(--tx-64748b, #64748b);
           line-height: 1.4;
         }
 
@@ -1658,7 +1658,7 @@ export default function TransferGest() {
 
         .transfergest-page .tg-status-tab.active {
           color: var(--color-btnPrimary);
-          background: var(--color-cardBg, #fff);
+          background: var(--color-cardBg, var(--sup-1));
           box-shadow: 0 -1px 0 var(--color-borderColor), 1px 0 0 var(--color-borderColor), -1px 0 0 var(--color-borderColor);
         }
 
@@ -1680,9 +1680,9 @@ export default function TransferGest() {
         }
 
         .transfergest-page .tg-header-actions .btn-outline:hover {
-          background: #f8fafc;
+          background: var(--lx-f8fafc, #f8fafc);
           border-color: #94a3b8;
-          color: #1e293b;
+          color: var(--tx-1e293b, #1e293b);
         }
 
         .transfergest-page .tg-header-actions .btn-cta {
@@ -1704,8 +1704,8 @@ export default function TransferGest() {
         }
 
         .transfergest-page .tg-record-card {
-          background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
-          border: 1px solid #dbe3ee;
+          background: linear-gradient(180deg, var(--sup-1) 0%, var(--lx-fcfdff, #fcfdff) 100%);
+          border: 1px solid var(--lx-dbe3ee, #dbe3ee);
           border-radius: 14px;
           padding: 14px;
           box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
@@ -1720,12 +1720,12 @@ export default function TransferGest() {
 
         .transfergest-page .tg-archived-pill {
           font-size: 0.65rem;
-          background: #fee2e2;
+          background: var(--lx-fee2e2, #fee2e2);
           color: #ef4444;
           padding: 3px 8px;
           border-radius: 999px;
           font-weight: 800;
-          border: 1px solid #fecaca;
+          border: 1px solid var(--lx-fecaca, #fecaca);
         }
 
         .transfergest-page .tg-soft-pill {
@@ -1737,21 +1737,21 @@ export default function TransferGest() {
         }
 
         .transfergest-page .tg-soft-pill-muted {
-          background: #f1f5f9;
-          color: #475569;
-          border-color: #e2e8f0;
+          background: var(--lx-f1f5f9, #f1f5f9);
+          color: var(--tx-475569, #475569);
+          border-color: var(--lx-e2e8f0, #e2e8f0);
         }
 
         .transfergest-page .tg-soft-pill-info {
-          background: #ecfeff;
-          color: #0f766e;
-          border-color: #bae6fd;
+          background: var(--lx-ecfeff, #ecfeff);
+          color: var(--tx-0f766e, #0f766e);
+          border-color: var(--lx-bae6fd, #bae6fd);
         }
 
         .transfergest-page .tg-soft-pill-primary {
-          background: #eef2ff;
+          background: var(--lx-eef2ff, #eef2ff);
           color: #4338ca;
-          border-color: #c7d2fe;
+          border-color: var(--lx-c7d2fe, #c7d2fe);
         }
 
         .transfergest-page .tg-interest-pill {
@@ -1763,15 +1763,15 @@ export default function TransferGest() {
         }
 
         .transfergest-page .tg-interest-pill.yes {
-          color: #15803d;
-          background: #dcfce7;
+          color: var(--tx-15803d, #15803d);
+          background: var(--lx-dcfce7, #dcfce7);
           border-color: #bbf7d0;
         }
 
         .transfergest-page .tg-interest-pill.no {
-          color: #64748b;
-          background: #f8fafc;
-          border-color: #e2e8f0;
+          color: var(--tx-64748b, #64748b);
+          background: var(--lx-f8fafc, #f8fafc);
+          border-color: var(--lx-e2e8f0, #e2e8f0);
         }
 
         .transfergest-page .tg-card-checkbox {
@@ -1850,9 +1850,9 @@ export default function TransferGest() {
         }
 
         .transfergest-page .tg-card-btn:hover {
-          background: #f8fafc;
+          background: var(--lx-f8fafc, #f8fafc);
           border-color: #94a3b8;
-          color: #1e293b;
+          color: var(--tx-1e293b, #1e293b);
           transform: translateY(-1px);
         }
 
@@ -1863,27 +1863,27 @@ export default function TransferGest() {
         }
 
         .transfergest-page .tg-card-btn.archive {
-          color: #9f1239;
-          border-color: #fbcfe8;
-          background: #fff1f2;
+          color: var(--tx-9f1239, #9f1239);
+          border-color: var(--lx-fbcfe8, #fbcfe8);
+          background: var(--lx-fff1f2, #fff1f2);
         }
 
         .transfergest-page .tg-card-btn.archive:hover {
-          color: #881337;
+          color: var(--tx-881337, #881337);
           border-color: #f9a8d4;
-          background: #ffe4e6;
+          background: var(--lx-ffe4e6, #ffe4e6);
         }
 
         .transfergest-page .tg-card-btn.restore {
-          color: #166534;
+          color: var(--tx-166534, #166534);
           border-color: #bbf7d0;
-          background: #f0fdf4;
+          background: var(--lx-f0fdf4, #f0fdf4);
         }
 
         .transfergest-page .tg-card-btn.restore:hover {
-          color: #14532d;
+          color: var(--tx-14532d, #14532d);
           border-color: #86efac;
-          background: #dcfce7;
+          background: var(--lx-dcfce7, #dcfce7);
         }
 
         .transfergest-page .tg-card-btn-primary:hover {
@@ -1897,8 +1897,8 @@ export default function TransferGest() {
           padding: 0 14px;
           border-radius: 10px;
           border: 1px solid #cbd5e1;
-          background: #ffffff;
-          color: #334155;
+          background: var(--sup-1);
+          color: var(--tx-334155, #334155);
           font-size: 0.84rem;
           font-weight: 700;
           display: inline-flex;
@@ -1909,9 +1909,9 @@ export default function TransferGest() {
         }
 
         .tg-modal-btn:hover {
-          background: #f8fafc;
+          background: var(--lx-f8fafc, #f8fafc);
           border-color: #94a3b8;
-          color: #1e293b;
+          color: var(--tx-1e293b, #1e293b);
           transform: translateY(-1px);
         }
 

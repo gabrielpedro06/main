@@ -8,7 +8,7 @@
 .mdl-search {
   display: inline-flex; align-items: center; gap: 7px; min-width: 0;
   padding: 0 11px; height: 38px; border-radius: 11px;
-  border: 1px solid var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, var(--n-500));
+  border: 1px solid var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, var(--lx-f3f5f8, #f3f5f8)); color: var(--rh-muted, var(--n-500));
 }
 .mdl-search input { border: 0; outline: 0; background: transparent; font: inherit; font-size: 0.85rem; color: var(--rh-ink, var(--n-900)); min-width: 0; width: 180px; }
 .mdl-search:focus-within { border-color: var(--color-btnPrimary, #2563eb); }
@@ -55,7 +55,7 @@
 .mdl-drop {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   min-height: 150px; padding: 10px; border-radius: 16px; cursor: pointer; font: inherit; overflow: hidden;
-  border: 2px dashed var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, #f3f5f8); color: var(--rh-muted, var(--n-500));
+  border: 2px dashed var(--rh-field-line, #cfd6df); background: var(--rh-field-bg, var(--lx-f3f5f8, #f3f5f8)); color: var(--rh-muted, var(--n-500));
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .mdl-drop:hover { border-color: var(--color-btnPrimary, #2563eb); color: var(--color-btnPrimary, #2563eb); }
@@ -109,7 +109,7 @@
 @keyframes mdlSlide { from { opacity: 0; transform: translateX(-18px) scale(0.98); } }
 .mdl-panel-head {
   display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--lx-eef2f7, #eef2f7);
 }
 .mdl-panel-head span {
   width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0;
@@ -131,7 +131,7 @@
 .mdl-tile-stage {
   position: relative; width: 100%; height: 96px; display: grid; place-items: center; margin-bottom: 8px;
   border-radius: 18px 18px 6px 6px;
-  background: radial-gradient(70% 60% at 50% 42%, #fff7e0 0%, rgba(255, 247, 224, 0) 70%), linear-gradient(180deg, var(--n-50) 0%, #eef2f7 100%);
+  background: radial-gradient(70% 60% at 50% 42%, var(--lx-fff7e0, #fff7e0) 0%, rgba(255, 247, 224, 0) 70%), linear-gradient(180deg, var(--n-50) 0%, var(--lx-eef2f7, #eef2f7) 100%);
 }
 /* a prateleira */
 .mdl-tile-stage::after {

@@ -220,7 +220,7 @@
   transition: background 0.15s ease;
 }
 .cal-day:hover { background: var(--n-50); }
-.cal-day.is-weekend { background: #fcfdfe; }
+.cal-day.is-weekend { background: var(--lx-fcfdfe, #fcfdfe); }
 .cal-day-num {
   width: 32px;
   height: 32px;
@@ -472,7 +472,7 @@
   justify-content: center;
   border: none;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
+  background: color-mix(in srgb, var(--sup-1) 70%, transparent);
   color: inherit;
   cursor: pointer;
 }

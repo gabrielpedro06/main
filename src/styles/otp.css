@@ -15,8 +15,8 @@
 }
 .otp-box.is-gap { margin-left: 10px; }
 .otp-box:focus { outline: none; border-color: #3f9a5a; box-shadow: 0 0 0 4px rgba(63, 154, 90, 0.15); transform: translateY(-2px); }
-.otp-box.is-filled { border-color: #b7dcc2; background: #f6fbf7; }
-.otp.is-invalid .otp-box { border-color: #ef4444; background: #fff5f5; animation: otpShake 0.42s ease both; }
+.otp-box.is-filled { border-color: #b7dcc2; background: var(--lx-f6fbf7, #f6fbf7); }
+.otp.is-invalid .otp-box { border-color: #ef4444; background: var(--lx-fff5f5, #fff5f5); animation: otpShake 0.42s ease both; }
 .otp-box:disabled { opacity: 0.6; }
 @keyframes otpShake { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
 @media (max-width: 420px) {
@@ -28,7 +28,7 @@
 /* =========================================================================
    Configuração do 2FA (Perfil → Segurança)
    ========================================================================= */
-.tf { margin-top: 18px; padding: 18px; border-radius: 18px; border: 1px solid var(--n-200); background: linear-gradient(180deg, #fbfcfd, var(--sup-1)); }
+.tf { margin-top: 18px; padding: 18px; border-radius: 18px; border: 1px solid var(--n-200); background: linear-gradient(180deg, var(--lx-fbfcfd, #fbfcfd), var(--sup-1)); }
 .tf-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .tf-ico { width: 46px; height: 46px; flex-shrink: 0; display: grid; place-items: center; border-radius: 14px; background: var(--n-100); color: var(--n-500); transition: background 0.3s ease, color 0.3s ease; }
 .tf.is-on .tf-ico { background: linear-gradient(135deg, var(--cx-dcfce7, #dcfce7), var(--cx-bbf7d0, #bbf7d0)); color: var(--cx-15803d, #15803d); }

@@ -107,8 +107,8 @@
    coresEscuras); aqui invertem-se os neutros, as superfícies e as sombras.
    ===================================================================== */
 html[data-modo="escuro"] {
-  --sup-1: color-mix(in srgb, #181c23 92%, var(--color-btnPrimary, #2563eb));
-  --sup-2: color-mix(in srgb, #20252e 92%, var(--color-btnPrimary, #2563eb));
+  --sup-1: color-mix(in srgb, #171a20 90%, var(--color-btnPrimary, #2563eb));
+  --sup-2: color-mix(in srgb, #1f232b 90%, var(--color-btnPrimary, #2563eb));
 
   --n-900: color-mix(in srgb, #eceff3 94%, var(--color-btnPrimary, #2563eb));
   --n-700: color-mix(in srgb, #c7ccd4 92%, var(--color-btnPrimary, #2563eb));
@@ -194,4 +194,144 @@ html[data-modo="escuro"] {
   --cx-ffedd5: color-mix(in srgb, #f97316 20%, var(--sup-1));
   --cx-fff7ed: color-mix(in srgb, #f97316 12%, var(--sup-1));
   --cx-fffbeb: color-mix(in srgb, #f59e0b 12%, var(--sup-1));
+}
+
+/* Cores claras fixas (fundos, bordas) no escuro.
+   Gerado por claros_escuro.py: o código usa var(--lx-HEX, #HEX). */
+html[data-modo="escuro"] {
+  --lx-c7d2fe: #1d2444;
+  --lx-ccfbf1: #1e4039;
+  --lx-d1fae5: #1e3d2e;
+  --lx-d5dce5: #2f3439;
+  --lx-d5dde8: #2d3239;
+  --lx-d6dde6: #2e3339;
+  --lx-dbe3ef: #272d36;
+  --lx-dbeafe: #182639;
+  --lx-dcfce7: #1b3824;
+  --lx-dde4ee: #272d34;
+  --lx-e0e7ff: #161e37;
+  --lx-e2e8f0: #252a31;
+  --lx-e6ebf1: #24292e;
+  --lx-e7f0fa: #1b2530;
+  --lx-e8e1d5: #39352d;
+  --lx-e9d5ff: #2a193c;
+  --lx-e9f0ff: #141e32;
+  --lx-eadfd4: #3a332b;
+  --lx-ebe7df: #33302a;
+  --lx-ece7d6: #39352a;
+  --lx-ecfdf3: #172e21;
+  --lx-ecfdf5: #172e23;
+  --lx-ede9fe: #1b1631;
+  --lx-edf1f5: #21252a;
+  --lx-edf1f6: #20242a;
+  --lx-eef2f7: #1f242a;
+  --lx-eef2ff: #131a2f;
+  --lx-eef4ff: #131d2f;
+  --lx-f0ece5: #2f2b25;
+  --lx-f0fdf4: #172c1d;
+  --lx-f0fdfa: #172c27;
+  --lx-f1f4f8: var(--n-50);
+  --lx-f1f5f9: var(--n-50);
+  --lx-f3e6c4: #443c27;
+  --lx-f3e8ff: #231532;
+  --lx-f3f4f6: var(--n-50);
+  --lx-f3f5f8: var(--n-50);
+  --lx-f3f6fa: var(--n-50);
+  --lx-f4f6f9: var(--n-50);
+  --lx-f4f7fb: var(--n-50);
+  --lx-f5f3ff: #17122c;
+  --lx-f6efe2: #322c20;
+  --lx-f6f8fb: var(--n-50);
+  --lx-f6fbf7: var(--n-50);
+  --lx-f7f9fc: var(--sup-1);
+  --lx-f8f3e9: #2e281d;
+  --lx-f8f5ef: #29251e;
+  --lx-f8f9fa: var(--sup-1);
+  --lx-f8fafc: var(--sup-1);
+  --lx-f8fbff: #111c2a;
+  --lx-faf7f2: var(--n-50);
+  --lx-fafafa: var(--sup-1);
+  --lx-fafbfd: var(--sup-1);
+  --lx-fbfcfd: var(--sup-1);
+  --lx-fbfcfe: #151a24;
+  --lx-fbfffc: #102816;
+  --lx-fcfaf6: var(--sup-1);
+  --lx-fcfdfe: var(--sup-1);
+  --lx-fde4e8: #33181c;
+  --lx-fecaca: #421c1c;
+  --lx-fecdd3: #401b20;
+  --lx-fee2e2: #351717;
+  --lx-fef2f2: #2c1414;
+  --lx-fef3c7: #443c1d;
+  --lx-ffedd5: #3c2d19;
+  --lx-fff1f2: #2d1314;
+  --lx-fff5f5: #2b1212;
+  --lx-fff7e0: #372e16;
+  --lx-fff7ed: #302313;
+  --lx-fff7f7: #2a1111;
+  --lx-fffaf3: #2c2112;
+  --lx-fffbeb: #312b14;
+  --lx-fffbf7: #2a1e11;
+  --lx-fffcf5: #2b2412;
+  --lx-fffdf5: #2b2612;
+  --lx-bae6fd: #203c4b;
+  --lx-bfdbfe: #1e3148;
+  --lx-dbe3ee: #282e36;
+  --lx-ddd6fe: #1f1a3c;
+  --lx-e0f2fe: #182a36;
+  --lx-e5e7eb: var(--n-200);
+  --lx-ecfeff: #142f30;
+  --lx-eff6ff: #131f2f;
+  --lx-f0f4ff: #131a2e;
+  --lx-f0f7ff: #131f2e;
+  --lx-f0f9ff: #13232e;
+  --lx-faf5ff: #1f122b;
+  --lx-fbcfe8: #3f1e31;
+  --lx-fcfdff: #101828;
+  --lx-fef9c3: #46421d;
+  --lx-fefce8: #322f16;
+  --lx-ffe4e6: #341518;
+}
+
+/* Texto escuro fixo no escuro.
+   Gerado por texto_escuro.py: o código usa var(--tx-HEX, #HEX). */
+html[data-modo="escuro"] {
+  --tx-0284c7: #8ac9e9;
+  --tx-0369a1: #94cceb;
+  --tx-047857: #9eecd6;
+  --tx-059669: #96ebd1;
+  --tx-065f46: #a4eed9;
+  --tx-0f172a: #bdc8e1;
+  --tx-0f2240: #b3c6e5;
+  --tx-0f766e: #9fe8e3;
+  --tx-10b981: #8be8c9;
+  --tx-111111: var(--n-900);
+  --tx-14532d: #aee3c3;
+  --tx-15803d: #9ee5b8;
+  --tx-166534: #a8e3be;
+  --tx-16a34a: #93e5b1;
+  --tx-1e293b: #bdc7d8;
+  --tx-1f2937: #bfc9d6;
+  --tx-222222: var(--n-900);
+  --tx-334155: var(--n-700);
+  --tx-3730a3: #9d99d7;
+  --tx-374151: var(--n-700);
+  --tx-422006: #eec8ac;
+  --tx-475569: var(--n-500);
+  --tx-4b5563: var(--n-500);
+  --tx-555555: var(--n-500);
+  --tx-64748b: var(--n-500);
+  --tx-667085: var(--n-500);
+  --tx-6b7280: var(--n-500);
+  --tx-854d0e: #e9c49a;
+  --tx-881337: #e69bb2;
+  --tx-92400e: #e9b696;
+  --tx-991b1b: #e29898;
+  --tx-9a3412: #e7a995;
+  --tx-9f1239: #e793aa;
+  --tx-b45309: #e9b58d;
+  --tx-b91c1c: #e28e8e;
+  --tx-be123c: #e78aa1;
+  --tx-c2410c: #e9a589;
+  --tx-ca8a04: #e9ca89;
 }

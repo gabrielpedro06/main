@@ -1540,10 +1540,10 @@ export default function Projetos() {
   // como inativos (escondidos salvo "mostrar concluídos") e bloqueiam cronómetros.
   const estadosProjeto = [
       { id: 'pendente', nome: 'Pendente', color: '#f59e0b' },
-      { id: 'em_curso', nome: 'Em Curso', color: '#10b981' },
+      { id: 'em_curso', nome: 'Em Curso', color: 'var(--tx-10b981, #10b981)' },
       { id: 'em_analise', nome: 'Em Análise', color: '#6366f1' },
       { id: 'concluido', nome: 'Concluído', color: '#0ea5e9' },
-      { id: 'encerrado', nome: 'Encerrado', color: '#64748b' },
+      { id: 'encerrado', nome: 'Encerrado', color: 'var(--tx-64748b, #64748b)' },
       { id: 'cancelado', nome: 'Cancelado', color: '#ef4444' }
   ];
 
@@ -1608,7 +1608,7 @@ export default function Projetos() {
       return projectColors[hash % projectColors.length];
   };
 
-  const getEstadoInfo = (estado) => estadosProjeto.find(e => e.id === estado) || { id: estado || 'pendente', nome: (estado || 'pendente').replace('_', ' '), color: '#64748b' };
+  const getEstadoInfo = (estado) => estadosProjeto.find(e => e.id === estado) || { id: estado || 'pendente', nome: (estado || 'pendente').replace('_', ' '), color: 'var(--tx-64748b, #64748b)' };
 
  const isSearchActive = busca.trim().length > 0;
  const isVistaGeral = portfolioView === "overview";
@@ -2034,7 +2034,7 @@ export default function Projetos() {
       );
   };
 
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'var(--sup-1)', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' };
 
   const entidadesProjeto = [...new Set(
     [form.cliente_id, ...(form.is_parceria ? (form.parceiros_ids || []) : [])].filter(Boolean).map(String)
@@ -2360,7 +2360,7 @@ export default function Projetos() {
           id: 'sem-categoria',
           nome: 'Projetos Avulsos',
           count: countsPerCategory['sem-categoria'] || 0,
-          color: '#64748b',
+          color: 'var(--tx-64748b, #64748b)',
           actionLabel: selectedEstado ? 'Escolher tipo' : 'Ver projetos sem modelo',
           onClick: () => setSelectedCategoria('sem-categoria')
       }] : [])
@@ -2387,7 +2387,7 @@ export default function Projetos() {
           id: 'sem-programa',
           nome: 'Sem Programa Associado',
           count: countsPerPrograma['sem-programa'] || 0,
-          color: '#64748b',
+          color: 'var(--tx-64748b, #64748b)',
           actionLabel: 'Ver projetos avulsos',
           onClick: () => setSelectedProgramaNav('sem-programa')
       }] : [])
@@ -3548,16 +3548,16 @@ const exportCurrentOverviewPdf = async () => {
                     <div key={step.num} style={{display: 'flex', alignItems: 'center', flex: 1, opacity: currentStep >= step.num ? 1 : 0.4}}>
                       <div style={{
                         width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                        background: currentStep >= step.num ? 'var(--color-btnPrimary)' : '#e2e8f0', 
-                        color: currentStep >= step.num ? 'white' : '#64748b', fontWeight: 'bold', fontSize: '0.9rem',
+                        background: currentStep >= step.num ? 'var(--color-btnPrimary)' : 'var(--lx-e2e8f0, #e2e8f0)', 
+                        color: currentStep >= step.num ? 'white' : 'var(--tx-64748b, #64748b)', fontWeight: 'bold', fontSize: '0.9rem',
                         flexShrink: 0
                       }}>
                         {currentStep > step.num ? <Icons.Check size={16} /> : step.num}
                       </div>
-                      <span style={{marginLeft: '8px', fontSize: '0.85rem', fontWeight: currentStep === step.num ? '700' : '500', color: currentStep === step.num ? '#1e293b' : '#64748b', whiteSpace: 'nowrap'}}>
+                      <span style={{marginLeft: '8px', fontSize: '0.85rem', fontWeight: currentStep === step.num ? '700' : '500', color: currentStep === step.num ? 'var(--tx-1e293b, #1e293b)' : '#64748b', whiteSpace: 'nowrap'}}>
                         {step.label}
                       </span>
-                      {step.num < 5 && <div style={{flex: 1, height: '2px', background: currentStep > step.num ? 'var(--color-btnPrimary)' : '#e2e8f0', margin: '0 10px'}}></div>}
+                      {step.num < 5 && <div style={{flex: 1, height: '2px', background: currentStep > step.num ? 'var(--color-btnPrimary)' : 'var(--lx-e2e8f0, #e2e8f0)', margin: '0 10px'}}></div>}
                     </div>
                   ))}
                 </div>
@@ -3965,7 +3965,7 @@ const exportCurrentOverviewPdf = async () => {
                                                         const isSelected = false;
                                                         
                                                         return (
-                                                            <div key={`fase-${fase.nome}-${index}`} style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '10px', background: isSelected ? 'var(--color-bgSecondary)' : 'white', border: `1px solid ${isSelected ? 'var(--color-btnPrimary)' : '#e2e8f0'}`, transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'}}>
+                                                            <div key={`fase-${fase.nome}-${index}`} style={{display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '10px', background: isSelected ? 'var(--color-bgSecondary)' : 'white', border: `1px solid ${isSelected ? 'var(--color-btnPrimary)' : 'var(--lx-e2e8f0, #e2e8f0)'}`, transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'}}>
                                                                 
                                                                 {/* Controlo de Seleção (Radio) */}
                                                                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', minWidth: '60px'}}>
@@ -3988,7 +3988,7 @@ const exportCurrentOverviewPdf = async () => {
                                                                             type="text"
                                                                             value={fase.nome || ''}
                                                                             readOnly
-                                                                            className="bz-campo is-leitura" style={{borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
+                                                                            className="bz-campo is-leitura" style={{borderColor: isSelected ? 'var(--lx-bfdbfe, #bfdbfe)' : '#cbd5e1'}}
                                                                         />
                                                                     </div>
                                                                     <div>
@@ -3997,7 +3997,7 @@ const exportCurrentOverviewPdf = async () => {
                                                                             type="date"
                                                                             value={fase.prazo || ''}
                                                                             readOnly
-                                                                            className="bz-campo is-leitura" style={{borderColor: isSelected ? '#bfdbfe' : '#cbd5e1'}}
+                                                                            className="bz-campo is-leitura" style={{borderColor: isSelected ? 'var(--lx-bfdbfe, #bfdbfe)' : '#cbd5e1'}}
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -4030,14 +4030,14 @@ const exportCurrentOverviewPdf = async () => {
                                                 {templateTree.map(ativ => {
                                                     const isSelected = templateSelection[`a_${ativ.id}`];
                                                     return (
-                                                        <div key={`a_${ativ.id}`} style={{ background: 'var(--sup-1)', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : '#e2e8f0'}`, overflow: 'hidden', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
+                                                        <div key={`a_${ativ.id}`} style={{ background: 'var(--sup-1)', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--color-borderColor)' : 'var(--lx-e2e8f0, #e2e8f0)'}`, overflow: 'hidden', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', boxShadow: isSelected ? '0 2px 8px rgba(59,130,246,0.05)' : 'none' }}>
                                                             
                                                             <div 
                                                                 {...clicavel(() => toggleTemplateSelection('a', ativ.id))}
-                                                                style={{ background: isSelected ? 'var(--color-bgSecondary)' : '#f8fafc', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid #e2e8f0' : 'none' }}
+                                                                style={{ background: isSelected ? 'var(--color-bgSecondary)' : 'var(--lx-f8fafc, #f8fafc)', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', borderBottom: isSelected && ativ.tarefas?.length ? '1px solid var(--lx-e2e8f0, #e2e8f0)' : 'none' }}
                                                             >
                                                                 <input type="checkbox" checked={isSelected} readOnly style={{ accentColor: 'var(--color-btnPrimary)', width: '18px', height: '18px', pointerEvents: 'none' }} />
-                                                                <span style={{ fontWeight: '700', fontSize: '1rem', color: isSelected ? 'var(--color-btnPrimaryDark)' : '#64748b' }}>{ativ.nome}</span>
+                                                                <span style={{ fontWeight: '700', fontSize: '1rem', color: isSelected ? 'var(--color-btnPrimaryDark)' : 'var(--tx-64748b, #64748b)' }}>{ativ.nome}</span>
                                                             </div>
 
                                                             {isSelected && ativ.tarefas?.length > 0 && (
@@ -4048,7 +4048,7 @@ const exportCurrentOverviewPdf = async () => {
                                                                             <div key={`t_${tar.id}`} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                                                     <Icons.ArrowRight size={14} color={isTarSelected ? "var(--color-btnPrimary)" : "#cbd5e1"} />
-                                                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isTarSelected ? '700' : '500', color: isTarSelected ? '#334155' : '#94a3b8', fontSize: '0.95rem' }}>
+                                                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isTarSelected ? '700' : '500', color: isTarSelected ? 'var(--tx-334155, #334155)' : '#94a3b8', fontSize: '0.95rem' }}>
                                                                                         <input type="checkbox" checked={isTarSelected} onChange={() => toggleTemplateSelection('t', tar.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '16px', height: '16px', cursor: 'pointer' }} />
                                                                                         {tar.nome}
                                                                                     </label>
@@ -4059,7 +4059,7 @@ const exportCurrentOverviewPdf = async () => {
                                                                                         {tar.subtarefas.map(sub => {
                                                                                             const isSubSelected = templateSelection[`s_${sub.id}`];
                                                                                             return (
-                                                                                                <label key={`s_${sub.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isSubSelected ? '#475569' : '#94a3b8', fontSize: '0.85rem', fontWeight: isSubSelected ? '600' : '400' }}>
+                                                                                                <label key={`s_${sub.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isSubSelected ? 'var(--tx-475569, #475569)' : '#94a3b8', fontSize: '0.85rem', fontWeight: isSubSelected ? '600' : '400' }}>
                                                                                                     <input type="checkbox" checked={isSubSelected} onChange={() => toggleTemplateSelection('s', sub.id)} style={{ accentColor: 'var(--color-btnPrimary)', width: '14px', height: '14px', cursor: 'pointer' }} />
                                                                                                     {sub.nome}
                                                                                                 </label>
@@ -4158,7 +4158,7 @@ const exportCurrentOverviewPdf = async () => {
                                                     background: 'var(--n-50)',
                                                     padding: '20px',
                                                     borderRadius: '12px',
-                                                    border: (!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0)) ? '1px solid #fed7aa' : '1px solid #e2e8f0',
+                                                    border: (!editId && (Number(form.investimento || 0) <= 0 || Number(form.incentivo || 0) <= 0)) ? '1px solid #fed7aa' : '1px solid var(--lx-e2e8f0, #e2e8f0)',
                                                     marginBottom: '30px'
                                                 }}>
                                                     <div>
@@ -4179,7 +4179,7 @@ const exportCurrentOverviewPdf = async () => {
                                                                 borderRadius: '8px',
                                                                 border: `1px solid ${!editId && Number(form.investimento || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
                                                                 fontSize:'1.2rem',
-                                                                background: !editId && Number(form.investimento || 0) <= 0 ? '#fff5f5' : 'white',
+                                                                background: !editId && Number(form.investimento || 0) <= 0 ? 'var(--lx-fff5f5, #fff5f5)' : 'white',
                                                                 textAlign: 'right'
                                                             }}
                                                             className="input-focus"
@@ -4208,7 +4208,7 @@ const exportCurrentOverviewPdf = async () => {
                                                                 borderRadius: '8px',
                                                                 border: `1px solid ${!editId && Number(form.incentivo || 0) <= 0 ? '#f87171' : '#cbd5e1'}`,
                                                                 fontSize:'1.2rem',
-                                                                background: !editId && Number(form.incentivo || 0) <= 0 ? '#fff5f5' : 'white',
+                                                                background: !editId && Number(form.incentivo || 0) <= 0 ? 'var(--lx-fff5f5, #fff5f5)' : 'white',
                                                                 textAlign: 'right'
                                                             }}
                                                             className="input-focus"
@@ -4261,9 +4261,9 @@ const exportCurrentOverviewPdf = async () => {
                                                 style={{
                                                     flex: 1, minWidth: '110px', textAlign: 'center', padding: '10px', borderRadius: '8px', cursor: isViewOnly ? 'default' : 'pointer',
                                                     fontSize: '0.8rem', fontWeight: '700',
-                                                    background: form.estado === st.val ? 'var(--color-btnPrimary)' : '#f8fafc',
-                                                    color: form.estado === st.val ? 'white' : '#64748b',
-                                                    border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0',
+                                                    background: form.estado === st.val ? 'var(--color-btnPrimary)' : 'var(--lx-f8fafc, #f8fafc)',
+                                                    color: form.estado === st.val ? 'white' : 'var(--tx-64748b, #64748b)',
+                                                    border: form.estado === st.val ? '1px solid var(--color-btnPrimary)' : '1px solid var(--lx-e2e8f0, #e2e8f0)',
                                                     transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s', textTransform: 'uppercase', letterSpacing: '0.05em'
                                                 }}
                                             >
@@ -4370,7 +4370,7 @@ const exportCurrentOverviewPdf = async () => {
           .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
           .category-card {
               background: white; padding: 25px; border-radius: 12px;
-              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid var(--lx-e2e8f0, #e2e8f0);
               cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .category-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: #cbd5e1; }
@@ -4381,7 +4381,7 @@ const exportCurrentOverviewPdf = async () => {
           .marketing-view-toggle-btn {
               border: none;
               background: transparent;
-              color: #475569;
+              color: var(--tx-475569, #475569);
               font-size: 0.8rem;
               font-weight: 700;
               padding: 6px 12px;
@@ -4391,16 +4391,16 @@ const exportCurrentOverviewPdf = async () => {
           }
 
           .marketing-view-toggle-btn.active {
-              background: #ffffff;
+              background: var(--sup-1);
               color: var(--color-btnPrimary);
               box-shadow: 0 1px 3px rgba(0,0,0,0.1);
           }
 
           .marketing-view-toggle-btn:not(.active):hover {
-              color: #1e293b;
+              color: var(--tx-1e293b, #1e293b);
           }
 
-          .project-list-row:hover { background: #f8fafc !important; }
+          .project-list-row:hover { background: var(--lx-f8fafc, #f8fafc) !important; }
           .project-list-table td, .project-list-table th { vertical-align: middle; }
           .project-list-table { table-layout: auto; }
           .project-list-table th:nth-child(2), .project-list-table td:nth-child(2) { max-width: 220px; }
@@ -4427,7 +4427,7 @@ const exportCurrentOverviewPdf = async () => {
               flex-wrap: wrap;
               gap: 8px;
               padding: 15px;
-              background: #ffffff;
+              background: var(--sup-1);
               border-radius: 8px;
               border: 1px solid #cbd5e1;
           }
@@ -4438,14 +4438,14 @@ const exportCurrentOverviewPdf = async () => {
               font-weight: 600;
               cursor: pointer;
               transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
-              border: 1px solid #e2e8f0;
-              background: #f8fafc;
-              color: #64748b;
+              border: 1px solid var(--lx-e2e8f0, #e2e8f0);
+              background: var(--lx-f8fafc, #f8fafc);
+              color: var(--tx-64748b, #64748b);
               user-select: none;
           }
           .pill-checkbox:hover {
               border-color: #cbd5e1;
-              background: #f1f5f9;
+              background: var(--lx-f1f5f9, #f1f5f9);
           }
           .pill-checkbox.selected {
               background: var(--color-bgSecondary);

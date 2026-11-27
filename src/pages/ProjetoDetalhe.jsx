@@ -2068,10 +2068,10 @@ export default function ProjetoDetalhe() {
   };
 
   const getProjectStatusTheme = (estado) => {
-    if(estado === 'concluido') return { bg: '#e0f2fe', text: '#0284c7', border: '#bae6fd', dot: '#0ea5e9' };
-    if(estado === 'encerrado') return { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', dot: '#64748b' };
-    if(estado === 'em_curso') return { bg: '#fefce8', text: '#ca8a04', border: '#fde047', dot: '#eab308' };
-    if(estado === 'cancelado') return { bg: '#fef2f2', text: '#dc2626', border: '#fecaca', dot: '#ef4444' };
+    if(estado === 'concluido') return { bg: 'var(--lx-e0f2fe, #e0f2fe)', text: 'var(--tx-0284c7, #0284c7)', border: 'var(--lx-bae6fd, #bae6fd)', dot: '#0ea5e9' };
+    if(estado === 'encerrado') return { bg: 'var(--lx-f1f5f9, #f1f5f9)', text: 'var(--tx-475569, #475569)', border: '#cbd5e1', dot: '#64748b' };
+    if(estado === 'em_curso') return { bg: 'var(--lx-fefce8, #fefce8)', text: 'var(--tx-ca8a04, #ca8a04)', border: '#fde047', dot: '#eab308' };
+    if(estado === 'cancelado') return { bg: 'var(--lx-fef2f2, #fef2f2)', text: '#dc2626', border: 'var(--lx-fecaca, #fecaca)', dot: '#ef4444' };
     return { bg: 'var(--color-bgSecondary)', text: 'var(--color-btnPrimary)', border: 'var(--color-borderColor)', dot: 'var(--color-btnPrimary)' }; 
 };
 
@@ -2108,10 +2108,10 @@ export default function ProjetoDetalhe() {
   const renderStatePills = (currentState, onChange, includeEncerrado = false) => {
       const states = [
           { val: 'pendente', label: 'PENDENTE', color: '#f59e0b' },
-          { val: 'em_curso', label: 'EM CURSO', color: '#10b981' },
+          { val: 'em_curso', label: 'EM CURSO', color: 'var(--tx-10b981, #10b981)' },
           { val: 'em_analise', label: 'EM ANÁLISE', color: '#6366f1' },
           { val: 'concluido', label: 'CONCLUÍDO', color: '#0ea5e9' },
-          ...(includeEncerrado ? [{ val: 'encerrado', label: 'ENCERRADO', color: '#64748b' }] : []),
+          ...(includeEncerrado ? [{ val: 'encerrado', label: 'ENCERRADO', color: 'var(--tx-64748b, #64748b)' }] : []),
           { val: 'cancelado', label: 'CANCELADO', color: '#ef4444' }
       ];
       return (
@@ -2120,7 +2120,7 @@ export default function ProjetoDetalhe() {
                   <div key={s.val} {...clicavel(() => onChange(s.val))} style={{
                       flex: '1 1 calc(33% - 8px)', minWidth: '95px', textAlign: 'center', padding: '10px 4px', borderRadius: '8px', cursor: 'pointer',
                       fontSize: '0.70rem', fontWeight: 'bold', border: `1px solid ${currentState === s.val ? s.color : 'var(--n-300)'}`,
-                      background: currentState === s.val ? s.color : 'var(--n-50)', color: currentState === s.val ? '#fff' : '#64748b', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'
+                      background: currentState === s.val ? s.color : 'var(--n-50)', color: currentState === s.val ? '#fff' : 'var(--tx-64748b, #64748b)', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s, opacity 0.2s, width 0.2s, filter 0.2s'
                   }}>
                       {s.label}
                   </div>
@@ -3738,10 +3738,10 @@ export default function ProjetoDetalhe() {
         {activeTab === 'geral' && (() => {
             const ESTADOS = [
                 { val: 'pendente', label: 'Pendente', color: '#f59e0b' },
-                { val: 'em_curso', label: 'Em curso', color: '#10b981' },
+                { val: 'em_curso', label: 'Em curso', color: 'var(--tx-10b981, #10b981)' },
                 { val: 'em_analise', label: 'Em análise', color: '#6366f1' },
                 { val: 'concluido', label: 'Concluído', color: '#0ea5e9' },
-                { val: 'encerrado', label: 'Encerrado', color: '#64748b' },
+                { val: 'encerrado', label: 'Encerrado', color: 'var(--tx-64748b, #64748b)' },
                 { val: 'cancelado', label: 'Cancelado', color: '#ef4444' },
             ];
             const editing = isEditingGeral;
@@ -4564,7 +4564,7 @@ export default function ProjetoDetalhe() {
 
                                       <div
                                           style={{
-                                              background: isTarefaDeliverableDragOver ? 'var(--color-bgSecondary)' : '#f8fafc',
+                                              background: isTarefaDeliverableDragOver ? 'var(--color-bgSecondary)' : 'var(--lx-f8fafc, #f8fafc)',
                                               border: isTarefaDeliverableDragOver ? '1px dashed var(--color-btnPrimary)' : '1px dashed #cbd5e1',
                                               borderRadius: '8px',
                                               padding: '12px',
@@ -4611,7 +4611,7 @@ export default function ProjetoDetalhe() {
                                           ) : (
                                               <label style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer'}}>
                                                   <Icons.UploadCloud size={22} color={tarefaFileToUpload ? 'var(--color-btnPrimary)' : '#94a3b8'} />
-                                                  <span style={{fontSize: '0.8rem', color: tarefaFileToUpload ? 'var(--color-btnPrimary)' : '#64748b', fontWeight: '700'}}>
+                                                  <span style={{fontSize: '0.8rem', color: tarefaFileToUpload ? 'var(--color-btnPrimary)' : 'var(--tx-64748b, #64748b)', fontWeight: '700'}}>
                                                       {tarefaFileToUpload ? tarefaFileToUpload.name : 'Clique para anexar um documento'}
                                                   </span>
                                                   <input
@@ -4695,7 +4695,7 @@ export default function ProjetoDetalhe() {
       <style>{`
           .hover-blue-text:hover { color: var(--color-btnPrimary) !important; }
           .hover-blue-text:hover span { background: var(--color-bgTertiary) !important; color: var(--color-btnPrimary) !important; }
-          .tab-hover:hover { color: #0f172a !important; }
+          .tab-hover:hover { color: var(--tx-0f172a, #0f172a) !important; }
           .hover-red:hover { opacity: 1 !important; color: #dc2626 !important; }
           .hover-red-text:hover { color: #ef4444 !important; }
           .hover-underline:hover { text-decoration: underline !important; }
@@ -4707,9 +4707,9 @@ export default function ProjetoDetalhe() {
           .input-focus-alert:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); }
 
           /* PILL CONTAINER & CHECKBOX (Para Parceiros e Colaboradores) */
-          .pill-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; background: #ffffff; border-radius: 8px; border: 1px solid #cbd5e1; }
-          .pill-checkbox { padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; user-select: none; }
-          .pill-checkbox:hover { border-color: #cbd5e1; background: #f1f5f9; }
+          .pill-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; background: var(--sup-1); border-radius: 8px; border: 1px solid #cbd5e1; }
+          .pill-checkbox { padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease; border: 1px solid var(--lx-e2e8f0, #e2e8f0); background: var(--lx-f8fafc, #f8fafc); color: var(--tx-64748b, #64748b); user-select: none; }
+          .pill-checkbox:hover { border-color: #cbd5e1; background: var(--lx-f1f5f9, #f1f5f9); }
           .pill-checkbox.selected { background: var(--color-bgSecondary); border-color: var(--color-btnPrimary); color: var(--color-btnPrimary); box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); }
 
           /* Scrollbar Limpa */

@@ -44,9 +44,9 @@ export default function TimerSwitchModal({
             transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .modal-btn-cancel:hover {
-            background-color: #f8fafc !important;
+            background-color: var(--lx-f8fafc, #f8fafc) !important;
             border-color: #94a3b8 !important;
-            color: #1e293b !important;
+            color: var(--tx-1e293b, #1e293b) !important;
           }
           .modal-btn-confirm {
             transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;

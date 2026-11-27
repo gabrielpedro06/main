@@ -131,22 +131,22 @@ export default function CalendarioColaborador({
   const getTemporaryStatusStyle = (tipo = "") => {
     const normalized = normalizeAbsenceType(tipo);
     if (isVacationType(normalized)) {
-      return { cor: "#fefce8", textoCor: "#854d0e", badge: "Férias" };
+      return { cor: "var(--lx-fefce8, #fefce8)", textoCor: "#854d0e", badge: "Férias" };
     }
 
     if (normalized.includes("licenca")) {
-      return { cor: "#eff6ff", textoCor: "#1d4ed8", badge: "Licença" };
+      return { cor: "var(--lx-eff6ff, #eff6ff)", textoCor: "#1d4ed8", badge: "Licença" };
     }
 
     if (normalized.includes("doenca") || normalized.includes("acidente") || normalized.includes("obrigacao legal")) {
-      return { cor: "#faf5ff", textoCor: "#6b21a8", badge: "Baixa" };
+      return { cor: "var(--lx-faf5ff, #faf5ff)", textoCor: "#6b21a8", badge: "Baixa" };
     }
 
     if (normalized.includes("casamento") || normalized.includes("falecimento")) {
-      return { cor: "#fff7ed", textoCor: "#c2410c", badge: formatAbsenceTypeLabel(tipo) };
+      return { cor: "var(--lx-fff7ed, #fff7ed)", textoCor: "#c2410c", badge: formatAbsenceTypeLabel(tipo) };
     }
 
-    return { cor: "#f0f9ff", textoCor: "#0c4a6e", badge: formatAbsenceTypeLabel(tipo) };
+    return { cor: "var(--lx-f0f9ff, #f0f9ff)", textoCor: "#0c4a6e", badge: formatAbsenceTypeLabel(tipo) };
   };
 
   const isMissingColumnError = (error) => {
@@ -333,18 +333,18 @@ export default function CalendarioColaborador({
       const isFeriado = !!feriadoObj;
 
       let tipo = "normal";
-      let cor = "#f8fafc";
+      let cor = "var(--lx-f8fafc, #f8fafc)";
       let textoCor = "#475569";
       let badge = "";
 
       if (isFeriado) {
         tipo = "feriado";
-        cor = "#fef9c3";
+        cor = "var(--lx-fef9c3, #fef9c3)";
         textoCor = "#b45309";
         badge = feriadoObj.nome || "Feriado";
       } else if (isFimSemana && !assidDia) {
         tipo = "fimSemana";
-        cor = "#f1f5f9";
+        cor = "var(--lx-f1f5f9, #f1f5f9)";
         textoCor = "#94a3b8";
         badge = "Fim de Semana";
       } else if (toleranciaDia) {
@@ -358,19 +358,19 @@ export default function CalendarioColaborador({
         const tipoNormalizado = normalizeAbsenceType(tipoAusencia);
 
         if (isVacationType(tipoNormalizado)) {
-          cor = "#fefce8";
+          cor = "var(--lx-fefce8, #fefce8)";
           textoCor = "#854d0e";
           badge = "Férias";
         } else if (tipoNormalizado.includes("doenca") || tipoNormalizado.includes("acidente") || tipoNormalizado.includes("baixa")) {
-          cor = "#faf5ff";
+          cor = "var(--lx-faf5ff, #faf5ff)";
           textoCor = "#6b21a8";
           badge = "Doença";
         } else if (tipoNormalizado.includes("injustificada")) {
-          cor = "#fee2e2";
+          cor = "var(--lx-fee2e2, #fee2e2)";
           textoCor = "#991b1b";
           badge = "Injustificada";
         } else {
-          cor = "#f0f9ff";
+          cor = "var(--lx-f0f9ff, #f0f9ff)";
           textoCor = "#0c4a6e";
           badge = tipoAusencia.length > 22 ? `${tipoAusencia.substring(0, 22)}...` : tipoAusencia;
         }
@@ -390,24 +390,24 @@ export default function CalendarioColaborador({
 
         if (horaEntrada === 9 && horaSaida === 18 && !assidDia.tempo_pausa_acumulado) {
           tipo = "completoSemPausa";
-          cor = "#d1fae5";
+          cor = "var(--lx-d1fae5, #d1fae5)";
           textoCor = "#065f46";
           badge = isFimSemana
             ? `${formatDurationFromSeconds(totalLiquidoSeg)}${sufixoParcial}`
             : ausenciasDiaParciais.length > 0 ? `Dia Completo + ${labelParcialCompleto}` : "Dia Completo";
         } else if (totalLiquidoSeg >= 8 * 3600) {
           tipo = "completoComPausa";
-          cor = "#dcfce7";
+          cor = "var(--lx-dcfce7, #dcfce7)";
           textoCor = "#166534";
           badge = `${formatDurationFromSeconds(totalLiquidoSeg)}${pausaSeg > 0 ? ` (Pausa: ${formatMinutesFromSeconds(pausaSeg)}min)` : ""}${sufixoParcial}`;
         } else if (totalLiquidoSeg > 0) {
           tipo = "parcial";
-          cor = "#fee2e2";
+          cor = "var(--lx-fee2e2, #fee2e2)";
           textoCor = "#991b1b";
           badge = `${formatDurationFromSeconds(totalLiquidoSeg)}${sufixoParcial}`;
         } else {
           tipo = "vazio";
-          cor = "#f8fafc";
+          cor = "var(--lx-f8fafc, #f8fafc)";
           textoCor = "#cbd5e1";
           badge = "Sem dados";
         }
@@ -417,7 +417,7 @@ export default function CalendarioColaborador({
         
         tipo = "ausenciaParcial";
         // 💡 Dá a cor amarela/laranja igual à das Férias normais se for Férias!
-        cor = isFeriasParcial ? "#fefce8" : "var(--color-bgSecondary)";
+        cor = isFeriasParcial ? "var(--lx-fefce8, #fefce8)" : "var(--color-bgSecondary)";
         textoCor = isFeriasParcial ? "#854d0e" : "var(--color-btnPrimaryHover)";
         badge = `${isFeriasParcial ? "Férias Parciais" : "Ausência Parcial"} ${formatarHora(parcial.hora_inicio)}-${formatarHora(parcial.hora_fim)}`;
       } else if (estadoTemporarioBarra) {
@@ -431,7 +431,7 @@ export default function CalendarioColaborador({
         const isAfterAttendanceStart = dataStr >= dataInicioCalculo;
         if (isPassadoOuHoje && isAfterAttendanceStart) {
           tipo = "faltaInjustificada";
-          cor = "#fee2e2";
+          cor = "var(--lx-fee2e2, #fee2e2)";
           textoCor = "#991b1b";
           badge = "Falta injustificada";
         }

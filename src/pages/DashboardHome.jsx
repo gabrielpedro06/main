@@ -2023,7 +2023,7 @@ export default function DashboardHome() {
       {showBirthdayPopup && (
         <ModalPortal>
             <div className="jn-fundo" style={{zIndex: "calc(var(--z-modal) + 13)"}}>
-                <div style={{background: 'linear-gradient(135deg, var(--sup-1), #fef3c7)', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
+                <div style={{background: 'linear-gradient(135deg, var(--sup-1), var(--lx-fef3c7, #fef3c7))', borderRadius: '24px', width: '90%', maxWidth: '400px', padding: '40px 20px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', position: 'relative', overflow: 'hidden', animation: 'fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'}}>
                     <div style={{display: 'flex', justifyContent: 'center', color: '#f59e0b', marginBottom: '15px', animation: 'bounce 2s infinite'}}><Icons.Gift /></div>
                     <h2 style={{margin: '0 0 10px 0', color: 'var(--cx-b45309, #b45309)', fontSize: '2rem'}}>Parabéns, {userFirstName}!</h2>
                     <p style={{color: 'var(--cx-92400e, #92400e)', marginBottom: '25px', fontSize: '1.1rem', lineHeight: '1.5'}}>
@@ -2090,7 +2090,7 @@ export default function DashboardHome() {
         .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: var(--color-textSecondary); transition: background 0.2s; }
         .menu-item:hover { background: var(--color-bgSecondary); color: var(--color-btnPrimary); }
         .menu-item.logout { color: #dc2626; }
-        .menu-item.logout:hover { background: #fef2f2; color: #b91c1c; }
+        .menu-item.logout:hover { background: var(--lx-fef2f2, #fef2f2); color: var(--tx-b91c1c, #b91c1c); }
         
         .table-row-hover:hover { background-color: var(--color-bgSecondary) !important; }
         .hover-shadow:hover { transform: translateY(-1px); box-shadow: 0 8px 14px -10px rgba(15,23,42,0.28); }

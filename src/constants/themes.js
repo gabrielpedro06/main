@@ -182,12 +182,20 @@ const FESTIVE_CATALOG = [
  */
 export const coresEscuras = (theme) => {
   const darkBase = theme?.base?.darkBase || "#1e293b";
-  const bgPrimary = mixHex("#0e1116", darkBase, 0.1);
-  const bgSecondary = mixHex("#161a21", darkBase, 0.1);
-  const bgTertiary = mixHex("#1d222b", darkBase, 0.1);
-  const sidebar = mixHex(darkBase, "#0e1116", 0.3);
-  const sidebarDark = mixHex(darkBase, "#0e1116", 0.55);
-  const acento = mixHex(darkBase, "#ffffff", 0.28);
+  // cor principal do tema (a do modo claro), para os destaques
+  const principal = /^#[0-9a-f]{6}$/i.test(theme?.colors?.btnPrimary || "") ? theme.colors.btnPrimary : darkBase;
+  // Tudo sai da cor do tema: fundos quase pretos com o tom do tema, barra lateral e
+  // cabeçalhos numa versão profunda (não clara) desse tom, destaques um pouco mais claros.
+  const PRETO = "#0b0d11";
+  const bgPrimary = mixHex(PRETO, darkBase, 0.13);
+  const bgSecondary = mixHex("#14171d", darkBase, 0.14);
+  const bgTertiary = mixHex("#1b1f26", darkBase, 0.15);
+  const sidebar = mixHex(darkBase, PRETO, 0.52);
+  const sidebarDark = mixHex(darkBase, PRETO, 0.7);
+  // destaque: a cor principal um pouco mais clara; se ainda for escura demais para o fundo, clareia mais
+  const luz = (h) => { const n = parseInt(h.slice(1), 16); return (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255; };
+  let acento = mixHex(principal, "#ffffff", 0.22);
+  for (let t = 0.34; luz(acento) < 0.42 && t < 0.75; t += 0.1) acento = mixHex(principal, "#ffffff", t);
   return {
     bgGradient: `linear-gradient(135deg, ${bgPrimary} 0%, ${bgSecondary} 100%)`,
     sidebarBgSecondary: sidebarDark,
@@ -201,15 +209,15 @@ export const coresEscuras = (theme) => {
       sidebarActive: sidebar,
       toggleBg: sidebarDark,
       btnPrimary: acento,
-      btnPrimaryDark: darkBase,
-      btnPrimaryDarker: mixHex(darkBase, "#000000", 0.3),
+      btnPrimaryDark: mixHex(principal, PRETO, 0.25),
+      btnPrimaryDarker: mixHex(principal, PRETO, 0.45),
       btnPrimaryShadow: alpha("#000000", 0.4),
       btnPrimaryShadowHover: alpha("#000000", 0.5),
-      textPrimary: mixHex("#e9ecf1", darkBase, 0.06),
-      textSecondary: mixHex("#c3c9d2", darkBase, 0.06),
-      textLight: mixHex("#9aa2ae", darkBase, 0.06),
-      borderColor: mixHex("#2c323c", darkBase, 0.12),
-      borderColorLight: mixHex("#232831", darkBase, 0.12),
+      textPrimary: mixHex("#eceef2", darkBase, 0.05),
+      textSecondary: mixHex("#c5cad2", darkBase, 0.06),
+      textLight: mixHex("#9ba3ae", darkBase, 0.06),
+      borderColor: mixHex("#2b3039", darkBase, 0.14),
+      borderColorLight: mixHex("#22262e", darkBase, 0.14),
     },
   };
 };

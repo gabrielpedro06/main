@@ -46,7 +46,7 @@ const SIM_NAO_NA_OPTIONS = ["Sim", "N/A"];
 
 const CHECKLIST_ORDER = ["na", "em_falta", "incompleto", "falta_assinar", "concluido"];
 const CHECKLIST_META = {
-  concluido: { label: "Concluído", color: "#10b981" },
+  concluido: { label: "Concluído", color: "var(--tx-10b981, #10b981)" },
   falta_assinar: { label: "Falta assinar", color: "#f59e0b" },
   incompleto: { label: "Incompleto", color: "#f97316" },
   em_falta: { label: "Em falta", color: "#ef4444" },

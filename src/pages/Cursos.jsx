@@ -95,9 +95,9 @@ const fieldStyle = {
   width: '100%',
   padding: '12px 14px',
   borderRadius: '12px',
-  border: '1px solid #dbe3ef',
-  background: '#fff',
-  color: '#0f172a',
+  border: '1px solid var(--lx-dbe3ef, #dbe3ef)',
+  background: 'var(--sup-1)',
+  color: 'var(--tx-0f172a, #0f172a)',
   fontSize: '0.96rem',
   outline: 'none',
   boxSizing: 'border-box',
@@ -108,19 +108,19 @@ const labelStyle = {
   marginBottom: '8px',
   fontSize: '0.84rem',
   fontWeight: 700,
-  color: '#475569',
+  color: 'var(--tx-475569, #475569)',
   letterSpacing: '0.01em',
 };
 
 const sectionTitleStyle = {
   fontSize: '0.76rem',
   fontWeight: 800,
-  color: '#64748b',
+  color: 'var(--tx-64748b, #64748b)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '14px',
   marginTop: '24px',
-  borderBottom: '1px solid #e2e8f0',
+  borderBottom: '1px solid var(--lx-e2e8f0, #e2e8f0)',
   paddingBottom: '6px',
 };
 
@@ -147,16 +147,16 @@ function Toast({ notification, onClose }) {
   const isWarning = notification.type === 'warning';
 
   const colors = isError
-    ? { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', accent: '#dc2626', icon: <OctagonX size={18} aria-hidden="true" /> }
+    ? { bg: 'var(--lx-fef2f2, #fef2f2)', border: 'var(--lx-fecaca, #fecaca)', text: 'var(--tx-991b1b, #991b1b)', accent: '#dc2626', icon: <OctagonX size={18} aria-hidden="true" /> }
     : isWarning
-      ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e', accent: '#d97706', icon: <TriangleAlert size={18} aria-hidden="true" /> }
-      : { bg: '#ffffff', border: 'var(--color-borderColorLight)', text: 'var(--color-textPrimary)', accent: 'var(--color-btnPrimary)', icon: <CircleCheck size={18} aria-hidden="true" /> };
+      ? { bg: 'var(--lx-fffbeb, #fffbeb)', border: '#fde68a', text: 'var(--tx-92400e, #92400e)', accent: '#d97706', icon: <TriangleAlert size={18} aria-hidden="true" /> }
+      : { bg: 'var(--sup-1)', border: 'var(--color-borderColorLight)', text: 'var(--color-textPrimary)', accent: 'var(--color-btnPrimary)', icon: <CircleCheck size={18} aria-hidden="true" /> };
 
   return (
     <ToastPortal>
       <div style={{ position: 'fixed', top: 22, right: 22, zIndex: "calc(var(--z-modal-topo) + 1)", width: 'min(420px, calc(calc(100 * var(--bz-vw, 1vw)) - 32px))', pointerEvents: 'none' }}>
         <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 18, background: colors.bg, color: colors.text, border: `1px solid ${colors.border}`, borderLeft: `5px solid ${colors.accent}`, boxShadow: '0 22px 40px rgba(15, 23, 42, 0.18)', backdropFilter: 'blur(6px)' }}>
-          <div style={{ width: 30, height: 30, borderRadius: 999, display: 'grid', placeItems: 'center', flexShrink: 0, background: isError ? '#fecaca' : isWarning ? '#fde68a' : 'var(--color-bgSecondary)', color: colors.accent, fontSize: '0.95rem', fontWeight: 900 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 999, display: 'grid', placeItems: 'center', flexShrink: 0, background: isError ? 'var(--lx-fecaca, #fecaca)' : isWarning ? '#fde68a' : 'var(--color-bgSecondary)', color: colors.accent, fontSize: '0.95rem', fontWeight: 900 }}>
             {colors.icon}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -195,7 +195,7 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
   const active = isCourseActive(curso);
 
   return (
-    <div style={{ background: 'var(--sup-1)', borderRadius: '22px', border: '1px solid #dbe3ef', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 240 }}>
+    <div style={{ background: 'var(--sup-1)', borderRadius: '22px', border: '1px solid var(--lx-dbe3ef, #dbe3ef)', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 240 }}>
       <div style={{ height: 5, background: accent }} />
       <div style={{ padding: '18px 18px 14px 18px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
@@ -207,7 +207,7 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
               {curso.nome}
             </h3>
           </div>
-          <div style={{ minWidth: 42, height: 32, padding: '0 10px', borderRadius: '999px', border: '1px solid #eadfd4', background: 'linear-gradient(180deg, #fffaf3, var(--sup-1))', color: 'var(--cx-7c2d12, #7c2d12)', fontSize: '0.78rem', fontWeight: 900, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <div style={{ minWidth: 42, height: 32, padding: '0 10px', borderRadius: '999px', border: '1px solid var(--lx-eadfd4, #eadfd4)', background: 'linear-gradient(180deg, var(--lx-fffaf3, #fffaf3), var(--sup-1))', color: 'var(--cx-7c2d12, #7c2d12)', fontSize: '0.78rem', fontWeight: 900, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
             {getInitials(curso.nome)}
           </div>
         </div>
@@ -219,14 +219,14 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icons.BookOpen size={15} color="#94a3b8" />
-            <span style={{ color: curso.ativo ? '#059669' : '#dc2626', fontWeight: 700 }}>
+            <span style={{ color: curso.ativo ? 'var(--tx-059669, #059669)' : '#dc2626', fontWeight: 700 }}>
               {active ? 'Ativo' : 'Inativo'}
             </span>
           </div>
         </div>
       </div>
 
-      <div style={{ borderTop: '1px solid #eef2f7', display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: '8px', padding: '12px 14px' }}>
+      <div style={{ borderTop: '1px solid var(--lx-eef2f7, #eef2f7)', display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: '8px', padding: '12px 14px' }}>
         <button type="button" onClick={onView} style={{ border: 'none', background: 'transparent', color: 'var(--cx-92400e, #92400e)', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 8px', borderRadius: '12px' }}>
           <Icons.Eye size={16} />
           Ver Curso
@@ -234,7 +234,7 @@ function CourseCard({ curso, onView, onEdit, onDelete }) {
         <button aria-label="Editar" type="button" onClick={onEdit} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fed7aa', background: 'var(--cx-fff7ed, #fff7ed)', color: '#f59e0b', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Editar">
           <Icons.Edit size={16} />
         </button>
-        <button aria-label="Eliminar" type="button" onClick={onDelete} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid #fecaca', background: '#fff1f2', color: '#ef4444', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Eliminar">
+        <button aria-label="Eliminar" type="button" onClick={onDelete} style={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid var(--lx-fecaca, #fecaca)', background: 'var(--lx-fff1f2, #fff1f2)', color: '#ef4444', cursor: 'pointer', display: 'grid', placeItems: 'center' }} title="Eliminar">
           <Icons.Trash size={16} />
         </button>
       </div>
@@ -266,7 +266,7 @@ function EmptyState({ onNew }) {
 
 function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddModulo, onRemoveModulo, onSubmit, submitLabel, onCancel, isSaving, editable = true, editingModuleIdx, onEditModule, onCancelModuleForm }) {
   const modules = Array.isArray(formData.modulos) ? formData.modulos : [];
-  const readOnlyStyle = editable ? {} : { background: '#f8fafc', color: '#475569' };
+  const readOnlyStyle = editable ? {} : { background: 'var(--lx-f8fafc, #f8fafc)', color: 'var(--tx-475569, #475569)' };
   const totalHours = getModulesHours(modules);
 
   return (
@@ -360,10 +360,10 @@ function CourseForm({ formData, setFormData, novoModulo, setNovoModulo, onAddMod
               </div>
               {editable && (
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  <button aria-label="Editar módulo" type="button" onClick={() => onEditModule(idx)} style={{ border: '1px solid #dbeafe', background: 'var(--cx-eff6ff, #eff6ff)', color: '#0284c7', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Editar módulo">
+                  <button aria-label="Editar módulo" type="button" onClick={() => onEditModule(idx)} style={{ border: '1px solid var(--lx-dbeafe, #dbeafe)', background: 'var(--cx-eff6ff, #eff6ff)', color: 'var(--tx-0284c7, #0284c7)', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Editar módulo">
                     <Icons.Edit size={15} />
                   </button>
-                  <button aria-label="Remover módulo" type="button" onClick={() => onRemoveModulo(idx)} style={{ border: '1px solid #fecaca', background: '#fff1f2', color: '#dc2626', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Remover módulo">
+                  <button aria-label="Remover módulo" type="button" onClick={() => onRemoveModulo(idx)} style={{ border: '1px solid var(--lx-fecaca, #fecaca)', background: 'var(--lx-fff1f2, #fff1f2)', color: '#dc2626', borderRadius: '10px', width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' }} title="Remover módulo">
                     <Icons.Trash size={15} />
                   </button>
                 </div>
@@ -829,10 +829,10 @@ export default function Cursos() {
                 onClick={() => setStatusTab('ativos')}
                 style={{
                   padding: '12px 25px',
-                  background: statusTab === 'ativos' ? '#fff' : '#f1f5f9',
-                  color: statusTab === 'ativos' ? 'var(--color-btnPrimary)' : '#64748b',
+                  background: statusTab === 'ativos' ? 'var(--sup-1)' : 'var(--lx-f1f5f9, #f1f5f9)',
+                  color: statusTab === 'ativos' ? 'var(--color-btnPrimary)' : 'var(--tx-64748b, #64748b)',
                   border: '1px solid var(--n-200)',
-                  borderBottom: statusTab === 'ativos' ? '1px solid #fff' : '1px solid #e2e8f0',
+                  borderBottom: statusTab === 'ativos' ? '1px solid var(--sup-1)' : '1px solid var(--lx-e2e8f0, #e2e8f0)',
                   borderRadius: '12px 12px 0 0',
                   fontWeight: '800',
                   fontSize: '0.85rem',
@@ -854,10 +854,10 @@ export default function Cursos() {
                 onClick={() => setStatusTab('inativos')}
                 style={{
                   padding: '12px 25px',
-                  background: statusTab === 'inativos' ? '#fff' : '#f1f5f9',
-                  color: statusTab === 'inativos' ? 'var(--color-btnPrimary)' : '#64748b',
+                  background: statusTab === 'inativos' ? 'var(--sup-1)' : 'var(--lx-f1f5f9, #f1f5f9)',
+                  color: statusTab === 'inativos' ? 'var(--color-btnPrimary)' : 'var(--tx-64748b, #64748b)',
                   border: '1px solid var(--n-200)',
-                  borderBottom: statusTab === 'inativos' ? '1px solid #fff' : '1px solid #e2e8f0',
+                  borderBottom: statusTab === 'inativos' ? '1px solid var(--sup-1)' : '1px solid var(--lx-e2e8f0, #e2e8f0)',
                   borderRadius: '12px 12px 0 0',
                   fontWeight: '800',
                   fontSize: '0.85rem',
@@ -935,7 +935,7 @@ export default function Cursos() {
         <div style={{ maxWidth: 980, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #fff7ed, #ffedd5)', color: 'var(--cx-c2410c, #c2410c)', display: 'grid', placeItems: 'center', fontWeight: 950, boxShadow: '0 8px 18px rgba(249, 115, 22, 0.12)' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, var(--lx-fff7ed, #fff7ed), var(--lx-ffedd5, #ffedd5))', color: 'var(--cx-c2410c, #c2410c)', display: 'grid', placeItems: 'center', fontWeight: 950, boxShadow: '0 8px 18px rgba(249, 115, 22, 0.12)' }}>
                 {getInitials(formData.nome)}
               </div>
               <div>

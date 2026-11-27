@@ -11,7 +11,7 @@
   height: 42px;
   padding: 0 12px;
   border-radius: 12px;
-  border: 1px solid #d5dde8;
+  border: 1px solid var(--lx-d5dde8, #d5dde8);
   background: var(--sup-1);
   font: inherit;
   font-size: 0.88rem;
@@ -23,7 +23,7 @@
 }
 .fs-trigger:hover { border-color: var(--n-300); }
 .fs-trigger:disabled { cursor: not-allowed; opacity: 0.6; background: var(--n-50); }
-.fs-trigger:disabled:hover { border-color: #d5dde8; }
+.fs-trigger:disabled:hover { border-color: var(--lx-d5dde8, #d5dde8); }
 .fs-trigger.is-open,
 .fs-trigger:focus-visible {
   outline: none;

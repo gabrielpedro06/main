@@ -24,9 +24,9 @@
 :root {
   --jn-raio: 24px;
   --jn-raio-peq: 14px;
-  --jn-vidro: color-mix(in srgb, var(--color-bgSecondary, #ffffff) 88%, transparent);
-  --jn-vidro-forte: color-mix(in srgb, var(--color-bgSecondary, #ffffff) 92%, transparent);
-  --jn-aresta: color-mix(in srgb, #ffffff 55%, transparent);
+  --jn-vidro: color-mix(in srgb, var(--color-bgSecondary, var(--sup-1)) 88%, transparent);
+  --jn-vidro-forte: color-mix(in srgb, var(--color-bgSecondary, var(--sup-1)) 92%, transparent);
+  --jn-aresta: color-mix(in srgb, var(--sup-1) 55%, transparent);
   --jn-linha: color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 8%, transparent);
   --jn-tinta: var(--color-textPrimary, var(--n-900));
   --jn-suave: color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 62%, transparent);
@@ -506,7 +506,7 @@
 
 /* Sem suporte de desfoque (browsers antigos): vidro mais opaco para se ler bem */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root { --jn-vidro: var(--color-bgSecondary, #fff); --jn-vidro-forte: var(--color-bgSecondary, #fff); }
+  :root { --jn-vidro: var(--color-bgSecondary, var(--sup-1)); --jn-vidro-forte: var(--color-bgSecondary, var(--sup-1)); }
 }
 
 /* ---------------------------------------------------------------------
@@ -548,7 +548,7 @@
   padding: 0 14px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--jn-tinta) 14%, transparent);
-  background: var(--cor-campo, #fff);
+  background: var(--cor-campo, var(--sup-1));
   font: inherit;
   font-size: 0.92rem;
   color: var(--jn-tinta);

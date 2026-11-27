@@ -315,7 +315,7 @@ function Resultados({ leads, campanhasR, metricas, conteudos, onAbrir, onAbrirCo
                       <td>{estadoDe("metrica", m.estado)?.label || "—"}</td>
                       <td className="is-num">{fmtNum(m.dados?.valor)}</td>
                       <td className="is-num">{vazio(m.dados?.meta) ? <span className="mk-rec-muted">—</span> : fmtNum(m.dados.meta)}</td>
-                      <td className="is-num">{varN === null ? <span className="mk-rec-muted">—</span> : <span style={{ color: varN < 0 ? "#dc2626" : "#16a34a", fontWeight: 600 }}>{varN > 0 ? "+" : ""}{varN.toLocaleString("pt-PT")}%</span>}</td>
+                      <td className="is-num">{varN === null ? <span className="mk-rec-muted">—</span> : <span style={{ color: varN < 0 ? "#dc2626" : "var(--tx-16a34a, #16a34a)", fontWeight: 600 }}>{varN > 0 ? "+" : ""}{varN.toLocaleString("pt-PT")}%</span>}</td>
                     </tr>
                   );
                 })}

@@ -1461,16 +1461,16 @@ export default function Tarefas() {
       { id: "overdue", title: "Atrasadas", color: "#dc2626" },
       { id: "today", title: "Hoje", color: "#d97706" },
       { id: "tomorrow", title: "Amanhã", color: "#2563eb" },
-      { id: "upcoming", title: "Próximas", color: "#059669" },
-      { id: "no-date", title: "Sem prazo", color: "#64748b" },
-      { id: "completed", title: "Concluídas", color: "#64748b" }
+      { id: "upcoming", title: "Próximas", color: "var(--tx-059669, #059669)" },
+      { id: "no-date", title: "Sem prazo", color: "var(--tx-64748b, #64748b)" },
+      { id: "completed", title: "Concluídas", color: "var(--tx-64748b, #64748b)" }
   ];
 
   const kanbanStateColumns = [
-      { id: "pendente", title: "Pendente", color: "#64748b" },
+      { id: "pendente", title: "Pendente", color: "var(--tx-64748b, #64748b)" },
       { id: "em_curso", title: "Em curso", color: "#2563eb" },
       { id: "em_analise", title: "Em análise", color: "#9333ea" },
-      { id: "concluido", title: "Concluídas", color: "#059669" },
+      { id: "concluido", title: "Concluídas", color: "var(--tx-059669, #059669)" },
       { id: "cancelado", title: "Canceladas", color: "#dc2626" }
   ];
 

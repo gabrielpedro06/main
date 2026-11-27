@@ -24,7 +24,7 @@
 
 .gestao-card {
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--lx-e2e8f0, #e2e8f0);
   border-radius: 8px;
   padding: 1.5rem;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
@@ -60,16 +60,16 @@
 }
 
 .gestao-btn-icon:hover {
-  background-color: #f1f5f9;
+  background-color: var(--lx-f1f5f9, #f1f5f9);
 }
 
 .gestao-btn-icon.edit:hover {
-  background-color: #dbeafe;
-  color: #0284c7;
+  background-color: var(--lx-dbeafe, #dbeafe);
+  color: var(--tx-0284c7, #0284c7);
 }
 
 .gestao-btn-icon.delete:hover {
-  background-color: #fee2e2;
+  background-color: var(--lx-fee2e2, #fee2e2);
   color: #dc2626;
 }
 
@@ -98,7 +98,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--lx-e2e8f0, #e2e8f0);
 }
 
 .gestao-modal-body {
@@ -120,7 +120,7 @@
 .gestao-form-label {
   font-weight: 600;
   font-size: 0.875rem;
-  color: #1e293b;
+  color: var(--tx-1e293b, #1e293b);
 }
 
 .gestao-form-input,
@@ -158,18 +158,18 @@
 }
 
 .gestao-notification.success {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--lx-d1fae5, #d1fae5);
+  color: var(--tx-065f46, #065f46);
 }
 
 .gestao-notification.error {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--lx-fee2e2, #fee2e2);
+  color: var(--tx-991b1b, #991b1b);
 }
 
 .gestao-notification.warning {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--lx-fef3c7, #fef3c7);
+  color: var(--tx-92400e, #92400e);
 }
 
 /* Responsivo */

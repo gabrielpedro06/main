@@ -333,7 +333,7 @@ body, html {
 .card p {
   font-size: 2rem;
   font-weight: 800;
-  color: #16a34a; /* Texto destaque Verde */
+  color: var(--tx-16a34a, #16a34a); /* Texto destaque Verde */
   margin: 10px 0;
 }
 
@@ -357,7 +357,7 @@ body, html {
 }
 
 .data-table th {
-  background: linear-gradient(180deg, var(--n-50) 0%, #eef2ff 100%);
+  background: linear-gradient(180deg, var(--n-50) 0%, var(--lx-eef2ff, #eef2ff) 100%);
   color: var(--n-700);
   font-weight: 700;
   text-transform: uppercase;
@@ -557,7 +557,7 @@ label {
 
 .tabs button:hover {
   color: var(--color-btnPrimary);
-  background: rgba(255,255,255,0.5);
+  background: color-mix(in srgb, var(--sup-1) 50%, transparent);
 }
 
 /* Aba Ativa (A que está selecionada) */
@@ -935,18 +935,31 @@ input:checked + .slider:before {
    WOW THEME LAYER (GLOBAL OVERRIDES)
    ========================================= */
 :root {
-  --wow-bg-0: #f6efe2;
-  --wow-bg-1: #f8f3e9;
-  --wow-surface: #ffffff;
-  --wow-surface-soft: #fcfaf6;
-  --wow-border: #e8e1d5;
-  --wow-text: #1f2937;
-  --wow-text-soft: #6b7280;
+  --wow-bg-0: var(--lx-f6efe2, #f6efe2);
+  --wow-bg-1: var(--lx-f8f3e9, #f8f3e9);
+  --wow-surface: var(--sup-1);
+  --wow-surface-soft: var(--lx-fcfaf6, #fcfaf6);
+  --wow-border: var(--lx-e8e1d5, #e8e1d5);
+  --wow-text: var(--tx-1f2937, #1f2937);
+  --wow-text-soft: var(--tx-6b7280, #6b7280);
   --wow-primary: #2f6fed;
-  --wow-primary-soft: #e9f0ff;
+  --wow-primary-soft: var(--lx-e9f0ff, #e9f0ff);
   --wow-success: #16a34a;
   --wow-shadow-sm: 0 6px 14px rgba(15, 23, 42, 0.05);
   --wow-shadow-md: 0 14px 28px rgba(15, 23, 42, 0.08);
+}
+/* modo escuro: a camada "wow" segue as superfícies e neutros do tema escuro */
+html[data-modo="escuro"] {
+  --wow-bg-0: var(--color-bgPrimary);
+  --wow-bg-1: var(--color-bgPrimary);
+  --wow-surface: var(--sup-1);
+  --wow-surface-soft: var(--n-50);
+  --wow-border: var(--n-200);
+  --wow-text: var(--n-900);
+  --wow-text-soft: var(--n-500);
+  --wow-primary-soft: color-mix(in srgb, var(--color-btnPrimary) 18%, var(--sup-1));
+  --wow-shadow-sm: 0 6px 14px rgba(0, 0, 0, 0.35);
+  --wow-shadow-md: 0 14px 28px rgba(0, 0, 0, 0.45);
 }
 
 html, body {
@@ -1019,7 +1032,7 @@ html, body {
 .btn-small {
   background: var(--sup-1);
   border: 1px solid #ddd8cf;
-  color: #4b5563;
+  color: var(--tx-4b5563, #4b5563);
   border-radius: 999px;
   padding: 8px 14px;
   font-weight: 600;
@@ -1032,17 +1045,17 @@ html, body {
 }
 
 .data-table th {
-  background: #f8f5ef;
-  color: #667085;
-  border-bottom-color: #ebe7df;
+  background: var(--lx-f8f5ef, #f8f5ef);
+  color: var(--tx-667085, #667085);
+  border-bottom-color: var(--lx-ebe7df, #ebe7df);
 }
 
 .data-table td {
-  border-bottom-color: #f0ece5;
+  border-bottom-color: var(--lx-f0ece5, #f0ece5);
 }
 
 .data-table tr:hover {
-  background-color: #f8fbff;
+  background-color: var(--lx-f8fbff, #f8fbff);
 }
 
 .table-responsive {
@@ -1069,7 +1082,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-header {
-  background: #faf7f2;
+  background: var(--lx-faf7f2, #faf7f2);
   border-bottom-color: var(--wow-border);
 }
 
@@ -1110,7 +1123,7 @@ input:focus, select:focus, textarea:focus {
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
-  background: linear-gradient(135deg, var(--sup-1) 0%, #fbf7ef 100%);
+  background: linear-gradient(135deg, var(--sup-1) 0%, var(--lx-fbf7ef, #fbf7ef) 100%);
 }
 
 .propostas-hero > div:first-child {
@@ -1159,7 +1172,7 @@ input:focus, select:focus, textarea:focus {
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
-  background: linear-gradient(135deg, var(--sup-1) 0%, #f7fafc 100%);
+  background: linear-gradient(135deg, var(--sup-1) 0%, var(--lx-f7fafc, #f7fafc) 100%);
 }
 
 .propostas-list-hero h1 {
@@ -1213,7 +1226,7 @@ input:focus, select:focus, textarea:focus {
   min-width: 22px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
+  background: color-mix(in srgb, var(--sup-1) 78%, transparent);
   color: inherit;
   font-size: 0.78rem;
   text-align: center;
@@ -1588,7 +1601,7 @@ input:focus, select:focus, textarea:focus {
 
 .propostas-programa-card.selected {
   border-color: var(--color-btnPrimary);
-  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  background: linear-gradient(180deg, var(--lx-f8fbff, #f8fbff) 0%, var(--lx-eef4ff, #eef4ff) 100%);
   box-shadow: 0 10px 20px rgba(37, 99, 235, 0.08);
 }
 

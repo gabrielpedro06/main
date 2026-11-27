@@ -2302,9 +2302,9 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                         onClick={() => selectPrograma(programa.id)}
                         style={{
                           padding: "16px",
-                          border: programa.id === programaId ? "2px solid #6366f1" : "1px solid #e5e7eb",
+                          border: programa.id === programaId ? "2px solid #6366f1" : "1px solid var(--lx-e5e7eb, #e5e7eb)",
                           borderRadius: "12px",
-                          background: programa.id === programaId ? "#f0f4ff" : "#f8f9fa",
+                          background: programa.id === programaId ? "var(--lx-f0f4ff, #f0f4ff)" : "var(--lx-f8f9fa, #f8f9fa)",
                           textAlign: "left",
                           cursor: "pointer",
                           transition: "background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease",
@@ -2312,7 +2312,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
                           <div style={{ flex: 1 }}>
-                            <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>
+                            <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "var(--tx-0f2240, #0f2240)" }}>
                               {programa.nome}
                             </h4>
                             <div className="muted" style={{ fontSize: "0.85rem", marginBottom: "8px" }}>
@@ -2345,8 +2345,8 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                               width: "32px",
                               height: "32px",
                               borderRadius: "6px",
-                              background: programa.id === programaId ? "#6366f1" : "#e5e7eb",
-                              color: programa.id === programaId ? "white" : "#64748b",
+                              background: programa.id === programaId ? "#6366f1" : "var(--lx-e5e7eb, #e5e7eb)",
+                              color: programa.id === programaId ? "white" : "var(--tx-64748b, #64748b)",
                               fontWeight: 600,
                             }}
                           >
@@ -2426,7 +2426,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
 
                           <div className="info-block span-2" style={{ gridColumn: 'span 2' }}>
                             <label style={{ fontWeight: 'bold', color: 'var(--cx-b45309, #b45309)' }}> Condições Específicas / Critérios de Elegibilidade</label>
-                            <div className="text-content-box" style={{ background: '#fffcf5', border: '1px solid #fef3c7', padding: '10px', borderRadius: '6px', marginTop: '4px' }}>
+                            <div className="text-content-box" style={{ background: 'var(--lx-fffcf5, #fffcf5)', border: '1px solid var(--lx-fef3c7, #fef3c7)', padding: '10px', borderRadius: '6px', marginTop: '4px' }}>
                               {selectedPrograma.condicoes_especificas}
                             </div>
                           </div>
@@ -2458,7 +2458,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                     <article
                       key={atividade.id}
                       className={`propostas-service-card ${atividade.selecionado ? "selected" : ""}`}
-                      style={{ borderBottom: '1px solid var(--n-200)', borderTop: atividadeIndex === 0 ? 'none' : '1px solid #e2e8f0' }}
+                      style={{ borderBottom: '1px solid var(--n-200)', borderTop: atividadeIndex === 0 ? 'none' : '1px solid var(--lx-e2e8f0, #e2e8f0)' }}
                     >
                       <div style={{ display: "flex", alignItems: "stretch" }}>
                         <button
@@ -2598,7 +2598,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                     const mostrarVariavel = modoHonorario !== "fixo";
 
                     return (
-                    <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "#f8f9fa", borderRadius: "8px", border: "1px solid var(--n-200)" }}>
+                    <div key={item.tipo_projeto_id} style={{ marginBottom: "16px", padding: "12px", background: "var(--lx-f8f9fa, #f8f9fa)", borderRadius: "8px", border: "1px solid var(--n-200)" }}>
                       <div style={{ marginBottom: "10px" }}>
                         <strong style={{ fontSize: '1.1rem', color: 'var(--n-900)' }}>Tipo {item.ordem} — {item.nome || "Sem nome"}</strong>
                       </div>
@@ -2667,7 +2667,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                           <div style={{ overflowX: "auto", marginBottom: 12 }}>
                             <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "var(--sup-1)" }}>
                               <thead>
-                                <tr style={{ background: "#e7f0fa" }}>
+                                <tr style={{ background: "var(--lx-e7f0fa, #e7f0fa)" }}>
                                   <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>Nº Parcela</th>
                                   <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>%</th>
                                   <th style={{ padding: "6px 8px", border: "1px solid var(--n-200)" }}>Descrição</th>
@@ -2752,7 +2752,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                                   );
                                 })}
                                 {/* Totais */}
-                                <tr style={{ background: "#f3f4f6", fontWeight: 600 }}>
+                                <tr style={{ background: "var(--lx-f3f4f6, #f3f4f6)", fontWeight: 600 }}>
                                   <td colSpan={6} style={{ textAlign: "right", padding: "6px 8px" }}>Totais</td>
                                   <td style={{ textAlign: "right", padding: "6px 8px" }}>
                                     {formatCurrency((item.plano_pagamentos || []).reduce((acc, pag) => acc + Number(item.valor || 0) * (Number(pag.percentagem || 0) / 100), 0))}
@@ -2772,7 +2772,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                             className="field-hint"
                             style={{
                               marginBottom: "8px",
-                              color: totalPercentagemPagamentos === 100 ? "#047857" : "#b45309",
+                              color: totalPercentagemPagamentos === 100 ? "var(--tx-047857, #047857)" : "var(--tx-b45309, #b45309)",
                             }}
                           >
                             Total parcelas: {Number(totalPercentagemPagamentos.toFixed(2))}% {totalPercentagemPagamentos === 100 ? "(OK)" : "(deve ser 100%)"}
@@ -2967,7 +2967,7 @@ export default function PropostasFinanciamento({ propostaId, initialEmpresaConsu
                         <strong>Módulo {l.codigo}</strong><br />
                         <span className="muted">{l.nome}</span>
                       </div>
-                      <div style={{ minWidth: 100, textAlign: "right", fontWeight: 500, fontSize: 18, color: "#222" }}>
+                      <div style={{ minWidth: 100, textAlign: "right", fontWeight: 500, fontSize: 18, color: "var(--tx-222222, #222222)" }}>
                         {l.modo_honorario === 'variavel' || l.modo_honorario === 'ambos' ? 'Variável' : formatCurrency(l.valor)}
                       </div>
                     </div>

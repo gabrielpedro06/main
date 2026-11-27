@@ -103,14 +103,14 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, labelOn = "Sim", la
         width: '100%',
         border: '1px solid var(--n-300)',
         borderRadius: '12px',
-        background: checked ? 'var(--color-bgSecondary)' : '#fff',
+        background: checked ? 'var(--color-bgSecondary)' : 'var(--sup-1)',
         padding: '10px 12px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '12px',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        color: checked ? 'var(--color-btnPrimaryDark)' : '#475569',
+        color: checked ? 'var(--color-btnPrimaryDark)' : 'var(--tx-475569, #475569)',
         fontWeight: '700',
         boxSizing: 'border-box',
         opacity: disabled ? 0.7 : 1,
@@ -1998,8 +1998,8 @@ export default function Clientes() {
       return clientColors[hash % clientColors.length];
   };
 
-  const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' };
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px', color: '#1e293b' };
+  const labelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--tx-475569, #475569)' };
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'var(--sup-1)', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', marginBottom: '10px', color: 'var(--tx-1e293b, #1e293b)' };
   const modalTabs = [
     { id: 'geral', label: 'Geral', icon: Icons.ClipboardList },
     { id: 'funcoes', label: 'Funções', icon: Icons.Activity },
@@ -2154,12 +2154,12 @@ export default function Clientes() {
   }
 
   const ENT_PROJ_STATES = [
-    { key: 'em_curso', label: 'em curso', color: '#16a34a', match: (e) => e === 'em_curso' || e === 'ativo' },
+    { key: 'em_curso', label: 'em curso', color: 'var(--tx-16a34a, #16a34a)', match: (e) => e === 'em_curso' || e === 'ativo' },
     { key: 'em_analise', label: 'em análise', color: '#8b5cf6', match: (e) => e === 'em_analise' || e === 'analise' },
     { key: 'pendente', label: 'pend.', color: '#f59e0b', match: (e) => e === 'pendente' },
     { key: 'concluido', label: 'concl.', color: '#2563eb', match: (e) => e === 'concluido' },
-    { key: 'cancelado', label: 'canc.', color: '#64748b', match: (e) => e === 'cancelado' },
-    { key: 'encerrado', label: 'encerr.', color: '#475569', match: (e) => e === 'encerrado' },
+    { key: 'cancelado', label: 'canc.', color: 'var(--tx-64748b, #64748b)', match: (e) => e === 'cancelado' },
+    { key: 'encerrado', label: 'encerr.', color: 'var(--tx-475569, #475569)', match: (e) => e === 'encerrado' },
   ];
   const renderEntProjetos = (c, compact = false) => {
     const projList = c.projetos || [];
@@ -2461,12 +2461,12 @@ export default function Clientes() {
                               type="button"
                               disabled={isDone}
                               onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedAtividadeId: atividade.id, selectedTaskId: "" }))}
-                              style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
+                              style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid var(--lx-e2e8f0, #e2e8f0)', background:isDone ? 'var(--lx-f8fafc, #f8fafc)' : (isSelected ? 'var(--color-bgSecondary)' : 'var(--sup-1)'), color:isDone ? '#94a3b8' : 'var(--tx-1e293b, #1e293b)', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.75 : 1}}
                               className="hover-shadow"
                             >
                               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
                                 <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{atividade.titulo || 'Sem título'}</span>
-                                <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? '#e2e8f0' : 'var(--color-borderColorLight)', color:isDone ? '#64748b' : 'var(--color-btnPrimaryDark)', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
+                                <span style={{fontSize:'0.7rem', borderRadius:'999px', padding:'3px 8px', background:isDone ? 'var(--lx-e2e8f0, #e2e8f0)' : 'var(--color-borderColorLight)', color:isDone ? 'var(--tx-64748b, #64748b)' : 'var(--color-btnPrimaryDark)', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ATIVA'}</span>
                               </div>
                               <p style={{margin:'6px 0 0 0', fontSize:'0.75rem', color:'var(--n-500)'}}>{(atividade.tarefas || []).length} tarefa(s)</p>
                             </button>
@@ -2482,7 +2482,7 @@ export default function Clientes() {
                           type="button"
                           onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: "" }))}
                           disabled={(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido')}
-                          style={{textAlign:'left', border:projectTimerModal.selectedTaskId ? '1px solid #e2e8f0' : '1px solid #16a34a', background:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? '#f1f5f9' : (projectTimerModal.selectedTaskId ? '#fff' : '#f0fdf4'), color:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? '#94a3b8' : '#166534', borderRadius:'10px', padding:'10px 12px', cursor:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? 'not-allowed' : 'pointer', fontWeight:'700'}}
+                          style={{textAlign:'left', border:projectTimerModal.selectedTaskId ? '1px solid var(--lx-e2e8f0, #e2e8f0)' : '1px solid #16a34a', background:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? 'var(--lx-f1f5f9, #f1f5f9)' : (projectTimerModal.selectedTaskId ? 'var(--sup-1)' : 'var(--lx-f0fdf4, #f0fdf4)'), color:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? '#94a3b8' : 'var(--tx-166534, #166534)', borderRadius:'10px', padding:'10px 12px', cursor:(projectTimerModal.atividades.find((atividade) => String(atividade.id) === String(projectTimerModal.selectedAtividadeId))?.estado === 'concluido') ? 'not-allowed' : 'pointer', fontWeight:'700'}}
                           className="hover-shadow"
                         >
                           Trabalhar ao nível da atividade
@@ -2498,12 +2498,12 @@ export default function Clientes() {
                                 type="button"
                                 disabled={isDone}
                                 onClick={() => setProjectTimerModal((prev) => ({ ...prev, selectedTaskId: tarefa.id }))}
-                                style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid #e2e8f0', background:isDone ? '#f8fafc' : (isSelected ? 'var(--color-bgSecondary)' : '#fff'), color:isDone ? '#94a3b8' : '#1e293b', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
+                                style={{textAlign:'left', border:isSelected ? '1px solid var(--color-btnPrimary)' : '1px solid var(--lx-e2e8f0, #e2e8f0)', background:isDone ? 'var(--lx-f8fafc, #f8fafc)' : (isSelected ? 'var(--color-bgSecondary)' : 'var(--sup-1)'), color:isDone ? '#94a3b8' : 'var(--tx-1e293b, #1e293b)', borderRadius:'10px', padding:'10px 12px', cursor:isDone ? 'not-allowed' : 'pointer', opacity:isDone ? 0.78 : 1}}
                                 className="hover-shadow"
                               >
                                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:'8px'}}>
                                   <span style={{fontWeight:'700', fontSize:'0.9rem', textDecoration:isDone ? 'line-through' : 'none'}}>{tarefa.titulo || 'Sem título'}</span>
-                                  <span style={{fontSize:'0.68rem', borderRadius:'999px', padding:'3px 7px', background:isDone ? '#fee2e2' : '#dcfce7', color:isDone ? '#991b1b' : '#166534', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ABERTA'}</span>
+                                  <span style={{fontSize:'0.68rem', borderRadius:'999px', padding:'3px 7px', background:isDone ? 'var(--lx-fee2e2, #fee2e2)' : 'var(--lx-dcfce7, #dcfce7)', color:isDone ? 'var(--tx-991b1b, #991b1b)' : 'var(--tx-166534, #166534)', fontWeight:'800'}}>{isDone ? 'CONCLUÍDA' : 'ABERTA'}</span>
                                 </div>
                               </button>
                             );
@@ -2674,7 +2674,7 @@ export default function Clientes() {
                         {[
                           { key: 'eh_empresa_consultora', label: 'Entidade Consultora', text: 'Ativa a área de configurações extra da entidade se for uma empresa consultora.', icon: Icons.Diamond, color: '#8b5cf6' },
                           { key: 'eh_organismo', label: 'É Entidade Financiadora?', text: 'Usa esta opção quando a é uma entidade financiadora.', icon: Icons.Landmark, color: '#0ea5e9' },
-                          { key: 'tem_cursos', label: 'Disponibiliza Cursos?', text: 'Marca se a entidade promove formação ou cursos próprios.', icon: Icons.Users, color: '#10b981' },
+                          { key: 'tem_cursos', label: 'Disponibiliza Cursos?', text: 'Marca se a entidade promove formação ou cursos próprios.', icon: Icons.Users, color: 'var(--tx-10b981, #10b981)' },
                         ].map((role) => {
                           const RoleIcon = role.icon;
                           const on = Boolean(form[role.key]);
@@ -2729,7 +2729,7 @@ export default function Clientes() {
                                 {projetosCliente.map(p => {
                                   const isDone = p.estado === 'concluido';
                                   const tipoProjetoNome = p.tipos_projeto?.nome || 'Sem tipo';
-                                  const estadoMeta = ENT_PROJ_STATES.find((s) => s.match(p.estado)) || { color: '#64748b' };
+                                  const estadoMeta = ENT_PROJ_STATES.find((s) => s.match(p.estado)) || { color: 'var(--tx-64748b, #64748b)' };
 
                                   // Configuração visual das tags com base no campo is_parceria real
                                   let relacaoInfo = { label: 'Entidade Única', tone: 'neutral' };
@@ -2928,7 +2928,7 @@ export default function Clientes() {
                      </div>
                      <div className="en-plans">
                        {[
-                         { value: 'Standard', color: '#64748b', icon: Icons.ClipboardList },
+                         { value: 'Standard', color: 'var(--tx-64748b, #64748b)', icon: Icons.ClipboardList },
                          { value: 'Premium', color: '#0ea5e9', icon: Icons.Rocket },
                          { value: 'Enterprise', color: '#8b5cf6', icon: Icons.Diamond },
                        ].map((plan) => {
@@ -3712,7 +3712,7 @@ export default function Clientes() {
               .marketing-view-toggle-btn {
               border: none;
                 background: transparent;
-              color: #475569;
+              color: var(--tx-475569, #475569);
                 font-size: 0.8rem;
               font-weight: 700;
                 padding: 6px 12px;
@@ -3722,18 +3722,18 @@ export default function Clientes() {
             }
 
               .marketing-view-toggle-btn.active {
-                background: #ffffff;
+                background: var(--sup-1);
                 color: var(--color-btnPrimary);
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
 
               .marketing-view-toggle-btn:not(.active):hover {
-                color: #1e293b;
+                color: var(--tx-1e293b, #1e293b);
             }
 
             .clients-list-table .row-inactive {
               opacity: 0.65;
-              background: #f8fafc;
+              background: var(--lx-f8fafc, #f8fafc);
             }
 
             .clients-list-row {
@@ -3762,12 +3762,12 @@ export default function Clientes() {
             }
 
               .active-badge {
-              background: #dcfce7;
-              color: #166534;
+              background: var(--lx-dcfce7, #dcfce7);
+              color: var(--tx-166534, #166534);
             }
 
               .archive-badge {
-              background: #fee2e2;
+              background: var(--lx-fee2e2, #fee2e2);
                 color: #ef4444;
             }
 
@@ -3779,8 +3779,8 @@ export default function Clientes() {
 
             .list-action-btn {
                 border: 1px solid transparent;
-                background: #ffffff;
-                color: #475569;
+                background: var(--sup-1);
+                color: var(--tx-475569, #475569);
               border-radius: 8px;
                 width: 32px;
                 height: 32px;
@@ -3800,19 +3800,19 @@ export default function Clientes() {
 
             .list-action-btn.edit {
               border-color: #fed7aa;
-              background: #fff7ed;
-              color: #c2410c;
+              background: var(--lx-fff7ed, #fff7ed);
+              color: var(--tx-c2410c, #c2410c);
             }
 
             .list-action-btn.restore {
               border-color: #bbf7d0;
-              background: #dcfce7;
-              color: #166534;
+              background: var(--lx-dcfce7, #dcfce7);
+              color: var(--tx-166534, #166534);
             }
 
               .list-action-btn.archive {
-                border-color: #fecaca;
-                background: #fee2e2;
+                border-color: var(--lx-fecaca, #fecaca);
+                background: var(--lx-fee2e2, #fee2e2);
                 color: #ef4444;
               }
 
@@ -3829,9 +3829,9 @@ export default function Clientes() {
 
           .hover-shadow:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transform: translateY(-1px); }
           .hover-blue-text:hover { background: var(--color-bgSecondary) !important; color: var(--color-btnPrimaryDark) !important; }
-          .hover-orange-text:hover { background: #fff7ed !important; color: #d97706 !important; }
-          .hover-green-text:hover { background: #dcfce7 !important; color: #16a34a !important; }
-          .hover-red-text:hover { background: #fef2f2 !important; color: #ef4444 !important; }
+          .hover-orange-text:hover { background: var(--lx-fff7ed, #fff7ed) !important; color: #d97706 !important; }
+          .hover-green-text:hover { background: var(--lx-dcfce7, #dcfce7) !important; color: var(--tx-16a34a, #16a34a) !important; }
+          .hover-red-text:hover { background: var(--lx-fef2f2, #fef2f2) !important; color: #ef4444 !important; }
 
           /* Focus em Inputs */
           .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
@@ -3851,7 +3851,7 @@ export default function Clientes() {
 
           /* Botão Add SubItem */
           .btn-small-add { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
-          .btn-small-add:hover { background: #f8fafc; color: #1e293b; border-color: #94a3b8; }
+          .btn-small-add:hover { background: var(--lx-f8fafc, #f8fafc); color: var(--tx-1e293b, #1e293b); border-color: #94a3b8; }
 
           /* Animação Modal */
           @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

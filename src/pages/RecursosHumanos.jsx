@@ -513,22 +513,22 @@ export default function RecursosHumanos() {
       const normalized = normalizeAbsenceType(tipo);
 
       if (normalized.includes('ferias')) {
-          return { cor: '#fefce8', textoCor: '#854d0e', badge: 'Férias' };
+          return { cor: 'var(--lx-fefce8, #fefce8)', textoCor: '#854d0e', badge: 'Férias' };
       }
 
       if (normalized.includes('licenca')) {
-          return { cor: '#eff6ff', textoCor: '#1d4ed8', badge: 'Licença' };
+          return { cor: 'var(--lx-eff6ff, #eff6ff)', textoCor: '#1d4ed8', badge: 'Licença' };
       }
 
       if (normalized.includes('doenca') || normalized.includes('acidente') || normalized.includes('obrigacao legal')) {
-          return { cor: '#faf5ff', textoCor: '#6b21a8', badge: 'Baixa' };
+          return { cor: 'var(--lx-faf5ff, #faf5ff)', textoCor: '#6b21a8', badge: 'Baixa' };
       }
 
       if (normalized.includes('casamento') || normalized.includes('falecimento')) {
-          return { cor: '#fff7ed', textoCor: '#c2410c', badge: formatAbsenceTypeLabel(tipo) };
+          return { cor: 'var(--lx-fff7ed, #fff7ed)', textoCor: '#c2410c', badge: formatAbsenceTypeLabel(tipo) };
       }
 
-      return { cor: '#f0f9ff', textoCor: '#0c4a6e', badge: formatAbsenceTypeLabel(tipo) };
+      return { cor: 'var(--lx-f0f9ff, #f0f9ff)', textoCor: '#0c4a6e', badge: formatAbsenceTypeLabel(tipo) };
   };
 
   const isTemporaryStatusActiveOnDate = (estado, dateValue) => {
@@ -2585,10 +2585,10 @@ export default function RecursosHumanos() {
 
           // Configurações padrão de estilo da célula
           let tipo = "util";
-          let cor = "#fff";
+          let cor = "var(--sup-1)";
           let textoCor = "#94a3b8";
           let badge = "";
-          let cellBorderColor = '#f1f5f9';
+          let cellBorderColor = 'var(--lx-f1f5f9, #f1f5f9)';
           let content = null;
           
           const toleranciaGlobalNoDia = !selectedUser
@@ -2622,15 +2622,15 @@ export default function RecursosHumanos() {
           // Aplicação da sua configuração para Fim de Semana (caso não haja assiduidade registada)
           if (isFimSemana && !assidDia) {
               tipo = "fimSemana";
-              cor = "#f1f5f9"; // Fundo cinza suave como na imagem_1d8661.png
+              cor = "var(--lx-f1f5f9, #f1f5f9)"; // Fundo cinza suave como na imagem_1d8661.png
               textoCor = "#94a3b8";
               badge = "Fim de Semana";
-              cellBorderColor = '#e2e8f0';
+              cellBorderColor = 'var(--lx-e2e8f0, #e2e8f0)';
           }
           // Prioridade visual para Feriados
           else if (feriado) {
               tipo = "feriado";
-              cor = "#fee2e2"; 
+              cor = "var(--lx-fee2e2, #fee2e2)"; 
               textoCor = "#ef4444";
               cellBorderColor = '#fca5a5';
               badge = feriado.nome;
@@ -2649,7 +2649,7 @@ export default function RecursosHumanos() {
               const ausencia = ausenciasMes.find(a => a.tipo !== KM_REQUEST_TYPE && a.data_inicio <= dateStr && a.data_fim >= dateStr);
               
               if (assidDia) { 
-                  cor = '#f0fdf4';
+                  cor = 'var(--lx-f0fdf4, #f0fdf4)';
                   cellBorderColor = '#bbf7d0'; 
                   textoCor = '#16a34a';
                   content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Check color="#16a34a" size={20} /></div>; 
@@ -2663,15 +2663,15 @@ export default function RecursosHumanos() {
                       content = <div style={{display:'flex', justifyContent:'center'}}><Icons.Clock color="var(--color-btnPrimary)" size={20}/></div>;
                   }
                   else if (isVacationType(tipoNormalizado)) { 
-                      cor = '#fefce8'; 
+                      cor = 'var(--lx-fefce8, #fefce8)'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ca8a04" size={20}/> : <Icons.Sun color="#ca8a04" size={20}/>}</div>; 
                   }
                   else if (tipoNormalizado.includes('falta')) { 
-                      cor = '#fef2f2'; 
+                      cor = 'var(--lx-fef2f2, #fef2f2)'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#ef4444" size={20}/> : <Icons.X color="#ef4444" size={20}/>}</div>; 
                   }
                   else { 
-                      cor = '#faf5ff'; 
+                      cor = 'var(--lx-faf5ff, #faf5ff)'; 
                       content = <div style={{display:'flex', justifyContent:'center'}}>{ausencia.is_parcial ? <Icons.Clock color="#a855f7" size={20}/> : <Icons.HeartPulse color="#a855f7" size={20}/>}</div>; 
                   }
               } else if (feriado) {

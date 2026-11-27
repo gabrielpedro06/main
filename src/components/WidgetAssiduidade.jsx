@@ -882,7 +882,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
   const modalOverlayStyle = { zIndex: "calc(var(--z-modal) + 13)" };
   const modalContainerStyle = { maxWidth: '500px' };
   const inputLabelStyle = { display: 'block', marginBottom: '6px', fontSize: '0.72rem', fontWeight: '800', color: 'color-mix(in srgb, var(--color-textPrimary, #0f172a) 62%, transparent)', textTransform: 'uppercase', letterSpacing: '0.06em' };
-  const inputFieldStyle = { width: '100%', padding: '12px 14px', border: '1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 13%, transparent)', borderRadius: '12px', fontSize: '0.95rem', background: '#fff', boxSizing: 'border-box', outline: 'none', color: 'var(--color-textPrimary, #1e293b)', transition: 'border-color 0.2s, box-shadow 0.2s' };
+  const inputFieldStyle = { width: '100%', padding: '12px 14px', border: '1px solid color-mix(in srgb, var(--color-textPrimary, #0f172a) 13%, transparent)', borderRadius: '12px', fontSize: '0.95rem', background: 'var(--sup-1)', boxSizing: 'border-box', outline: 'none', color: 'var(--color-textPrimary, #1e293b)', transition: 'border-color 0.2s, box-shadow 0.2s' };
 
   return (
     <>
@@ -1276,10 +1276,10 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
                                                       key={idx} 
                                                       {...clicavel(() => toggleEndOfDayTask(taskObj))}
                                                       style={{
-                                                          display: 'flex', alignItems: 'flex-start', gap: '12px', color: isChecked ? '#1e293b' : '#94a3b8', 
+                                                          display: 'flex', alignItems: 'flex-start', gap: '12px', color: isChecked ? 'var(--tx-1e293b, #1e293b)' : '#94a3b8', 
                                                           cursor: 'pointer', transition: '0.2s', padding: '10px 12px', borderRadius: '8px',
                                                           background: isChecked ? 'white' : 'transparent',
-                                                          border: isChecked ? '1px solid #e2e8f0' : '1px solid transparent'
+                                                          border: isChecked ? '1px solid var(--lx-e2e8f0, #e2e8f0)' : '1px solid transparent'
                                                       }}
                                                       className="hover-shadow"
                                                   >
@@ -1329,7 +1329,7 @@ const WidgetAssiduidade = React.memo(function WidgetAssiduidade({ onViewHistory 
         .hover-shadow:active:not(:disabled) { transform: translateY(0); }
         
         .hover-blue-btn:hover { background-color: var(--color-bgSecondary) !important; color: var(--color-btnPrimary) !important; }
-        .hover-red-btn:hover { background-color: #fef2f2 !important; color: #ef4444 !important; }
+        .hover-red-btn:hover { background-color: var(--lx-fef2f2, #fef2f2) !important; color: #ef4444 !important; }
         .hover-red-text:hover { color: #ef4444 !important; }
         
         .input-focus:focus { border-color: var(--color-btnPrimary) !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }

@@ -1127,16 +1127,16 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                           onClick={() => toggleCurso(curso.id)}
                           style={{
                             padding: "16px",
-                            border: selected ? "2px solid #6366f1" : "1px solid #e5e7eb",
+                            border: selected ? "2px solid #6366f1" : "1px solid var(--lx-e5e7eb, #e5e7eb)",
                             borderRadius: "12px",
-                            background: selected ? "#f0f4ff" : "#f8f9fa",
+                            background: selected ? "var(--lx-f0f4ff, #f0f4ff)" : "var(--lx-f8f9fa, #f8f9fa)",
                             textAlign: "left",
                             cursor: "pointer",
                           }}
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                             <div>
-                              <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "#0f2240" }}>{curso.nome}</h4>
+                              <h4 style={{ margin: "0 0 8px 0", fontSize: "1rem", color: "var(--tx-0f2240, #0f2240)" }}>{curso.nome}</h4>
                               <div className="muted">{getCursoHoras(curso)} horas</div>
                               {getCursoValor(curso) > 0 && (
                                 <div className="badge badge-success" style={{ marginTop: 10 }}>
@@ -1161,7 +1161,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                   <div style={{ overflowX: "auto" }}>
                     <table className="propostas-pagamentos-tabela" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "var(--sup-1)" }}>
                       <thead>
-                        <tr style={{ background: "#e7f0fa" }}>
+                        <tr style={{ background: "var(--lx-e7f0fa, #e7f0fa)" }}>
                           <th style={{ padding: "8px", border: "1px solid var(--n-200)" }}>Curso</th>
                           <th style={{ padding: "8px", border: "1px solid var(--n-200)" }}>Horas</th>
                           <th style={{ padding: "8px", border: "1px solid var(--n-200)" }}>Valor</th>
@@ -1219,7 +1219,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                   <button aria-label="Editar módulo"
                                     type="button"
                                     onClick={() => setEditingModulo({ cursoId: curso.id, index })}
-                                    style={{ border: "1px solid #dbeafe", background: "var(--cx-eff6ff, #eff6ff)", color: "#0284c7", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
+                                    style={{ border: "1px solid var(--lx-dbeafe, #dbeafe)", background: "var(--cx-eff6ff, #eff6ff)", color: "var(--tx-0284c7, #0284c7)", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
                                     title="Editar módulo"
                                   >
                                     <Pencil size={15} aria-hidden="true" />
@@ -1233,7 +1233,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                         setEditingModulo(null);
                                       }
                                     }}
-                                    style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#dc2626", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
+                                    style={{ border: "1px solid var(--lx-fecaca, #fecaca)", background: "var(--lx-fff1f2, #fff1f2)", color: "#dc2626", borderRadius: 10, width: 34, height: 34, display: "grid", placeItems: "center", cursor: "pointer" }}
                                     title="Remover módulo"
                                   >
                                     ✕
@@ -1259,7 +1259,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                         updated[editingModulo.index] = { ...updated[editingModulo.index], nome: e.target.value };
                                         updateCursoSelecionado(curso.id, "modulos", updated);
                                       }}
-                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #dbe3ef", borderRadius: 10, fontSize: "0.96rem" }}
+                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid var(--lx-dbe3ef, #dbe3ef)", borderRadius: 10, fontSize: "0.96rem" }}
                                     />
                                   </div>
                                   <div>
@@ -1274,7 +1274,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                         updated[editingModulo.index] = { ...updated[editingModulo.index], duracao_horas: Number(e.target.value) || 0 };
                                         updateCursoSelecionado(curso.id, "modulos", updated);
                                       }}
-                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #dbe3ef", borderRadius: 10, fontSize: "0.96rem" }}
+                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid var(--lx-dbe3ef, #dbe3ef)", borderRadius: 10, fontSize: "0.96rem" }}
                                     />
                                   </div>
                                   <div>
@@ -1287,7 +1287,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
                                         updateCursoSelecionado(curso.id, "modulos", updated);
                                       }}
                                       rows={2}
-                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid #dbe3ef", borderRadius: 10, fontSize: "0.96rem", resize: "vertical" }}
+                                      style={{ width: "100%", padding: "10px 12px", border: "1px solid var(--lx-dbe3ef, #dbe3ef)", borderRadius: 10, fontSize: "0.96rem", resize: "vertical" }}
                                     />
                                   </div>
                                   <div style={{ display: "flex", gap: 10 }}>
@@ -1514,7 +1514,7 @@ export default function PropostasFormacao({ propostaId, initialEmpresaConsultora
               {condicoes.nota_honorarios && (
                 <div className="card-inner">
                   <div className="section-heading">Nota dos Honorários</div>
-                  <div style={{ padding: '8px 0', color: '#374151', whiteSpace: 'pre-wrap' }}>{condicoes.nota_honorarios}</div>
+                  <div style={{ padding: '8px 0', color: 'var(--tx-374151, #374151)', whiteSpace: 'pre-wrap' }}>{condicoes.nota_honorarios}</div>
                 </div>
               )}
             </section>

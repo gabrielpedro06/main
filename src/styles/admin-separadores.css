@@ -52,13 +52,13 @@
 .adm-tabela tbody tr:hover { background: color-mix(in srgb, var(--adm-accent) 4%, transparent); }
 .adm-tabela .is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .adm-tabela .is-forte { font-weight: 800; color: var(--adm-ink); }
-.adm-tabela .is-verde { font-weight: 800; color: #059669; }
-.adm-tabela .is-azul { font-weight: 800; color: #0284c7; }
+.adm-tabela .is-verde { font-weight: 800; color: var(--tx-059669, #059669); }
+.adm-tabela .is-azul { font-weight: 800; color: var(--tx-0284c7, #0284c7); }
 .adm-tabela .is-suave, .adm-panel .is-suave { color: var(--adm-muted); font-weight: 600; }
 .adm-tabela .is-nowrap { white-space: nowrap; }
 .adm-taxa { display: inline-flex; align-items: center; gap: 8px; }
 .adm-taxa-barra { width: 70px; height: 6px; border-radius: 6px; background: var(--adm-soft); overflow: hidden; }
-.adm-taxa-barra i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--adm-accent) 60%, var(--sup-1)), var(--adm-accent)); }
+.adm-taxa-barra i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--adm-accent) 60%, #fff), var(--adm-accent)); }
 .adm-taxa b { min-width: 46px; font-weight: 900; color: var(--adm-ink); }
 
 /* pessoa (avatar + nome + papel) */
@@ -96,7 +96,7 @@
 .adm-escolhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .adm-escolha {
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; padding: 14px 16px; border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 10%, transparent); background: rgba(255, 255, 255, 0.7);
+  border: 1px solid color-mix(in srgb, var(--color-textPrimary, var(--n-900)) 10%, transparent); background: color-mix(in srgb, var(--sup-1) 70%, transparent);
   font: inherit; text-align: left; cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.18s ease, box-shadow 0.15s ease;
 }

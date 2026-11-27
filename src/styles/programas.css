@@ -8,7 +8,7 @@
   --pa-faint: var(--n-400);
   --pa-line: var(--n-200);
   --pa-soft: var(--n-100);
-  --pa-field-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, #f3f5f8);
+  --pa-field-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, var(--lx-f3f5f8, #f3f5f8));
   --pa-field-line: color-mix(in srgb, var(--color-btnPrimary) 20%, #cfd6df);
   --pa-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --pa-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -102,7 +102,7 @@
 .pa-deadlines-head { display: flex; align-items: center; gap: 9px; }
 .pa-deadlines-head strong { font-size: 0.92rem; font-weight: 900; color: var(--pa-ink); }
 .pa-deadlines-head > span:last-child { font-size: 0.78rem; color: var(--pa-faint); font-weight: 600; }
-.pa-deadlines-ico { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; background: #fff1f2; color: #e11d48; }
+.pa-deadlines-ico { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; background: var(--lx-fff1f2, #fff1f2); color: #e11d48; }
 .pa-deadlines-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
 .pa-deadline {
   flex: 0 0 auto; min-width: 210px; max-width: 280px;
@@ -166,7 +166,7 @@
 .pa-card-info { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 7px; }
 .pa-card-info > div { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--pa-text); line-height: 1.35; }
 .pa-card-info > div > svg { flex-shrink: 0; color: var(--pa-faint); }
-.pa-card-info .is-green { color: #059669; font-weight: 900; }
+.pa-card-info .is-green { color: var(--tx-059669, #059669); font-weight: 900; }
 .pa-card-info .is-blue { color: var(--cx-0369a1, #0369a1); font-weight: 800; }
 .pa-muted { color: var(--pa-faint); font-style: italic; font-size: 0.82rem; }
 
@@ -201,12 +201,12 @@
 .pa-fase em { font-style: normal; font-weight: 800; color: var(--t); white-space: nowrap; }
 .pa-fase.is-future { --t: #0ea5e9; }
 .pa-fase.is-soon { --t: #f59e0b; background: var(--cx-fffbeb, #fffbeb); }
-.pa-fase.is-urgent { --t: #e11d48; background: #fff1f2; }
+.pa-fase.is-urgent { --t: #e11d48; background: var(--lx-fff1f2, #fff1f2); }
 .pa-fase.is-past { --t: var(--n-300); color: var(--pa-faint); }
 .pa-fase.is-past strong { color: var(--pa-faint); text-decoration: line-through; text-decoration-color: var(--n-300); }
 .pa-fase.is-none { --t: var(--n-300); }
 
-.pa-card-foot { position: relative; z-index: 1; display: flex; align-items: center; gap: 4px; margin: auto -18px 0; padding: 8px 10px; border-top: 1px solid #f1f4f8; background: #fcfdfe; }
+.pa-card-foot { position: relative; z-index: 1; display: flex; align-items: center; gap: 4px; margin: auto -18px 0; padding: 8px 10px; border-top: 1px solid var(--lx-f1f4f8, #f1f4f8); background: var(--lx-fcfdfe, #fcfdfe); }
 .pa-card-main { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; border: none; border-radius: 10px; background: transparent; color: var(--color-btnPrimary); font: inherit; font-size: 0.84rem; font-weight: 800; cursor: pointer; transition: background 0.2s ease; }
 .pa-card-main:hover { background: color-mix(in srgb, var(--color-btnPrimary) 8%, var(--sup-1)); }
 
@@ -214,8 +214,8 @@
 .pa-icon-btn:hover:not(:disabled) { transform: scale(1.08); background: color-mix(in srgb, var(--color-btnPrimary) 10%, var(--sup-1)); color: var(--color-btnPrimary); }
 .pa-icon-btn.is-edit:hover:not(:disabled) { background: var(--cx-fffbeb, #fffbeb); color: #d97706; }
 .pa-icon-btn.is-danger:hover:not(:disabled) { background: var(--cx-fef2f2, #fef2f2); color: #dc2626; }
-.pa-icon-btn.is-ok { color: #16a34a; }
-.pa-icon-btn.is-ok:hover { background: var(--cx-f0fdf4, #f0fdf4); color: #16a34a; }
+.pa-icon-btn.is-ok { color: var(--tx-16a34a, #16a34a); }
+.pa-icon-btn.is-ok:hover { background: var(--cx-f0fdf4, #f0fdf4); color: var(--tx-16a34a, #16a34a); }
 .pa-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* =========================================================================
@@ -225,7 +225,7 @@
 .pa-table-wrap { overflow-x: auto; }
 .pa-table { width: 100%; min-width: 1000px; border-collapse: separate; border-spacing: 0; font-size: 0.84rem; }
 .pa-table th { padding: 12px 14px; background: var(--n-50); border-bottom: 1px solid var(--pa-line); text-align: left; color: var(--pa-muted); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
-.pa-table td { padding: 10px 14px; border-bottom: 1px solid #f1f4f8; color: var(--pa-text); vertical-align: middle; }
+.pa-table td { padding: 10px 14px; border-bottom: 1px solid var(--lx-f1f4f8, #f1f4f8); color: var(--pa-text); vertical-align: middle; }
 .pa-table tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--c); }
 .pa-table tbody tr:hover td { background: var(--n-50); }
 .pa-table tbody tr:last-child td { border-bottom: none; }
@@ -234,7 +234,7 @@
 .pa-row-name > div { display: flex; flex-direction: column; min-width: 0; }
 .pa-row-name strong { color: var(--pa-ink); font-weight: 800; }
 .pa-row-name small { font-size: 0.72rem; font-weight: 700; color: var(--pa-faint); }
-.pa-mono { width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 70%, var(--sup-1)), var(--c)); color: #fff; font-size: 0.62rem; font-weight: 900; }
+.pa-mono { width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 70%, #fff), var(--c)); color: #fff; font-size: 0.62rem; font-weight: 900; }
 .pa-pct { display: inline-flex; padding: 3px 9px; border-radius: 8px; background: var(--cx-ecfdf5, #ecfdf5); color: var(--cx-047857, #047857); font-weight: 900; font-variant-numeric: tabular-nums; }
 .pa-row-avisos { display: flex; flex-wrap: wrap; gap: 4px; }
 .pa-row-avisos .pa-aviso-code { height: 22px; font-size: 0.7rem; }
@@ -278,7 +278,7 @@
   width: min(720px, 100%); max-height: 92vh;
   display: flex; flex-direction: column;
   border-radius: 24px;
-  background: #f4f6f9;
+  background: var(--lx-f4f6f9, #f4f6f9);
   box-shadow: 0 40px 80px -30px rgba(15, 23, 42, 0.55);
   overflow: hidden;
   animation: paPopIn 0.35s var(--pa-ease) both;
@@ -311,7 +311,7 @@
 .pa-fcard-ico svg { width: 15px; height: 15px; }
 .pa-fcard-ico.is-green { background: var(--cx-dcfce7, #dcfce7); color: var(--cx-15803d, #15803d); }
 .pa-fcard-ico.is-blue { background: var(--cx-e0f2fe, #e0f2fe); color: var(--cx-0369a1, #0369a1); }
-.pa-fcard-ico.is-purple { background: #f3e8ff; color: var(--cx-7e22ce, #7e22ce); }
+.pa-fcard-ico.is-purple { background: var(--lx-f3e8ff, #f3e8ff); color: var(--cx-7e22ce, #7e22ce); }
 .pa-count { min-width: 22px; height: 20px; padding: 0 7px; display: inline-grid; place-items: center; border-radius: 99px; background: var(--n-100); color: var(--pa-muted); font-style: normal; font-size: 0.7rem; font-weight: 900; letter-spacing: 0; }
 
 .pa-grid-form { display: grid; gap: 14px 16px; }
@@ -349,7 +349,7 @@ select.pa-input { cursor: pointer; }
 .pa-seg-field button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 9px; background: transparent; font: inherit; font-size: 0.84rem; font-weight: 800; color: var(--pa-muted); cursor: pointer; transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; }
 .pa-seg-field button:disabled { cursor: default; }
 .pa-seg-field button.is-on.is-yes { background: var(--cx-ecfdf5, #ecfdf5); color: var(--cx-047857, #047857); box-shadow: inset 0 0 0 1.5px var(--cx-a7f3d0, #a7f3d0); }
-.pa-seg-field button.is-on.is-no { background: #fff1f2; color: #be123c; box-shadow: inset 0 0 0 1.5px #fecdd3; }
+.pa-seg-field button.is-on.is-no { background: var(--lx-fff1f2, #fff1f2); color: var(--tx-be123c, #be123c); box-shadow: inset 0 0 0 1.5px var(--lx-fecdd3, #fecdd3); }
 
 .pa-inline-empty { padding: 14px; border-radius: 12px; background: var(--n-50); text-align: center; font-size: 0.84rem; font-weight: 600; color: var(--pa-faint); }
 .pa-avisos-edit { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 10px; }

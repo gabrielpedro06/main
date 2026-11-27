@@ -1625,7 +1625,7 @@ export default function MinhasTarefas() {
 
           .hover-blue-text:hover { color: var(--color-btnPrimary) !important; }
           .hover-blue-text:hover span { background: var(--color-bgTertiary) !important; color: var(--color-btnPrimary) !important; }
-          .tab-hover:hover { color: #0f172a !important; }
+          .tab-hover:hover { color: var(--tx-0f172a, #0f172a) !important; }
           .hover-red:hover { opacity: 1 !important; color: #dc2626 !important; }
           .hover-red-text:hover { color: #ef4444 !important; }
           .hover-underline:hover { text-decoration: underline !important; }

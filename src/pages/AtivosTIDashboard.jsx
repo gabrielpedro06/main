@@ -138,7 +138,7 @@ const CATEGORIAS_EQUIP = [
   { id: "computadores", label: "Computadores", icon: "Laptop", color: "#0ea5e9", tipos: ["Computador", "Portátil", "Monitor", "Telemóvel"] },
   { id: "rede", label: "Rede", icon: "Router", color: "#8b5cf6", tipos: ["Router", "Switch", "Access Point", "Cabo Ethernet", "Adaptadores"] },
   { id: "perifericos", label: "Periféricos e cabos", icon: "Keyboard", color: "#f59e0b", tipos: ["Teclado", "Rato", "Webcam", "Fones","Impressora", "Cabo HDMI", "Cabo de alimentação", "Carregador", "Base PC", "Base Monitor", "Cabos USB" ] },
-  { id: "outro", label: "Outro", icon: "Box", color: "#64748b", tipos: ["Outro"] },
+  { id: "outro", label: "Outro", icon: "Box", color: "var(--tx-64748b, #64748b)", tipos: ["Outro"] },
 ];
 
 const TIPO_ICON = {
@@ -158,8 +158,8 @@ function getIconeTipo(tipo) {
 }
 
 const ESTADO_MAP_EQUIP = {
-  em_uso: { txt: "Em uso", cls: "is-green", color: "#16a34a" },
-  em_stock: { txt: "Em stock", cls: "is-blue", color: "#0284c7" },
+  em_uso: { txt: "Em uso", cls: "is-green", color: "var(--tx-16a34a, #16a34a)" },
+  em_stock: { txt: "Em stock", cls: "is-blue", color: "var(--tx-0284c7, #0284c7)" },
   em_reparacao: { txt: "Em reparação", cls: "is-amber", color: "#d97706" },
   reservado: { txt: "Reservado", cls: "is-purple", color: "#7c3aed" },
   abatido: { txt: "Abatido", cls: "is-red", color: "#dc2626" },

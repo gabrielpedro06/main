@@ -3,11 +3,11 @@
    ===================================================================== */
 .pdfo {
   --pdfo-accent: var(--color-btnPrimary, #2563eb);
-  --pdfo-surface: #fff;
-  --pdfo-text: #0f172a;
-  --pdfo-muted: #64748b;
-  --pdfo-soft: color-mix(in srgb, var(--pdfo-accent) 5%, #f8fafc);
-  --pdfo-line: color-mix(in srgb, var(--pdfo-accent) 12%, #e2e8f0);
+  --pdfo-surface: var(--sup-1);
+  --pdfo-text: var(--tx-0f172a, #0f172a);
+  --pdfo-muted: var(--tx-64748b, #64748b);
+  --pdfo-soft: color-mix(in srgb, var(--pdfo-accent) 5%, var(--lx-f8fafc, #f8fafc));
+  --pdfo-line: color-mix(in srgb, var(--pdfo-accent) 12%, var(--lx-e2e8f0, #e2e8f0));
   --pdfo-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -16px rgba(15, 23, 42, 0.16);
   color: var(--pdfo-text);
   font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
@@ -46,9 +46,9 @@
 .pdfo-notice { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 14px; font-size: 0.88rem; font-weight: 600; }
 .pdfo-notice span { flex: 1; }
 .pdfo-notice button { border: 0; background: transparent; cursor: pointer; color: inherit; opacity: 0.6; display: grid; }
-.pdfo-notice.is-ok { background: #ecfdf5; color: #166534; }
-.pdfo-notice.is-warn { background: #fffbeb; color: #92400e; }
-.pdfo-notice.is-error { background: #fef2f2; color: #b91c1c; }
+.pdfo-notice.is-ok { background: var(--lx-ecfdf5, #ecfdf5); color: var(--tx-166534, #166534); }
+.pdfo-notice.is-warn { background: var(--lx-fffbeb, #fffbeb); color: var(--tx-92400e, #92400e); }
+.pdfo-notice.is-error { background: var(--lx-fef2f2, #fef2f2); color: var(--tx-b91c1c, #b91c1c); }
 
 .pdfo-progress { padding: 18px 20px; border-radius: 18px; background: var(--pdfo-surface); border: 1px solid var(--pdfo-line); box-shadow: var(--pdfo-shadow); }
 .pdfo-progress-top { display: flex; justify-content: space-between; gap: 12px; font-size: 0.88rem; margin-bottom: 10px; }
@@ -66,7 +66,7 @@
   color: var(--pdfo-text); transition: border-color 0.2s, background 0.2s;
 }
 .pdfo-drop:hover { border-color: var(--pdfo-accent); background: var(--pdfo-soft); }
-.pdfo-drop-ico { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: color-mix(in srgb, var(--pdfo-accent) 12%, #fff); color: var(--pdfo-accent); margin-bottom: 6px; }
+.pdfo-drop-ico { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: color-mix(in srgb, var(--pdfo-accent) 12%, var(--sup-1)); color: var(--pdfo-accent); margin-bottom: 6px; }
 .pdfo-drop strong { font-size: 1.1rem; }
 .pdfo-drop > span { color: var(--pdfo-muted); font-size: 0.9rem; }
 .pdfo-how { list-style: none; margin: 18px 0 0; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -83,8 +83,8 @@
 .pdfo-kpis > div { display: flex; flex-direction: column; padding: 6px 12px; border-radius: 12px; background: var(--pdfo-soft); min-width: 86px; }
 .pdfo-kpis strong { font-size: 1.05rem; font-weight: 800; }
 .pdfo-kpis span { font-size: 0.7rem; font-weight: 700; color: var(--pdfo-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.pdfo-kpis .is-good strong { color: #15803d; }
-.pdfo-kpis .is-warn strong { color: #b45309; }
+.pdfo-kpis .is-good strong { color: var(--tx-15803d, #15803d); }
+.pdfo-kpis .is-warn strong { color: var(--tx-b45309, #b45309); }
 .pdfo-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pdfo-btn {
   display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 11px;
@@ -103,7 +103,7 @@
 }
 .pdfo-menu button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--pdfo-text); font-size: 0.85rem; font-weight: 600; text-align: left; cursor: pointer; }
 .pdfo-menu button:hover { background: var(--pdfo-soft); }
-.pdfo-menu button.is-danger { color: #b91c1c; }
+.pdfo-menu button.is-danger { color: var(--tx-b91c1c, #b91c1c); }
 .pdfo-menu hr { border: 0; border-top: 1px solid var(--pdfo-line); margin: 5px 0; }
 
 /* ---------- Separadores ---------- */
@@ -123,11 +123,11 @@
 }
 .pdfo-doc.is-media { border-left-color: #f59e0b; }
 .pdfo-doc.is-baixa { border-left-color: #ef4444; }
-.pdfo-doc.is-dup { background: color-mix(in srgb, #f59e0b 6%, #fff); }
+.pdfo-doc.is-dup { background: color-mix(in srgb, #f59e0b 6%, var(--sup-1)); }
 
 .pdfo-thumb {
   position: relative; width: 88px; height: 120px; padding: 0; border: 1px solid var(--pdfo-line); border-radius: 10px;
-  background: #fff; overflow: hidden; cursor: zoom-in; display: grid; place-items: center; color: var(--pdfo-muted);
+  background: var(--sup-1); overflow: hidden; cursor: zoom-in; display: grid; place-items: center; color: var(--pdfo-muted);
 }
 .pdfo-thumb img { width: 100%; height: 100%; object-fit: contain; }
 .pdfo-thumb-count { position: absolute; bottom: 5px; right: 5px; font-size: 0.66rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; background: rgba(15, 23, 42, 0.75); color: #fff; }
@@ -140,15 +140,15 @@
   font: inherit; font-size: 1.05rem; font-weight: 800; color: var(--pdfo-text); background: transparent;
 }
 .pdfo-entity:hover { border-color: var(--pdfo-line); }
-.pdfo-entity::placeholder { color: #b45309; font-weight: 700; }
+.pdfo-entity::placeholder { color: var(--tx-b45309, #b45309); font-weight: 700; }
 .pdfo-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
-.pdfo-pill.is-qr { background: #dcfce7; color: #166534; }
+.pdfo-pill.is-qr { background: var(--lx-dcfce7, #dcfce7); color: var(--tx-166534, #166534); }
 .pdfo-pill.is-text { background: var(--pdfo-soft); color: var(--pdfo-muted); }
-.pdfo-pill.is-warn { background: #fef3c7; color: #92400e; }
-.pdfo-pill.is-dup { background: #ffedd5; color: #9a3412; }
-.pdfo-pill.is-ai { background: #ede9fe; color: #5b21b6; }
+.pdfo-pill.is-warn { background: var(--lx-fef3c7, #fef3c7); color: var(--tx-92400e, #92400e); }
+.pdfo-pill.is-dup { background: var(--lx-ffedd5, #ffedd5); color: var(--tx-9a3412, #9a3412); }
+.pdfo-pill.is-ai { background: var(--lx-ede9fe, #ede9fe); color: #5b21b6; }
 .pdfo-btn.is-ai { border-color: #c4b5fd; color: #6d28d9; }
-.pdfo-btn.is-ai:hover { background: #f5f3ff; }
+.pdfo-btn.is-ai:hover { background: var(--lx-f5f3ff, #f5f3ff); }
 
 .pdfo-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
 .pdfo-fields label, .pdfo-ro { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -159,7 +159,7 @@
 }
 .pdfo-fields label.is-num input { text-align: right; font-variant-numeric: tabular-nums; }
 .pdfo-ro strong { padding: 7px 0; font-size: 0.86rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pdfo input:focus, .pdfo select:focus { outline: none; border-color: var(--pdfo-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pdfo-accent) 18%, transparent); background: #fff; }
+.pdfo input:focus, .pdfo select:focus { outline: none; border-color: var(--pdfo-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pdfo-accent) 18%, transparent); background: var(--sup-1); }
 
 .pdfo-path { display: flex; align-items: center; gap: 2px; min-width: 0; font-size: 0.78rem; color: var(--pdfo-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .pdfo-path span { white-space: nowrap; }
@@ -169,7 +169,7 @@
 .pdfo-doc-side { display: flex; flex-direction: column; gap: 6px; }
 .pdfo-icon { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 38px; height: 34px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--pdfo-line); background: var(--pdfo-surface); color: var(--pdfo-muted); font-size: 0.8rem; font-weight: 800; cursor: pointer; }
 .pdfo-icon:hover { color: var(--pdfo-accent); background: var(--pdfo-soft); }
-.pdfo-icon.is-danger:hover { color: #dc2626; background: #fef2f2; }
+.pdfo-icon.is-danger:hover { color: #dc2626; background: var(--lx-fef2f2, #fef2f2); }
 .pdfo-icon svg { transition: transform 0.2s; }
 .pdfo-icon svg.is-open { transform: rotate(180deg); }
 
@@ -178,12 +178,12 @@
 .pdfo-split { width: 30px; height: 30px; border-radius: 50%; border: 1px dashed var(--pdfo-line); background: var(--pdfo-surface); color: var(--pdfo-muted); cursor: pointer; display: grid; place-items: center; }
 .pdfo-split:hover { border-color: var(--pdfo-accent); color: var(--pdfo-accent); background: var(--pdfo-soft); }
 .pdfo-page { width: 110px; border-radius: 12px; border: 1px solid var(--pdfo-line); overflow: hidden; background: var(--pdfo-soft); }
-.pdfo-page-img { width: 100%; height: 140px; padding: 0; border: 0; background: #fff; cursor: zoom-in; display: grid; place-items: center; overflow: hidden; }
+.pdfo-page-img { width: 100%; height: 140px; padding: 0; border: 0; background: var(--sup-1); cursor: zoom-in; display: grid; place-items: center; overflow: hidden; }
 .pdfo-page-img img { width: 100%; height: 100%; object-fit: contain; }
 .pdfo-page-bar { display: flex; align-items: center; gap: 3px; padding: 4px 5px; font-size: 0.66rem; color: var(--pdfo-muted); }
 .pdfo-page-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdfo-page-bar button { width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--pdfo-muted); cursor: pointer; display: grid; place-items: center; }
-.pdfo-page-bar button:hover { background: #fff; color: var(--pdfo-accent); }
+.pdfo-page-bar button:hover { background: var(--sup-1); color: var(--pdfo-accent); }
 
 /* ---------- Páginas retiradas ---------- */
 .pdfo-excluded { padding: 14px 16px; border-radius: 16px; border: 1px dashed var(--pdfo-line); background: var(--pdfo-soft); }
@@ -191,16 +191,16 @@
 .pdfo-excluded strong { font-size: 0.85rem; color: var(--pdfo-muted); }
 .pdfo-excluded .pdfo-link { margin: 0; }
 .pdfo-excluded ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.pdfo-excluded li { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; background: #fff; border: 1px solid var(--pdfo-line); font-size: 0.76rem; }
+.pdfo-excluded li { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; background: var(--sup-1); border: 1px solid var(--pdfo-line); font-size: 0.76rem; }
 .pdfo-excluded li button { border: 0; background: none; color: var(--pdfo-accent); font-weight: 700; cursor: pointer; }
 .pdfo-foot { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 0.8rem; color: var(--pdfo-muted); }
 
 /* ---------- Pré-visualização ---------- */
 .pdfo-modal { position: fixed; inset: 0; z-index: calc(var(--z-app) + 4); display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); }
-.pdfo-modal-box { width: min(900px, 100%); max-height: 92vh; display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: #fff; }
+.pdfo-modal-box { width: min(900px, 100%); max-height: 92vh; display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: var(--sup-1); }
 .pdfo-modal-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--pdfo-line); font-size: 0.86rem; font-weight: 700; }
 .pdfo-modal-head span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pdfo-modal-head button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--pdfo-line); background: #fff; cursor: pointer; font-weight: 700; font-size: 0.8rem; }
+.pdfo-modal-head button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--pdfo-line); background: var(--sup-1); cursor: pointer; font-weight: 700; font-size: 0.8rem; }
 .pdfo-modal-box > img { display: block; max-width: 100%; max-height: calc(92vh - 54px); margin: 0 auto; object-fit: contain; }
 .pdfo-modal-loading { padding: 60px; text-align: center; color: var(--pdfo-muted); }
 
@@ -217,7 +217,7 @@
 /* Texto lido (diagnóstico) */
 .pdfo-modal-text { padding: 14px 16px; overflow: auto; max-height: calc(92vh - 54px); }
 .pdfo-modal-text p { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; font-size: 0.82rem; font-weight: 700; color: var(--pdfo-muted); }
-.pdfo-modal-text p button { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--pdfo-line); background: #fff; cursor: pointer; font-weight: 700; font-size: 0.78rem; }
+.pdfo-modal-text p button { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--pdfo-line); background: var(--sup-1); cursor: pointer; font-weight: 700; font-size: 0.78rem; }
 .pdfo-modal-text pre { margin: 0; padding: 12px; border-radius: 10px; background: var(--pdfo-soft); white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 /* ---------- Estrutura do ZIP ---------- */
@@ -237,13 +237,13 @@
 .pdfo-tree-folder.is-year { background: var(--pdfo-soft); }
 .pdfo-tree-folder.is-year strong { font-size: 0.95rem; }
 .pdfo-tree-folder.is-csv { margin-top: 10px; }
-.pdfo-tree-folder.is-csv svg { color: #15803d; }
+.pdfo-tree-folder.is-csv svg { color: var(--tx-15803d, #15803d); }
 .pdfo-tree-children { margin-left: 16px; padding-left: 12px; border-left: 2px solid var(--pdfo-line); }
 .pdfo-tree-files { list-style: none; margin: 2px 0 0 20px; padding: 0 0 0 12px; border-left: 1px dashed var(--pdfo-line); }
 .pdfo-tree-files li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 7px; font-size: 0.8rem; min-width: 0; }
 .pdfo-tree-files li:hover { background: var(--pdfo-soft); }
-.pdfo-tree-files li.is-warn .pdfo-tree-name { color: #b45309; }
-.pdfo-tree-pdf { flex-shrink: 0; font-size: 0.66rem; font-weight: 800; padding: 2px 5px; border-radius: 4px; background: #fee2e2; color: #b91c1c; }
+.pdfo-tree-files li.is-warn .pdfo-tree-name { color: var(--tx-b45309, #b45309); }
+.pdfo-tree-pdf { flex-shrink: 0; font-size: 0.66rem; font-weight: 800; padding: 2px 5px; border-radius: 4px; background: var(--lx-fee2e2, #fee2e2); color: var(--tx-b91c1c, #b91c1c); }
 .pdfo-tree-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .pdfo-tree-files em { font-style: normal; color: var(--pdfo-muted); font-size: 0.74rem; white-space: nowrap; }
 @media (max-width: 760px) { .pdfo-tree-files em, .pdfo-tree-folder em { display: none; } }
@@ -293,31 +293,31 @@
 /* ---------- Pré-visualização (aberta no <body>, por cima de tudo) ---------- */
 .pdfo-modal {
   --pdfo-accent: var(--color-btnPrimary, #2563eb);
-  --pdfo-muted: #64748b;
-  --pdfo-soft: color-mix(in srgb, var(--pdfo-accent) 5%, #f8fafc);
-  --pdfo-line: color-mix(in srgb, var(--pdfo-accent) 12%, #e2e8f0);
+  --pdfo-muted: var(--tx-64748b, #64748b);
+  --pdfo-soft: color-mix(in srgb, var(--pdfo-accent) 5%, var(--lx-f8fafc, #f8fafc));
+  --pdfo-line: color-mix(in srgb, var(--pdfo-accent) 12%, var(--lx-e2e8f0, #e2e8f0));
   z-index: calc(var(--z-modal) + 6);
   font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
-  color: #0f172a;
+  color: var(--tx-0f172a, #0f172a);
   cursor: zoom-out;
 }
 .pdfo-modal-box { height: min(92vh, 1200px); max-height: 92vh; cursor: default; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5); }
-.pdfo-modal-head { flex-shrink: 0; position: sticky; top: 0; z-index: 1; background: #fff; }
-.pdfo-modal-head button { color: #0f172a; font-family: inherit; }
+.pdfo-modal-head { flex-shrink: 0; position: sticky; top: 0; z-index: 1; background: var(--sup-1); }
+.pdfo-modal-head button { color: var(--tx-0f172a, #0f172a); font-family: inherit; }
 .pdfo-modal-head button:last-child { width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 50%; }
-.pdfo-modal-head button:last-child:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-.pdfo-modal-scroll { flex: 1; min-height: 0; overflow: auto; background: #f1f5f9; padding: 12px; }
+.pdfo-modal-head button:last-child:hover { background: var(--lx-fef2f2, #fef2f2); color: #dc2626; border-color: var(--lx-fecaca, #fecaca); }
+.pdfo-modal-scroll { flex: 1; min-height: 0; overflow: auto; background: var(--lx-f1f5f9, #f1f5f9); padding: 12px; }
 .pdfo-modal-scroll img { display: block; width: 100%; max-width: 820px; height: auto; margin: 0 auto; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.15); }
 .pdfo-modal-text, .pdfo-modal-loading { flex: 1; min-height: 0; }
 
 /* ---------- Diálogo de confirmação (aberto no <body>) ---------- */
 .pdfo-dialog-back {
   --pdfo-accent: var(--color-btnPrimary, #2563eb);
-  --pdfo-surface: #fff;
-  --pdfo-text: #0f172a;
-  --pdfo-muted: #64748b;
-  --pdfo-soft: color-mix(in srgb, var(--pdfo-accent) 5%, #f8fafc);
-  --pdfo-line: color-mix(in srgb, var(--pdfo-accent) 12%, #e2e8f0);
+  --pdfo-surface: var(--sup-1);
+  --pdfo-text: var(--tx-0f172a, #0f172a);
+  --pdfo-muted: var(--tx-64748b, #64748b);
+  --pdfo-soft: color-mix(in srgb, var(--pdfo-accent) 5%, var(--lx-f8fafc, #f8fafc));
+  --pdfo-line: color-mix(in srgb, var(--pdfo-accent) 12%, var(--lx-e2e8f0, #e2e8f0));
   position: fixed; inset: 0; z-index: calc(var(--z-modal) + 7);
   display: grid; place-items: center; padding: 16px;
   background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(3px);
@@ -338,16 +338,16 @@
 .pdfo-dialog-x:hover { background: var(--pdfo-soft); color: var(--pdfo-text); }
 .pdfo-dialog-ico {
   display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; margin-bottom: 12px;
-  background: color-mix(in srgb, var(--pdfo-accent) 12%, #fff); color: var(--pdfo-accent);
+  background: color-mix(in srgb, var(--pdfo-accent) 12%, var(--sup-1)); color: var(--pdfo-accent);
 }
 .pdfo-dialog h3 { margin: 0 0 8px; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
-.pdfo-dialog-body { font-size: 0.9rem; line-height: 1.55; color: #334155; }
+.pdfo-dialog-body { font-size: 0.9rem; line-height: 1.55; color: var(--tx-334155, #334155); }
 .pdfo-dialog-body p { margin: 0 0 10px; }
 .pdfo-dialog-list { list-style: none; margin: 4px 0 0; padding: 12px; display: grid; gap: 9px; border-radius: 12px; background: var(--pdfo-soft); }
 .pdfo-dialog-list li { display: flex; gap: 9px; align-items: flex-start; font-size: 0.84rem; }
 .pdfo-dialog-list svg { flex-shrink: 0; margin-top: 2px; color: var(--pdfo-accent); }
 .pdfo-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-.pdfo-dialog.is-danger .pdfo-dialog-ico { background: #fef2f2; color: #dc2626; }
+.pdfo-dialog.is-danger .pdfo-dialog-ico { background: var(--lx-fef2f2, #fef2f2); color: #dc2626; }
 .pdfo-dialog.is-danger .pdfo-btn.is-primary { background: #dc2626; border-color: #dc2626; box-shadow: 0 8px 18px -10px rgba(220, 38, 38, 0.6); }
 .pdfo-dialog.is-ai { --pdfo-accent: #7c3aed; }
 .pdfo-dialog.is-ai .pdfo-btn.is-primary { box-shadow: 0 8px 18px -10px rgba(124, 58, 237, 0.6); }

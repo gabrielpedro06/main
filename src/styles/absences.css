@@ -6,7 +6,7 @@
   --ab-sub: var(--n-500);
   --ab-line: var(--n-200);
   --ab-soft: var(--n-50);
-  --ab-field-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, #f3f5f8);
+  --ab-field-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, var(--lx-f3f5f8, #f3f5f8));
   --ab-field-line: color-mix(in srgb, var(--color-btnPrimary) 22%, #cfd6df);
   --ab-accent: var(--color-btnPrimary);
   --ab-spring: cubic-bezier(0.22, 1, 0.36, 1);
@@ -41,7 +41,7 @@
   display: inline-flex; align-items: center; gap: 8px;
   height: 46px; padding: 0 20px;
   border: none; border-radius: 14px;
-  background: var(--sup-1); color: var(--color-btnPrimary);
+  background: #fff; color: var(--color-btnPrimary);
   font: inherit; font-size: 0.95rem; font-weight: 800;
   cursor: pointer;
   box-shadow: 0 12px 26px -12px rgba(0, 0, 0, 0.5);
@@ -221,7 +221,7 @@
   font-size: 0.76rem; font-weight: 800; white-space: nowrap;
 }
 .ab-status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
-.ab-status.is-ok { background: var(--cx-ecfdf5, #ecfdf5); color: #059669; }
+.ab-status.is-ok { background: var(--cx-ecfdf5, #ecfdf5); color: var(--tx-059669, #059669); }
 .ab-status.is-warn { background: var(--cx-fffbeb, #fffbeb); color: #d97706; }
 .ab-status.is-warn .ab-status-dot { animation: abPulse 1.6s ease-in-out infinite; }
 .ab-status.is-bad { background: var(--cx-fef2f2, #fef2f2); color: #dc2626; }
@@ -335,7 +335,7 @@
   box-shadow: 0 10px 20px -10px var(--t2, #ea580c);
   transition: background 0.3s ease;
 }
-.ab-modal-icon.is-accent { background: linear-gradient(135deg, color-mix(in srgb, var(--color-btnPrimary) 55%, var(--sup-1)), var(--color-btnPrimary)); box-shadow: 0 10px 20px -10px var(--color-btnPrimary); }
+.ab-modal-icon.is-accent { background: linear-gradient(135deg, color-mix(in srgb, var(--color-btnPrimary) 55%, #fff), var(--color-btnPrimary)); box-shadow: 0 10px 20px -10px var(--color-btnPrimary); }
 .ab-modal-icon svg { width: 20px; height: 20px; }
 .ab-modal-body { display: flex; flex-direction: column; gap: 16px; padding: 20px 22px; overflow-y: auto; }
 .ab-modal-foot {
@@ -430,8 +430,8 @@
   animation: abPop 0.35s var(--ab-spring) both;
 }
 .ab-dialog-icon { width: 60px; height: 60px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; animation: abPop 0.5s var(--ab-spring) both 0.1s; }
-.ab-dialog.is-success .ab-dialog-icon { background: var(--cx-ecfdf5, #ecfdf5); color: #059669; box-shadow: 0 0 0 8px var(--cx-f0fdf4, #f0fdf4); }
-.ab-dialog.is-error .ab-dialog-icon, .ab-dialog.is-warning .ab-dialog-icon { background: var(--cx-fef2f2, #fef2f2); color: #dc2626; box-shadow: 0 0 0 8px #fff5f5; }
+.ab-dialog.is-success .ab-dialog-icon { background: var(--cx-ecfdf5, #ecfdf5); color: var(--tx-059669, #059669); box-shadow: 0 0 0 8px var(--cx-f0fdf4, #f0fdf4); }
+.ab-dialog.is-error .ab-dialog-icon, .ab-dialog.is-warning .ab-dialog-icon { background: var(--cx-fef2f2, #fef2f2); color: #dc2626; box-shadow: 0 0 0 8px var(--lx-fff5f5, #fff5f5); }
 .ab-dialog h3 { margin: 0 0 6px; font-size: 1.2rem; font-weight: 900; color: var(--ab-ink); }
 .ab-dialog p { margin: 0 0 20px; font-size: 0.92rem; line-height: 1.5; color: var(--ab-sub); }
 .ab-dialog-actions { display: flex; gap: 8px; }

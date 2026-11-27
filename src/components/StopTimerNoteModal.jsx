@@ -298,15 +298,15 @@ export default function StopTimerNoteModal({
           .stop-note-textarea:focus {
             border-color: var(--color-borderColorLight) !important;
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
-            background: #ffffff !important;
+            background: var(--sup-1) !important;
           }
           .stop-note-cancel {
             transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
           }
           .stop-note-cancel:hover {
-            background-color: #f8fafc !important;
+            background-color: var(--lx-f8fafc, #f8fafc) !important;
             border-color: #94a3b8 !important;
-            color: #1e293b !important;
+            color: var(--tx-1e293b, #1e293b) !important;
           }
           .stop-note-confirm {
             transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, filter 0.2s ease;
@@ -321,7 +321,7 @@ export default function StopTimerNoteModal({
           }
           .stop-complete-option:hover {
             border-color: var(--color-borderColor) !important;
-            background: #f8fbff !important;
+            background: var(--lx-f8fbff, #f8fbff) !important;
           }
           .stop-note-select,
           .stop-note-date {
@@ -331,7 +331,7 @@ export default function StopTimerNoteModal({
           .stop-note-date:focus {
             border-color: var(--color-borderColorLight) !important;
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
-            background: #ffffff !important;
+            background: var(--sup-1) !important;
           }
           .stop-note-main {
             overflow-y: auto;
@@ -349,8 +349,8 @@ export default function StopTimerNoteModal({
             min-width: 0;
             border-radius: 10px;
             border: 1px solid #cbd5e1;
-            background: #ffffff;
-            color: #64748b;
+            background: var(--sup-1);
+            color: var(--tx-64748b, #64748b);
             padding: 7px 8px;
             font-size: 0.7rem;
             font-weight: 800;
@@ -516,7 +516,7 @@ export default function StopTimerNoteModal({
                     fontWeight: 600,
                     cursor: "pointer",
                     border: "1px solid var(--color-borderColorLight)",
-                    background: shouldComplete ? "var(--color-bgSecondary)" : "#f8fafc",
+                    background: shouldComplete ? "var(--color-bgSecondary)" : "var(--lx-f8fafc, #f8fafc)",
                     borderRadius: "14px",
                     padding: "12px 14px",
                     textAlign: "left"
@@ -528,7 +528,7 @@ export default function StopTimerNoteModal({
                       height: "20px",
                       borderRadius: "6px",
                       border: shouldComplete ? "none" : "2px solid #94a3b8",
-                      background: shouldComplete ? "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))" : "#fff",
+                      background: shouldComplete ? "linear-gradient(135deg, var(--color-btnPrimary), var(--color-btnPrimaryDark))" : "var(--sup-1)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -702,7 +702,7 @@ export default function StopTimerNoteModal({
                   gridColumn: useSideLayout ? "1 / -1" : "auto",
                   color: "var(--cx-b91c1c, #b91c1c)",
                   background: "var(--cx-fee2e2, #fee2e2)",
-                  border: "1px solid #fecaca",
+                  border: "1px solid var(--lx-fecaca, #fecaca)",
                   borderRadius: "10px",
                   padding: "8px 10px",
                   fontSize: "0.82rem",

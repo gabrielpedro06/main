@@ -169,7 +169,7 @@ export default function EstatisticasTab({ areasFormacao, selectedYear }) {
 
   if (loading) return <div className="af-loading"><span className="af-spinner" /> A carregar estatísticas e KPIs…</div>;
 
-  const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 12px 28px -12px rgba(15,23,42,0.3)", fontSize: 12, fontWeight: 700 };
+  const tooltipStyle = { borderRadius: 12, border: "1px solid var(--lx-e2e8f0, #e2e8f0)", boxShadow: "0 12px 28px -12px rgba(15,23,42,0.3)", fontSize: 12, fontWeight: 700 };
   const renderDonut = (dataset, emptyLabel = "Sem dados") => {
     const total = dataset.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
     if (dataset.length === 0 || total === 0) return <div className="af-chart-empty" style={{ height: 250 }}>{emptyLabel}</div>;
@@ -246,10 +246,10 @@ export default function EstatisticasTab({ areasFormacao, selectedYear }) {
           <h3>Evolução do Volume de Formação (h)</h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={statsPorAno}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--n-100, #eef2f6)" />
               <XAxis dataKey="ano" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-              <RechartsTooltip cursor={{ fill: "#f8fafc" }} contentStyle={tooltipStyle} />
+              <RechartsTooltip cursor={{ fill: "var(--n-50, #f8fafc)" }} contentStyle={tooltipStyle} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "0.76rem", fontWeight: 700 }} />
               <Bar dataKey="volume" name="Volume Total" radius={[8, 8, 0, 0]} maxBarSize={56} shape={(props) => {
                 const fill = Number(props.payload.ano) === Number(selectedYear) ? "var(--color-btnPrimary)" : "#dbe3ec";
@@ -263,10 +263,10 @@ export default function EstatisticasTab({ areasFormacao, selectedYear }) {
           <h3>Evolução de Inscritos</h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={statsPorAno}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--n-100, #eef2f6)" />
               <XAxis dataKey="ano" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-              <RechartsTooltip cursor={{ fill: "#f8fafc" }} contentStyle={tooltipStyle} />
+              <RechartsTooltip cursor={{ fill: "var(--n-50, #f8fafc)" }} contentStyle={tooltipStyle} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "0.76rem", fontWeight: 700 }} />
               <Bar dataKey="formandos" name="Inscritos" radius={[8, 8, 0, 0]} maxBarSize={56} shape={(props) => {
                 const fill = Number(props.payload.ano) === Number(selectedYear) ? "#10b981" : "#dbe3ec";

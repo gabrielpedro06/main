@@ -25,13 +25,13 @@
 }
 .wa-card.is-running {
   --wa: var(--color-btnPrimary);
-  --wa-2: color-mix(in srgb, var(--color-btnPrimary) 55%, #ffffff);
+  --wa-2: color-mix(in srgb, var(--color-btnPrimary) 55%, #fff);
   --wa-soft: var(--color-bgSecondary);
 }
 .wa-card.is-paused {
   --wa: #f59e0b;
   --wa-2: #fcd34d;
-  --wa-soft: #fffbeb;
+  --wa-soft: var(--cx-fffbeb, #fffbeb);
 }
 
 /* Brilho de fundo na cor do estado */
@@ -279,7 +279,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.wa-stat strong.is-extra { color: #16a34a; }
+.wa-stat strong.is-extra { color: var(--tx-16a34a, #16a34a); }
 
 /* ---------- Botões ---------- */
 .wa-actions {
@@ -402,7 +402,7 @@
 }
 .wa-record-range .is-in { color: var(--color-btnPrimary); }
 .wa-record-range .is-out { color: #ef4444; }
-.wa-record-range .is-open { color: #16a34a; font-weight: 800; }
+.wa-record-range .is-open { color: var(--tx-16a34a, #16a34a); font-weight: 800; }
 .wa-record-line {
   flex: 1;
   max-width: 60px;

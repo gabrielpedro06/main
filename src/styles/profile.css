@@ -6,7 +6,7 @@
   --pf-sub: var(--n-500);
   --pf-line: var(--n-200);
   --pf-soft: var(--n-50);
-  --pf-field-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, #f3f5f8);
+  --pf-field-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, var(--lx-f3f5f8, #f3f5f8));
   --pf-field-line: color-mix(in srgb, var(--color-btnPrimary) 22%, #cfd6df);
   --pf-accent: var(--color-btnPrimary);
   --pf-spring: cubic-bezier(0.22, 1, 0.36, 1);
@@ -40,7 +40,7 @@
   width: 104px; height: 104px; border-radius: 50%;
   display: grid; place-items: center;
   overflow: hidden;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-btnPrimary) 60%, var(--sup-1)), var(--color-btnPrimary));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-btnPrimary) 60%, #fff), var(--color-btnPrimary));
   border: 4px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 18px 36px -14px rgba(0, 0, 0, 0.55);
   font-size: 2.1rem; font-weight: 900; letter-spacing: -0.02em; color: #fff;
@@ -124,7 +124,7 @@
 }
 .pf-nav-item.is-active { background: var(--color-bgSecondary, var(--cx-eff6ff, #eff6ff)); color: var(--pf-accent); }
 .pf-nav-item.is-active .pf-nav-icon {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-btnPrimary) 60%, var(--sup-1)), var(--color-btnPrimary));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-btnPrimary) 60%, #fff), var(--color-btnPrimary));
   color: #fff; transform: scale(1.05);
   box-shadow: 0 8px 16px -8px var(--color-btnPrimary);
 }
@@ -295,7 +295,7 @@
   font-size: 0.8rem; font-weight: 700;
 }
 .pf-status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 20%, transparent); }
-.pf-status.is-ok { background: var(--cx-ecfdf5, #ecfdf5); color: #059669; }
+.pf-status.is-ok { background: var(--cx-ecfdf5, #ecfdf5); color: var(--tx-059669, #059669); }
 .pf-status.is-warn { background: var(--cx-fffbeb, #fffbeb); color: #d97706; }
 .pf-status.is-warn .pf-status-dot, .pf-status.is-bad .pf-status-dot { animation: pfPulse 1.6s ease-in-out infinite; }
 .pf-status.is-bad { background: var(--cx-fef2f2, #fef2f2); color: #dc2626; }
@@ -478,9 +478,9 @@
   display: grid; place-items: center;
   animation: pfPop 0.5s var(--pf-spring) both 0.1s;
 }
-.pf-dialog.is-success .pf-dialog-icon { background: var(--cx-ecfdf5, #ecfdf5); color: #059669; box-shadow: 0 0 0 8px var(--cx-f0fdf4, #f0fdf4); }
+.pf-dialog.is-success .pf-dialog-icon { background: var(--cx-ecfdf5, #ecfdf5); color: var(--tx-059669, #059669); box-shadow: 0 0 0 8px var(--cx-f0fdf4, #f0fdf4); }
 .pf-dialog.is-error .pf-dialog-icon,
-.pf-dialog.is-warning .pf-dialog-icon { background: var(--cx-fef2f2, #fef2f2); color: #dc2626; box-shadow: 0 0 0 8px #fff5f5; }
+.pf-dialog.is-warning .pf-dialog-icon { background: var(--cx-fef2f2, #fef2f2); color: #dc2626; box-shadow: 0 0 0 8px var(--lx-fff5f5, #fff5f5); }
 .pf-dialog h3 { margin: 0 0 6px; font-size: 1.2rem; font-weight: 900; color: var(--pf-ink); }
 .pf-dialog p { margin: 0 0 20px; font-size: 0.92rem; line-height: 1.5; color: var(--pf-sub); }
 

@@ -7,7 +7,7 @@
   --km-ink: var(--n-900);
   --km-sub: var(--n-500);
   --km-line: color-mix(in srgb, var(--color-btnPrimary) 22%, #cfd6df);
-  --km-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, #f3f5f8);
+  --km-bg: color-mix(in srgb, var(--color-btnPrimary) 4%, var(--lx-f3f5f8, #f3f5f8));
   --km-spring: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex; flex-direction: column; gap: 12px;
 }
@@ -130,12 +130,12 @@
   overflow: hidden;
   border: 1.5px solid var(--km-line);
   isolation: isolate;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sup-1) 50%, transparent);
 }
 .km-map .leaflet-container { font: inherit; background: var(--n-100); }
 .km-map .leaflet-tile-pane { filter: saturate(0.85) contrast(0.98); }
 .km-map.is-picking .leaflet-container { cursor: crosshair; }
-.km-map .leaflet-control-attribution { font-size: 0.6rem; background: rgba(255, 255, 255, 0.7); border-radius: 6px 0 0 0; }
+.km-map .leaflet-control-attribution { font-size: 0.6rem; background: color-mix(in srgb, var(--sup-1) 70%, transparent); border-radius: 6px 0 0 0; }
 
 .km-hint {
   position: absolute; top: 12px; left: 50%; z-index: calc(var(--z-app) + 1);
