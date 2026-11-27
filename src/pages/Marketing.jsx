@@ -17,6 +17,7 @@ import { useAuth } from "../context/AuthContext";
 import SlidingTabs from "../components/SlidingTabs";
 import FancySelect from "../components/FancySelect";
 import QuadroDeslizante from "../components/QuadroDeslizante";
+import SelectModerno from "../components/SelectModerno";
 import ConteudoDrawer from "../components/marketing/ConteudoDrawer";
 import { Avatar, AvatarStack, PersonaFace } from "../components/marketing/mkFields";
 import CalendarioEditorial from "../components/marketing/CalendarioEditorial";
@@ -32,6 +33,49 @@ import MarcasModal, { MarcaLogo } from "../components/marketing/MarcasModal";
 import { I } from "../components/marketing/mkIcons";
 import { ETAPAS, ETAPAS_ANTES_AGENDAR, ETAPA_INICIAL, estadoInfo, canalInfo, CANAIS, prioridadeInfo, avaliacaoInfo } from "../constants/marketing";
 import { fmtData, diasAte, norm } from "../components/marketing/mkUtils";
+
+// ---------- Ideias: filtro e etiqueta da data da 1.ª publicação ----------
+const FILTROS_DATA_IDEIA = [
+  { id: "todas", label: "Todas" },
+  { id: "sem", label: "Sem data" },
+  { id: "semana", label: "Esta semana" },
+  { id: "mes", label: "Este mês" },
+  { id: "proximo", label: "Próximo mês" },
+  { id: "intervalo", label: "Intervalo…" },
+];
+
+/** A ideia passa no filtro de data? (data = data_publicacao, a 1.ª publicação) */
+function ideiaPassaData(it, filtro, de, ate) {
+  if (filtro === "todas") return true;
+  const iso = it.data_publicacao;
+  if (filtro === "sem") return !iso;
+  if (!iso) return false;
+  const d = new Date(iso);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  if (filtro === "semana") {
+    const seg = new Date(hoje); seg.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7));
+    const fim = new Date(seg); fim.setDate(seg.getDate() + 7);
+    return d >= seg && d < fim;
+  }
+  if (filtro === "mes") return d.getFullYear() === hoje.getFullYear() && d.getMonth() === hoje.getMonth();
+  if (filtro === "proximo") {
+    const p = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+    return d.getFullYear() === p.getFullYear() && d.getMonth() === p.getMonth();
+  }
+  if (filtro === "intervalo") {
+    const dia = iso.slice(0, 10);
+    return (!de || dia >= de) && (!ate || dia <= ate);
+  }
+  return true;
+}
+
+/** Etiqueta da 1.ª publicação no cartão da ideia */
+function etiquetaPublicacao(iso) {
+  if (!iso) return null;
+  const n = diasAte(iso);
+  const quando = n === 0 ? "hoje" : n === 1 ? "amanhã" : n < 0 ? "passou" : n <= 7 ? `em ${n} dias` : "";
+  return { txt: fmtData(iso, { hora: false }), quando, tom: n < 0 ? "is-passou" : n <= 2 ? "is-breve" : "" };
+}
 import "../styles/marketing.css";
 import { CronoChip, CampanhaTempo } from "../components/marketing/Cronometro";
 import { useCronometroMarketing, formatarMinutos } from "../utils/cronometroMarketing";
@@ -136,6 +180,11 @@ export default function Marketing() {
   const [gerirMarcas, setGerirMarcas] = useState(false);
   const [toast, setToast] = useState(null);
   const [novaIdeia, setNovaIdeia] = useState("");
+  // Ideias: filtro pela data da 1.ª publicação e ordem
+  const [ideiaData, setIdeiaData] = useState("todas");
+  const [ideiaDe, setIdeiaDe] = useState("");
+  const [ideiaAte, setIdeiaAte] = useState("");
+  const [ideiaOrdem, setIdeiaOrdem] = useState("recentes");
   const [drag, setDrag] = useState(null); // { id }
   const [dropCol, setDropCol] = useState(null);
   const [dropAntes, setDropAntes] = useState(null);
@@ -460,6 +509,14 @@ export default function Marketing() {
   }, [filtrados]);
 
   const ideias = useMemo(() => filtrados.filter((c) => c.estado === "ideia").sort((a, b) => new Date(b.created_at) - new Date(a.created_at)), [filtrados]);
+  const ideiasVisiveis = useMemo(() => {
+    const l = ideias.filter((it) => ideiaPassaData(it, ideiaData, ideiaDe, ideiaAte));
+    if (ideiaOrdem === "publicacao") {
+      // por data da 1.ª publicação (mais próxima primeiro); sem data no fim
+      return [...l].sort((a, b) => (a.data_publicacao ? new Date(a.data_publicacao).getTime() : Infinity) - (b.data_publicacao ? new Date(b.data_publicacao).getTime() : Infinity));
+    }
+    return l;
+  }, [ideias, ideiaData, ideiaDe, ideiaAte, ideiaOrdem]);
   const arquivo = useMemo(() => filtrados.filter((c) => c.estado === "arquivado").sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)), [filtrados]);
   const noCalendario = useMemo(() => filtrados.filter((c) => c.estado !== "arquivado"), [filtrados]);
 
@@ -767,6 +824,36 @@ export default function Marketing() {
             <button type="submit" className="mk-btn is-primary" disabled={!novaIdeia.trim()}>Guardar ideia</button>
             <button type="button" className="mk-btn mk-ia-btn" onClick={() => setIaAberto(true)}><I.Sparkle size={15} /> Assistente de ideias</button>
           </form>
+          {ideias.length > 0 && (
+            <div className="mk-idea-filtros">
+              <span className="mk-idea-filtros-tit"><I.Calendar size={14} /> 1.ª publicação</span>
+              <div className="mk-idea-chips" role="group" aria-label="Filtrar pela data da 1.ª publicação">
+                {FILTROS_DATA_IDEIA.map((f) => {
+                  const n = f.id === "intervalo" ? null : ideias.filter((it) => ideiaPassaData(it, f.id, "", "")).length;
+                  return (
+                    <button key={f.id} type="button" className={ideiaData === f.id ? "is-on" : ""} aria-pressed={ideiaData === f.id} onClick={() => setIdeiaData(f.id)}>
+                      {f.label}{n != null && <b>{n}</b>}
+                    </button>
+                  );
+                })}
+              </div>
+              {ideiaData === "intervalo" && (
+                <span className="mk-idea-intervalo">
+                  <input type="date" className="mk-input" value={ideiaDe} onChange={(e) => setIdeiaDe(e.target.value)} aria-label="Desde" />
+                  <span>até</span>
+                  <input type="date" className="mk-input" value={ideiaAte} onChange={(e) => setIdeiaAte(e.target.value)} aria-label="Até" />
+                </span>
+              )}
+              <span className="mk-spacer" />
+              <label className="mk-idea-ordem">
+                Ordenar
+                <SelectModerno value={ideiaOrdem} onChange={(e) => setIdeiaOrdem(e.target.value)} aria-label="Ordenar ideias" className="mk-idea-ordem-sel">
+                  <option value="recentes">Mais recentes</option>
+                  <option value="publicacao">Data de publicação</option>
+                </SelectModerno>
+              </label>
+            </div>
+          )}
           {ideias.length === 0 ? (
             <div className="mk-empty is-soft">
               <I.Bulb size={30} />
@@ -774,13 +861,23 @@ export default function Marketing() {
               <p>Escreva acima qualquer ideia — depois desenvolve-a e passa-a para o fluxo quando fizer sentido.</p>
             </div>
           ) : (
+            ideiasVisiveis.length === 0 ? (
+            <div className="mk-empty is-soft">
+              <I.Calendar size={30} />
+              <h3>Nenhuma ideia com esta data</h3>
+              <p>Experimenta outro filtro, ou define a data da 1.ª publicação na ficha da ideia.</p>
+              <button type="button" className="mk-btn is-soft" onClick={() => setIdeiaData("todas")}>Ver todas</button>
+            </div>
+            ) : (
             <div className="mk-idea-grid">
-              {ideias.map((it, i) => {
+              {ideiasVisiveis.map((it, i) => {
                 const autor = pessoa(it.created_by);
+                const pub = etiquetaPublicacao(it.data_publicacao);
                 return (
                   <article key={it.id} className="mk-idea" style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }} {...clicavel(() => setAbertoId(it.id))}>
-                    {(avaliacaoInfo(it.avaliacao) || prioridadeInfo(it.prioridade)) && (
+                    {(avaliacaoInfo(it.avaliacao) || prioridadeInfo(it.prioridade) || pub) && (
                       <div className="mk-idea-badges">
+                        {pub && <span className={`mk-idea-pub ${pub.tom}`} title="Data da 1.ª publicação"><I.Calendar size={12} /> {pub.txt}{pub.quando && <em>{pub.quando}</em>}</span>}
                         {prioridadeInfo(it.prioridade) && <span className="mk-prio" style={{ "--c": prioridadeInfo(it.prioridade).cor }}><I.Flag size={12} sw={2.5} /> {prioridadeInfo(it.prioridade).label}</span>}
                         {avaliacaoInfo(it.avaliacao) && <span className="mk-aval" style={{ "--c": avaliacaoInfo(it.avaliacao).cor }}><i />{avaliacaoInfo(it.avaliacao).label}</span>}
                       </div>
@@ -806,6 +903,7 @@ export default function Marketing() {
                 );
               })}
             </div>
+            )
           )}
         </div>
       ) : (

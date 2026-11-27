@@ -108,7 +108,9 @@ Renomear uma campanha ou um curso propaga o novo nome às peças/leads/turmas **
 
 ## Banco de ideias e arquivo
 
-- Ideias: `estado = 'ideia'`, ordenadas por `created_at`. "Para o fluxo" passa para a etapa inicial (`briefing`).
+- Ideias: `estado = 'ideia'`, ordenadas por `created_at` (ou pela data da 1.ª publicação, opção "Ordenar"). "Para o fluxo" passa para a etapa inicial (`briefing`).
+  - O cartão mostra a **data da 1.ª publicação** (`data_publicacao`, definida na ficha) com "hoje", "amanhã", "em N dias" ou "passou".
+  - Filtro pela data da 1.ª publicação: Todas, Sem data, Esta semana (seg–dom), Este mês, Próximo mês e Intervalo (de/até). Soma-se aos filtros comuns. Lógica em `ideiaPassaData()` (`Marketing.jsx`).
 - Arquivo: `estado = 'arquivado'`; "Restaurar" volta a `estado_antes_arquivo` (ou `ideia`).
 
 ## Aprovação
