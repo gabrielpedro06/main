@@ -634,6 +634,8 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 | 084 | crm_estado_desde | Repõe `estado_desde = created_at` nas leads que não mudaram de etapa (a 1.ª versão da 083 pôs a data do dia em todas) | |
 | 085 | crm_origem_entidade | `marketing_leads.origem` e `marketing_leads.cliente_id` → `clientes` (+ índices) | |
 | 086 | crm_pessoas | Tabela `marketing_leads_pessoas` (outras pessoas de cada lead; RLS staff + marketing) | |
+| 087 | chat_apagar_mensagens | `chat_messages.apagada_em` + `chat_apagar_mensagem()` (definer, só o autor, exige aal2); tabela `chat_mensagens_ocultas`; `mfa_obrigatorio` nas tabelas novas do CRM | |
+| 088 | chat_acoes_mensagens | `chat_messages.resposta_a`, `reencaminhada`, `afixada_em/por` + `chat_afixar_mensagem()`; `chat_apagar_mensagem()` também desafixa; tabela `chat_conversas_minhas` (arquivada, limpa_ate) | |
 | — | modulo_ativos_ti.sql | Rascunho de modelo de Ativos TI | **não aplicado, não correr** |
 
 ---

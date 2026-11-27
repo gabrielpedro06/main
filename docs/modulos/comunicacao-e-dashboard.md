@@ -94,6 +94,28 @@ O rascunho do **chat** já foi extraído para `ChatComposer` (estado local), por
 - os rascunhos dos **comentários** (`newCommentText`, `inlineCommentDrafts`) vivem no `Forum` e redesenham feed, salas e mensagens a cada tecla;
 - a lista de mensagens não está memorizada (cada mensagem recalcula o visto ✓/✓✓ com comparações de datas em cada render).
 
+### Ações das mensagens e conversas (087, 088)
+**Mensagens**: o 😊 é só para reagir. A **seta ˅ no canto da bolha** (ao passar o rato; no telemóvel fica
+sempre visível) abre o menu (`components/chat/MenuFlutuante.jsx`):
+- **Responder**: a caixa de escrita mostra "A responder a…"; a mensagem guarda `resposta_a` e a bolha mostra
+  a citação (clicar leva à original, que fica realçada).
+- **Copiar** o texto (ou o nome do ficheiro).
+- **Reencaminhar** para uma ou mais conversas (`JanelaReencaminhar.jsx`); fica `reencaminhada = true`
+  ("↪ Reencaminhada"). Os anexos do balde privado são **copiados** para a pasta da conversa de destino
+  (senão os membros dessa conversa não os conseguiam abrir).
+- **Afixar / Desafixar** (para todos, como no Discord): `rpc chat_afixar_mensagem` (qualquer participante).
+  O botão **📌 Afixadas** no cabeçalho abre a lista (`PainelAfixadas.jsx`); clicar leva à mensagem.
+- **Apagar para mim** (`chat_mensagens_ocultas`, com Desfazer) e **Apagar para todos** (só as próprias:
+  `rpc chat_apagar_mensagem` limpa texto e anexo, desafixa e marca `apagada_em`; o ficheiro sai do balde).
+
+**Conversas**: seta em cada conversa da lista: **Arquivar/Desarquivar** (vão para a secção "Arquivadas", no
+fim da lista) e **Apagar conversa** só para mim (`chat_conversas_minhas.limpa_ate`: esconde as mensagens até
+esse momento; a conversa volta a aparecer quando chegar uma mensagem nova).
+
+Não há permissão para editar mensagens: só as duas funções (confirmam o 2FA e quem pode).
+
+A lista de pessoas para conversas novas e grupos mostra só colaboradores **ativos** (`profiles.ativo`).
+
 ### Vídeos incorporados (feed e chat)
 Um link do **YouTube** (normal, `youtu.be`, Shorts, diretos), **Vimeo**, **Loom** ou **Google Drive**
 numa publicação ou mensagem aparece como leitor de vídeo (`components/VideoIncorporado.jsx`; até 4

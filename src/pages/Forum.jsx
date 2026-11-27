@@ -31,6 +31,10 @@ import { clicavel } from "../utils/clicavel";
 import { useChamadas, useChamadaEmCurso } from "../context/ChamadasContext";
 import { MSG_CHAMADA, MSG_CHAMADA_FIM } from "../utils/chamadas";
 import { confirmar } from "../utils/dialogo";
+import { ficheiroPrivado } from "../utils/ficheirosPrivados";
+import MenuFlutuante from "../components/chat/MenuFlutuante";
+import JanelaReencaminhar from "../components/chat/JanelaReencaminhar";
+import PainelAfixadas from "../components/chat/PainelAfixadas";
 import SelectModerno from "../components/SelectModerno";
 
 // Publicações apagadas há segundos, à espera do fim do Desfazer (não voltam a aparecer ao recarregar)
@@ -153,12 +157,14 @@ const serializeBlocksToContent = (blocks) => {
 
 // Caixa de escrita do chat. O texto vive AQUI (estado local), para que escrever
 // não obrigue o fórum inteiro (feed, salas, mensagens) a redesenhar-se a cada tecla.
-function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend, onTyping }) {
+function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend, onTyping, resposta, onCancelarResposta }) {
   const inputRef = useRef(null);
   const [draft, setDraft] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
 
   const focusInput = () => setTimeout(() => inputRef.current?.focus(), 50);
+  // ao escolher "Responder", o cursor vai para a caixa
+  useEffect(() => { if (resposta) focusInput(); }, [resposta]);
 
   const handleChange = (value) => {
     setDraft(value);
@@ -178,7 +184,17 @@ function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend
   };
 
   return (
-    <form onSubmit={handleSubmit} className="fx-chat-composer">
+    <form onSubmit={handleSubmit} className={`fx-chat-composer${resposta ? " has-resposta" : ""}`}>
+      {resposta && (
+        <div className="fx-resposta-chip">
+          <span className="fx-resposta-barra" aria-hidden="true" />
+          <span className="fx-resposta-txt">
+            <b>A responder a {resposta.autor}</b>
+            <span>{resposta.texto}</span>
+          </span>
+          <button type="button" onClick={onCancelarResposta} aria-label="Cancelar resposta" title="Cancelar">×</button>
+        </div>
+      )}
       {showEmoji && (
         <div className="fx-emoji-pop">
           <Suspense fallback={<div className="fx-emoji-a-carregar" style={{ width: 320, height: 400, display: "grid", placeItems: "center", color: "var(--cor-suave)" }}>A carregar…</div>}>
@@ -237,6 +253,16 @@ function ChatComposer({ disabled, busy, stagedFile, onStageFile, onPaste, onSend
   );
 }
 
+// Ícones dos menus de ações do chat (14px)
+const IcoMenu = {
+  Responder: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17 4 12l5-5" /><path d="M20 18v-2a4 4 0 0 0-4-4H4" /></svg>,
+  Copiar: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>,
+  Reencaminhar: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 17 5-5-5-5" /><path d="M4 18v-2a4 4 0 0 1 4-4h12" /></svg>,
+  Afixar: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" /></svg>,
+  Apagar: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>,
+  Arquivar: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></svg>,
+};
+
 // ---------- TEMPO REAL ----------
 // Pedir ao Supabase um canal com um nome que ainda existe devolve o canal ANTIGO (que pode
 // estar a fechar); quando este fecha, leva o "novo" com ele e deixam de chegar mensagens até F5.
@@ -265,6 +291,17 @@ function ensureRoomChannel(roomId) {
         const incoming = payload.new;
         // Evita duplicados se o insert local chegar antes do realtime
         bridge.setChatMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "chat_messages", filter: `room_id=eq.${roomId}` },
+      (payload) => {
+        // mensagem apagada para todos (087): atualiza a bolha, mantendo as reações já carregadas
+        const bridge = forumBridge.current;
+        if (!bridge || bridge.activeChatRoomId !== roomId) return;
+        const novo = payload.new;
+        bridge.setChatMessages((prev) => prev.map((m) => (m.id === novo.id ? { ...m, ...novo, chat_reactions: m.chat_reactions } : m)));
       }
     )
     .on("broadcast", { event: "typing" }, ({ payload }) => {
@@ -372,6 +409,16 @@ export default function Forum() {
     );
     useEffect(() => () => { if (stagedPreviewUrl) URL.revokeObjectURL(stagedPreviewUrl); }, [stagedPreviewUrl]);
     const [reactionMenuMessageId, setReactionMenuMessageId] = useState(null);
+    // "Apagar para mim" (087): ids das mensagens que este utilizador escondeu
+    const [mensagensOcultas, setMensagensOcultas] = useState(() => new Set());
+    // Ações das mensagens e conversas (088)
+    const [menuMensagem, setMenuMensagem] = useState(null); // { msg, ancora }
+    const [respostaA, setRespostaA] = useState(null);       // mensagem a que se está a responder
+    const [reencaminharMsg, setReencaminharMsg] = useState(null);
+    const [afixadasAberto, setAfixadasAberto] = useState(false);
+    const [conversasMinhas, setConversasMinhas] = useState({}); // room_id → { arquivada, limpa_ate }
+    const [menuSala, setMenuSala] = useState(null);         // { room, ancora }
+    const [verArquivadas, setVerArquivadas] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [chatPeopleQuery, setChatPeopleQuery] = useState('');
     const [feedReactPicker, setFeedReactPicker] = useState(null);
@@ -579,6 +626,8 @@ export default function Forum() {
     useEffect(() => {
         if (!user?.id) return;
         loadChatCollaborators();
+        loadMensagensOcultas();
+        loadConversasMinhas();
         if (!chatRlsNeedsFix) loadMyChatRooms();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- funções de carregamento recriadas a cada render; carrega só quando muda o utilizador
     }, [user?.id, chatRlsNeedsFix]);
@@ -1455,6 +1504,178 @@ async function handleChatReaction(messageId, emoji) {
       return readByOthers ? "✓✓" : "✓";
   }
 
+  /** Mensagens que escondi ("Apagar para mim"). Sem a migração 087 fica vazio. */
+  async function loadMensagensOcultas() {
+      if (!user?.id) return;
+      const { data, error } = await supabase.from("chat_mensagens_ocultas").select("message_id").limit(10000);
+      if (error) return;
+      setMensagensOcultas(new Set((data || []).map((r) => r.message_id)));
+  }
+
+  /** Apagar para mim: esconde só para quem apaga (com Desfazer). */
+  async function apagarMensagemParaMim(msg) {
+      setReactionMenuMessageId(null);
+      setMensagensOcultas((prev) => new Set(prev).add(msg.id));
+      const { error } = await supabase.from("chat_mensagens_ocultas").insert([{ user_id: user.id, message_id: msg.id }]);
+      if (error) {
+          setMensagensOcultas((prev) => { const n = new Set(prev); n.delete(msg.id); return n; });
+          showToast(/does not exist|schema cache/i.test(error.message || "") ? "Falta correr a migração 087 no Supabase." : "Não foi possível apagar a mensagem.", "error");
+          return;
+      }
+      toastDesfazer("Mensagem apagada para ti.", {
+          desfazer: async () => {
+              setMensagensOcultas((prev) => { const n = new Set(prev); n.delete(msg.id); return n; });
+              await supabase.from("chat_mensagens_ocultas").delete().eq("user_id", user.id).eq("message_id", msg.id);
+          },
+      });
+  }
+
+  /** Apagar para todos (só as minhas): o texto e o anexo saem de vez; fica "Mensagem apagada". */
+  async function apagarMensagemParaTodos(msg) {
+      setReactionMenuMessageId(null);
+      const ok = await confirmar("Apagar para todos?", {
+          mensagem: msg.file_url ? "A mensagem e o ficheiro anexo são apagados para todos na conversa. Não dá para desfazer." : "A mensagem é apagada para todos na conversa. Não dá para desfazer.",
+          botao: "Apagar para todos",
+          perigoso: true,
+      });
+      if (!ok) return;
+      const antes = msg;
+      setChatMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, content: null, file_url: null, file_name: null, apagada_em: new Date().toISOString() } : m)));
+      const { data: ficheiro, error } = await supabase.rpc("chat_apagar_mensagem", { p_id: msg.id });
+      if (error) {
+          setChatMessages((prev) => prev.map((m) => (m.id === msg.id ? antes : m)));
+          showToast(/function .* does not exist|schema cache/i.test(error.message || "") ? "Falta correr a migração 087 no Supabase." : "Não foi possível apagar: " + error.message, "error");
+          return;
+      }
+      // o anexo sai também do balde (quem o carregou pode apagá-lo)
+      const f = ficheiroPrivado(ficheiro);
+      if (f) supabase.storage.from(f.bucket).remove([f.path]).then(({ error: e }) => { if (e) console.error("Ficheiro do chat não apagado:", e.message); });
+  }
+
+  // ---------- Ações das mensagens (088) ----------
+  const autorDe = (msg) => (msg.sender_id === user?.id ? "ti" : getChatSenderDisplayName(msg.sender_id));
+  const resumoMensagem = (msg) => {
+      if (!msg) return "";
+      if (msg.apagada_em) return "Mensagem apagada";
+      const t = msg.content ? limparIframes(msg.content) : (msg.file_name ? `📎 ${msg.file_name}` : "");
+      return t.length > 120 ? `${t.slice(0, 120)}…` : t;
+  };
+
+  async function copiarMensagem(msg) {
+      try {
+          await navigator.clipboard.writeText(msg.content || msg.file_name || "");
+          showToast("Copiado.");
+      } catch {
+          showToast("Não foi possível copiar.", "error");
+      }
+  }
+
+  function responderMensagem(msg) {
+      setRespostaA({ id: msg.id, autor: autorDe(msg), texto: resumoMensagem(msg) });
+  }
+
+  /** Leva a uma mensagem da conversa (citação, afixadas) e realça-a por instantes */
+  function irParaMensagem(id) {
+      const el = document.getElementById(`msg-${id}`);
+      if (!el) { showToast("Essa mensagem já não está visível.", "error"); return; }
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("is-realce");
+      void el.offsetWidth; // reinicia a animação
+      el.classList.add("is-realce");
+  }
+
+  async function afixarMensagem(msg, afixar) {
+      const antes = msg;
+      setChatMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, afixada_em: afixar ? new Date().toISOString() : null, afixada_por: afixar ? user.id : null } : m)));
+      const { error } = await supabase.rpc("chat_afixar_mensagem", { p_id: msg.id, p_afixar: afixar });
+      if (error) {
+          setChatMessages((prev) => prev.map((m) => (m.id === msg.id ? antes : m)));
+          showToast(/function .* does not exist|schema cache/i.test(error.message || "") ? "Falta correr a migração 088 no Supabase." : "Não foi possível: " + error.message, "error");
+          return;
+      }
+      showToast(afixar ? "Mensagem afixada." : "Mensagem desafixada.");
+  }
+
+  /** Reencaminha para as conversas escolhidas (o anexo é copiado para a pasta de cada conversa) */
+  async function reencaminharMensagem(roomIds) {
+      const msg = reencaminharMsg;
+      if (!msg || !roomIds.length) return;
+      let falhas = 0;
+      for (const roomId of roomIds) {
+          try {
+              let fileUrl = null;
+              if (msg.file_url) {
+                  const f = ficheiroPrivado(msg.file_url);
+                  if (f) {
+                      const ext = (msg.file_name || "").split(".").pop() || "bin";
+                      const destino = `${roomId}/${user.id}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+                      const { error: eCopia } = await supabase.storage.from(f.bucket).copy(f.path, destino);
+                      if (eCopia) throw eCopia;
+                      fileUrl = supabase.storage.from(f.bucket).getPublicUrl(destino).data.publicUrl;
+                  } else {
+                      fileUrl = msg.file_url;
+                  }
+              }
+              const linha = { room_id: roomId, sender_id: user.id, content: msg.content || null, file_url: fileUrl, file_name: fileUrl ? msg.file_name : null, reencaminhada: true };
+              let { data, error } = await supabase.from("chat_messages").insert([linha]).select("*").single();
+              if (error && /reencaminhada/i.test(error.message || "")) {
+                  delete linha.reencaminhada;
+                  ({ data, error } = await supabase.from("chat_messages").insert([linha]).select("*").single());
+              }
+              if (error) throw error;
+              if (data && roomId === activeChatRoom?.id) setChatMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]));
+              if (data) rememberLastMessages([data]);
+          } catch (e) {
+              console.error("Erro ao reencaminhar:", e);
+              falhas += 1;
+          }
+      }
+      setReencaminharMsg(null);
+      if (falhas === roomIds.length) showToast("Não foi possível reencaminhar.", "error");
+      else showToast(falhas ? `Reencaminhada (${roomIds.length - falhas} de ${roomIds.length}).` : roomIds.length > 1 ? `Reencaminhada para ${roomIds.length} conversas.` : "Mensagem reencaminhada.");
+  }
+
+  // ---------- Ações das conversas (088) ----------
+  async function loadConversasMinhas() {
+      if (!user?.id) return;
+      const { data, error } = await supabase.from("chat_conversas_minhas").select("room_id, arquivada, limpa_ate");
+      if (error) return; // sem a migração 088
+      setConversasMinhas(Object.fromEntries((data || []).map((r) => [r.room_id, r])));
+  }
+
+  async function gravarConversaMinha(roomId, mudancas) {
+      const antes = conversasMinhas[roomId];
+      const novo = { room_id: roomId, arquivada: false, limpa_ate: null, ...(antes || {}), ...mudancas };
+      setConversasMinhas((prev) => ({ ...prev, [roomId]: novo }));
+      const { error } = await supabase.from("chat_conversas_minhas").upsert([{ user_id: user.id, ...novo, updated_at: new Date().toISOString() }]);
+      if (error) {
+          setConversasMinhas((prev) => { const n = { ...prev }; if (antes) n[roomId] = antes; else delete n[roomId]; return n; });
+          showToast(/does not exist|schema cache/i.test(error.message || "") ? "Falta correr a migração 088 no Supabase." : "Não foi possível: " + error.message, "error");
+          return false;
+      }
+      return true;
+  }
+
+  async function arquivarConversa(room, arquivar) {
+      const ok = await gravarConversaMinha(room.id, { arquivada: arquivar });
+      if (ok) showToast(arquivar ? "Conversa arquivada." : "Conversa desarquivada.");
+  }
+
+  async function apagarConversaParaMim(room) {
+      const titulo = room.display_title || room.nome || "esta conversa";
+      const ok = await confirmar(`Apagar a conversa com ${titulo}?`, {
+          mensagem: "As mensagens deixam de aparecer só para ti; os outros continuam a vê-las. Se chegar uma mensagem nova, a conversa volta a aparecer.",
+          botao: "Apagar conversa",
+          perigoso: true,
+      });
+      if (!ok) return;
+      const feito = await gravarConversaMinha(room.id, { limpa_ate: new Date().toISOString(), arquivada: false });
+      if (feito) {
+          if (activeChatRoom?.id === room.id) setChatMessages([]);
+          showToast("Conversa apagada para ti.");
+      }
+  }
+
   async function loadChatMessages(roomId) {
       if (!roomId) {
           setChatMessages([]);
@@ -1713,19 +1934,23 @@ async function sendChatMessage(rawContent) {
           }
 
           // 2. Insere a mensagem (agora pode ter texto, ficheiro, ou ambos)
-          const { data, error } = await supabase
-              .from("chat_messages")
-              .insert([{
-                  room_id: activeChatRoom.id,
-                  sender_id: user.id,
-                  content: content || null,
-                  file_url: fileUrl,
-                  file_name: fileName,
-              }])
-              .select("*")
-              .single();
+          const linha = {
+              room_id: activeChatRoom.id,
+              sender_id: user.id,
+              content: content || null,
+              file_url: fileUrl,
+              file_name: fileName,
+              ...(respostaA ? { resposta_a: respostaA.id } : {}),
+          };
+          let { data, error } = await supabase.from("chat_messages").insert([linha]).select("*").single();
+          if (error && respostaA && /resposta_a/i.test(error.message || "")) {
+              // migração 088 por correr: envia sem a citação
+              delete linha.resposta_a;
+              ({ data, error } = await supabase.from("chat_messages").insert([linha]).select("*").single());
+          }
 
           if (error) throw error;
+          setRespostaA(null);
           
           // 3. Limpa o anexo (o texto é limpo pelo ChatComposer)
           setChatStagedFile(null);
@@ -1789,6 +2014,7 @@ async function sendChatMessage(rawContent) {
           const { data, error } = await supabase
               .from("profiles")
               .select("id, nome, avatar_url")
+              .eq("ativo", true) // colaboradores inativos não entram em conversas novas
               .order("nome", { ascending: true });
 
           if (error) throw error;
@@ -2407,6 +2633,13 @@ async function sendChatMessage(rawContent) {
       closeAddGroupMembersModal();
   };
 
+  // Mensagens que aparecem (sem as que escondi com "Apagar para mim")
+  const limpaAteSala = activeChatRoom?.id ? conversasMinhas[activeChatRoom.id]?.limpa_ate : null;
+  const chatMessagesVisiveis = (mensagensOcultas.size || limpaAteSala)
+      ? chatMessages.filter((m) => !mensagensOcultas.has(m.id) && (!limpaAteSala || new Date(m.created_at) > new Date(limpaAteSala)))
+      : chatMessages;
+  const afixadasDaSala = chatMessagesVisiveis.filter((m) => m.afixada_em && !m.apagada_em).sort((a, b) => new Date(b.afixada_em) - new Date(a.afixada_em));
+
   // Última atividade de cada sala: mensagem mais recente conhecida (ou a criação da sala)
   const getRoomLastMessage = (room) => {
       const known = lastMessageByRoom[room.id];
@@ -2420,7 +2653,15 @@ async function sendChatMessage(rawContent) {
       const last = getRoomLastMessage(room);
       return new Date(last?.created_at || room.created_at || 0).getTime();
   };
-  const sortedChatRooms = [...chatRooms].sort((a, b) => getRoomActivity(b) - getRoomActivity(a));
+  const salaVisivel = (room) => {
+      const limpa = conversasMinhas[room.id]?.limpa_ate;
+      if (!limpa) return true;
+      const ultima = getRoomLastMessage(room);
+      return Boolean(ultima && new Date(ultima.created_at) > new Date(limpa)); // volta com mensagem nova
+  };
+  const todasSalasOrdenadas = [...chatRooms].filter(salaVisivel).sort((a, b) => getRoomActivity(b) - getRoomActivity(a));
+  const sortedChatRooms = todasSalasOrdenadas.filter((r) => !conversasMinhas[r.id]?.arquivada);
+  const salasArquivadas = todasSalasOrdenadas.filter((r) => conversasMinhas[r.id]?.arquivada);
   const formatRoomTime = (iso) => {
       if (!iso) return '';
       const d = new Date(iso);
@@ -2456,8 +2697,8 @@ async function sendChatMessage(rawContent) {
       const unreadCount = unreadByRoom[room.id] || 0;
       const title = room.display_title || room.nome || 'Conversa privada';
       return (
+          <div key={room.id} className={`fx-room-wrap ${menuSala?.room.id === room.id ? 'is-menu' : ''}`}>
           <button
-              key={room.id}
               type="button"
               onClick={() => openExistingRoom(room)}
               className={`fx-room ${activeChatRoom?.id === room.id && chatModal.show ? 'is-active' : ''} ${unreadCount ? 'has-unread' : ''}`}
@@ -2477,8 +2718,29 @@ async function sendChatMessage(rawContent) {
                   </span>
               </span>
           </button>
+          <button
+              type="button"
+              className="fx-room-mais"
+              aria-label={`Ações da conversa ${title}`}
+              title="Arquivar ou apagar"
+              onClick={(e) => { e.stopPropagation(); setMenuSala(menuSala?.room.id === room.id ? null : { room, ancora: e.currentTarget }); }}
+          >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          </div>
       );
   };
+
+  const renderArquivadas = () => salasArquivadas.length > 0 && (
+      <div className="fx-arquivadas">
+          <button type="button" className="fx-arquivadas-btn" onClick={() => setVerArquivadas((v) => !v)} aria-expanded={verArquivadas}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="5" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></svg>
+              Arquivadas <b>{salasArquivadas.length}</b>
+              <span className={`fx-arquivadas-seta ${verArquivadas ? 'is-on' : ''}`}>›</span>
+          </button>
+          {verArquivadas && salasArquivadas.map(renderRoomItem)}
+      </div>
+  );
 
   const renderPersonOption = (collab, selected, onToggle, multi) => (
       <button key={collab.id} type="button" onClick={onToggle} className={`fx-person ${selected ? 'is-selected' : ''}`} aria-pressed={selected}>
@@ -2923,7 +3185,7 @@ async function sendChatMessage(rawContent) {
           </button>
 
           <div className="fx-room-list custom-scrollbar">
-              {chatRooms.length > 0 ? sortedChatRooms.map(renderRoomItem) : (
+              {chatRooms.length > 0 ? <>{sortedChatRooms.map(renderRoomItem)}{renderArquivadas()}</> : (
                   <div className="fx-rooms-empty">
                       <Icons.Message size={22} />
                       <span>Ainda não criaste chats.</span>
@@ -3232,7 +3494,7 @@ async function sendChatMessage(rawContent) {
                     </div>
 
                     <div className="fx-room-list custom-scrollbar">
-                        {chatRooms.length > 0 ? sortedChatRooms.map(renderRoomItem) : (
+                        {chatRooms.length > 0 ? <>{sortedChatRooms.map(renderRoomItem)}{renderArquivadas()}</> : (
                             <div className="fx-rooms-empty"><span>Ainda não criaste chats.</span></div>
                         )}
                     </div>
@@ -3265,6 +3527,11 @@ async function sendChatMessage(rawContent) {
                             </p>
                         </div>
                         {activeChatRoom?.id && (
+                            <button type="button" onClick={() => setAfixadasAberto((v) => !v)} className={`fx-btn fx-btn-ghost fx-btn-sm ${afixadasAberto ? 'is-on' : ''}`} title="Mensagens afixadas">
+                                <IcoMenu.Afixar /> <span className="fx-hide-sm">Afixadas</span>{afixadasDaSala.length > 0 && <b className="fx-pins-n">{afixadasDaSala.length}</b>}
+                            </button>
+                        )}
+                        {activeChatRoom?.id && (
                             <button type="button" onClick={iniciarChamada} disabled={Boolean(chamada)} className="fx-btn fx-btn-ghost fx-btn-sm" title="Iniciar videochamada com esta conversa">
                                 <Icons.Video size={15} /> <span className="fx-hide-sm">Chamada</span>
                             </button>
@@ -3278,6 +3545,16 @@ async function sendChatMessage(rawContent) {
                     </header>
 
                     {chatError && <div className="fx-alert fx-chat-alert">{chatError}</div>}
+                    {afixadasAberto && activeChatRoom?.id && (
+                        <PainelAfixadas
+                            mensagens={afixadasDaSala}
+                            nomeDe={(id) => (id === user.id ? 'Tu' : getChatSenderDisplayName(id))}
+                            dataDe={(iso) => formatDate(iso)}
+                            onIr={(m) => irParaMensagem(m.id)}
+                            onDesafixar={(m) => afixarMensagem(m, false)}
+                            aoFechar={() => setAfixadasAberto(false)}
+                        />
+                    )}
 
                     <div ref={chatMessagesContainerRef} className="fx-chat-messages custom-scrollbar">
                         {chatLoading && <div className="fx-chat-note"><span className="fx-spinner is-dark" /> A carregar mensagens…</div>}
@@ -3290,14 +3567,14 @@ async function sendChatMessage(rawContent) {
                             </div>
                         )}
 
-                        {!chatLoading && chatMessages.map((msg, index) => {
+                        {!chatLoading && chatMessagesVisiveis.map((msg, index) => {
                             const mine = msg.sender_id === user.id;
                             const isGroup = Boolean(activeChatRoom?.is_group);
                             const tick = getMessageReadTick(msg);
 
                             // LÓGICA DE AGRUPAMENTO
-                            const prevMsg = chatMessages[index - 1];
-                            const nextMsg = chatMessages[index + 1];
+                            const prevMsg = chatMessagesVisiveis[index - 1];
+                            const nextMsg = chatMessagesVisiveis[index + 1];
                             const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
                             const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
                             const hasReactions = msg.chat_reactions && msg.chat_reactions.length > 0;
@@ -3310,6 +3587,7 @@ async function sendChatMessage(rawContent) {
                             return (
                                 <div
                                     key={msg.id}
+                                    id={`msg-${msg.id}`}
                                     className={`fx-msg-row ${mine ? 'is-mine' : ''} ${isFirstInGroup ? 'is-first' : ''} ${isLastInGroup ? 'is-last' : ''} ${hasReactions ? 'has-reactions' : ''}`}
                                 >
                                     {!mine && isGroup && (
@@ -3318,7 +3596,18 @@ async function sendChatMessage(rawContent) {
                                         </span>
                                     )}
 
-                                    <div className={`fx-bubble ${isImage && !msg.content ? 'is-media' : ''}`}>
+                                    <div className={`fx-bubble ${isImage && !msg.content ? 'is-media' : ''} ${msg.afixada_em ? 'is-afixada' : ''}`}>
+
+                                        {/* SETA DE AÇÕES (responder, copiar, reencaminhar, afixar, apagar) */}
+                                        <button
+                                            type="button"
+                                            className={`fx-bubble-mais ${menuMensagem?.msg.id === msg.id ? 'is-open' : ''}`}
+                                            aria-label="Mais ações"
+                                            title="Mais ações"
+                                            onClick={(e) => { e.stopPropagation(); setMenuMensagem(menuMensagem?.msg.id === msg.id ? null : { msg, ancora: e.currentTarget }); }}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                                        </button>
 
                                         {/* BOTÃO FLUTUANTE DE HOVER */}
                                         {reactionMenuMessageId !== msg.id && (
@@ -3337,7 +3626,7 @@ async function sendChatMessage(rawContent) {
                                             <>
                                                 <div className="fx-click-away" onClick={(e) => { e.stopPropagation(); setReactionMenuMessageId(null); }} />
                                                 <div className="fx-react-menu fx-react-menu-chat">
-                                                    {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                                    {!msg.apagada_em && ['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                                                         <button
                                                             key={emoji}
                                                             type="button"
@@ -3351,6 +3640,17 @@ async function sendChatMessage(rawContent) {
                                                 </div>
                                             </>
                                         )}
+
+                                        {msg.reencaminhada && !msg.apagada_em && <div className="fx-bubble-fwd">↪ Reencaminhada</div>}
+                                        {msg.resposta_a && !msg.apagada_em && (() => {
+                                            const original = chatMessages.find((m) => m.id === msg.resposta_a);
+                                            return (
+                                                <button type="button" className="fx-bubble-citacao" onClick={(e) => { e.stopPropagation(); irParaMensagem(msg.resposta_a); }}>
+                                                    <b>{original ? (original.sender_id === user.id ? 'Tu' : getChatSenderDisplayName(original.sender_id)) : 'Mensagem'}</b>
+                                                    <span>{original ? resumoMensagem(original) : 'Mensagem anterior'}</span>
+                                                </button>
+                                            );
+                                        })()}
 
                                         {/* REMETENTE, FICHEIROS E TEXTO */}
                                         {isGroup && isFirstInGroup && !mine && (
@@ -3402,6 +3702,8 @@ async function sendChatMessage(rawContent) {
                                                     <span className="fx-bubble-call-ico"><Icons.Video size={16} /></span>
                                                     <span className="fx-bubble-call-txt">Chamada terminada{msg.content.slice(MSG_CHAMADA_FIM.length) && <small>Duração{msg.content.slice(MSG_CHAMADA_FIM.length).replace(" · ", ": ")}</small>}</span>
                                                 </div>
+                                            ) : msg.apagada_em ? (
+                                                <div className="fx-bubble-text is-apagada"><Icons.Trash size={13} /> {mine ? "Apagaste esta mensagem" : "Mensagem apagada"}</div>
                                             ) : msg.content && (
                                                 <>
                                                     <div className="fx-bubble-text">{limparIframes(msg.content)}</div>
@@ -3409,6 +3711,7 @@ async function sendChatMessage(rawContent) {
                                                 </>
                                             )}
                                             <span className="fx-bubble-meta">
+                                                {msg.afixada_em && <span className="fx-bubble-pin" title="Afixada" aria-label="Afixada"><IcoMenu.Afixar /></span>}
                                                 {timeLabel.includes(' às ') ? timeLabel.split(' às ')[1] : timeLabel}
                                                 {mine && <span className={`fx-tick ${tick === '✓✓' ? 'is-read' : ''}`}>{tick}</span>}
                                             </span>
@@ -3456,12 +3759,68 @@ async function sendChatMessage(rawContent) {
                         onPaste={handleChatPaste}
                         onSend={sendChatMessage}
                         onTyping={emitTypingStatus}
+                        resposta={respostaA}
+                        onCancelarResposta={() => setRespostaA(null)}
                     />
                 </section>
             </div>
         </div>
     </ModalPortal>
 )}
+
+      {/* --- MENU DA MENSAGEM (seta no canto da bolha) --- */}
+      {menuMensagem && (() => {
+          const m = menuMensagem.msg;
+          const minha = m.sender_id === user?.id;
+          const viva = !m.apagada_em;
+          return (
+              <MenuFlutuante
+                  ancora={menuMensagem.ancora}
+                  aoFechar={() => setMenuMensagem(null)}
+                  alinhar={minha ? "direita" : "esquerda"}
+                  itens={[
+                      viva && { id: "responder", label: "Responder", icone: <IcoMenu.Responder />, acao: () => responderMensagem(m) },
+                      viva && (m.content || m.file_name) && { id: "copiar", label: "Copiar", icone: <IcoMenu.Copiar />, acao: () => copiarMensagem(m) },
+                      viva && { id: "reencaminhar", label: "Reencaminhar", icone: <IcoMenu.Reencaminhar />, acao: () => setReencaminharMsg(m) },
+                      viva && { id: "afixar", label: m.afixada_em ? "Desafixar" : "Afixar", icone: <IcoMenu.Afixar />, acao: () => afixarMensagem(m, !m.afixada_em) },
+                      viva && { separador: true },
+                      { id: "apagar-mim", label: "Apagar para mim", icone: <IcoMenu.Apagar />, acao: () => apagarMensagemParaMim(m) },
+                      minha && viva && { id: "apagar-todos", label: "Apagar para todos", icone: <IcoMenu.Apagar />, perigo: true, acao: () => apagarMensagemParaTodos(m) },
+                  ]}
+              />
+          );
+      })()}
+
+      {/* --- MENU DA CONVERSA (seta na lista de conversas) --- */}
+      {menuSala && (
+          <MenuFlutuante
+              ancora={menuSala.ancora}
+              aoFechar={() => setMenuSala(null)}
+              itens={[
+                  conversasMinhas[menuSala.room.id]?.arquivada
+                      ? { id: "desarquivar", label: "Desarquivar", icone: <IcoMenu.Arquivar />, acao: () => arquivarConversa(menuSala.room, false) }
+                      : { id: "arquivar", label: "Arquivar", icone: <IcoMenu.Arquivar />, acao: () => arquivarConversa(menuSala.room, true) },
+                  { separador: true },
+                  { id: "apagar", label: "Apagar conversa", dica: "só para ti", icone: <IcoMenu.Apagar />, perigo: true, acao: () => apagarConversaParaMim(menuSala.room) },
+              ]}
+          />
+      )}
+
+      {/* --- REENCAMINHAR --- */}
+      <JanelaReencaminhar
+          mensagem={reencaminharMsg}
+          conversas={[...sortedChatRooms, ...salasArquivadas].map((room) => {
+              const titulo = room.display_title || room.nome || 'Conversa privada';
+              return {
+                  id: room.id,
+                  titulo,
+                  subtitulo: room.is_group ? 'Grupo' : 'Conversa privada',
+                  avatar: <span className={`fx-avatar fx-avatar-sm ${room.is_group ? 'is-group' : ''}`}>{renderAvatar(titulo, room.display_avatar_url || null, 34, '0.74rem')}</span>,
+              };
+          })}
+          onEnviar={reencaminharMensagem}
+          aoFechar={() => setReencaminharMsg(null)}
+      />
 
       {/* --- MODAL ADICIONAR PESSOAS AO GRUPO --- */}
       {showAddGroupMembersModal && (
