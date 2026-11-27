@@ -637,6 +637,7 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 | 087 | chat_apagar_mensagens | `chat_messages.apagada_em` + `chat_apagar_mensagem()` (definer, só o autor, exige aal2); tabela `chat_mensagens_ocultas`; `mfa_obrigatorio` nas tabelas novas do CRM | |
 | 088 | chat_acoes_mensagens | `chat_messages.resposta_a`, `reencaminhada`, `afixada_em/por` + `chat_afixar_mensagem()`; `chat_apagar_mensagem()` também desafixa; tabela `chat_conversas_minhas` (arquivada, limpa_ate) | |
 | 089 | seguranca_fase3 | `bizin_pode_marketing()`; RLS de `marketing_*` (gestão + marketing; aprovadores nas suas peças), `software`, `proposta_cursos`; `notificacoes_projetos` só em nome próprio e links internos; `provisionar_saldos_ferias` só gestão; balde `documents` privado; Formação/Programas/Avisos: só a gestão apaga | |
+| 090 | ferias_contagem_igual_app | `calcular_dias_ferias_gozados` conta como a app (tipo com/sem acento via `bizin_tipo_e_ferias`, sem feriados `bizin_feriados` nem tolerâncias `bizin_tipo_e_tolerancia`); trigger também em delete, tolerâncias e pedidos que atravessam o ano (`bizin_recalcular_saldos_ferias`); `transito_expira_em` = 31/03 do ano da linha; recalcula todos os saldos | |
 | — | modulo_ativos_ti.sql | Rascunho de modelo de Ativos TI | **não aplicado, não correr** |
 
 ---
@@ -691,16 +692,10 @@ passos manuais; **[!]** = ficheiro com problema (ver § 19).
 * **`modulo_ativos_ti.sql`** está na pasta de migrações mas não é uma migração aplicada.
 * **Esquema e políticas criadas no painel** (`propostas_comerciais` lida por admins, `equipamentos`,
   `profiles`, buckets `avatars`/`forum_media`/`documents`, `handle_new_user`, …) não estão versionados.
-* **Férias com acento**: `calcular_dias_ferias_gozados`, `sincronizar_saldo_ferias_por_pedido` e
-  `aprovar_pedido_ferias_por_email` reconhecem férias com `lower(tipo) like '%fer%'`; a app grava
-  `tipo = 'Férias'` (com "é"), que **não** corresponde a `%fer%`. Na prática o cálculo em SQL deve dar 0
-  para pedidos novos; quem mantém `dias_gozados` correto é a app (`sincronizarSaldoFeriasPerfil`). Se
-  alguém correr `provisionar_saldos_ferias(<ano corrente>)`, os `dias_gozados` desse ano podem ser
-  reescritos com o valor SQL. Confirmar com
-  `select distinct tipo from ferias;` antes de depender do cálculo em SQL.
-* **Cálculo SQL ≠ cálculo da app**: o SQL conta seg–sex sem feriados nem tolerâncias; a app desconta tolerâncias.
-* **`transito_expira_em` inconsistente**: SQL grava `31/03/<ano>`, o backfill da 040 e a app gravam `31/03/<ano+1>`.
-  A app ignora a coluna; `dias_disponiveis` (gerada) também não considera a expiração.
+* ~~**Férias com acento / cálculo SQL ≠ app / `transito_expira_em` inconsistente**~~ **corrigido (090)**:
+  havia pedidos `Férias` e `ferias` e o SQL (`like '%fer%'`) ignorava os com acento; também contava
+  feriados e tolerâncias. Agora conta como a app e o prazo é `31/03/<ano da linha>` nos dois lados.
+  Fica: `dias_disponiveis` (gerada) não considera a expiração dos transitados (a app trata disso).
 * **`vacation_balances`: gestor pode inserir/atualizar (076) mas não tem política de SELECT** (a da 040 não
   inclui `gestor`). Um `upsert` com conflito por um gestor sobre a linha de outra pessoa pode falhar.
 * **Regra do ano de admissão no SQL**: nos anos seguintes ao de admissão, `provisionar_saldos_ferias`

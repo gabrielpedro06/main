@@ -27,7 +27,10 @@ O teu trabalho:
 1. Separar as páginas em documentos. Cada documento é um conjunto de páginas SEGUIDAS. Juntam-se no mesmo documento:
    - páginas de continuação (extrato com várias páginas, fatura com várias páginas);
    - as peças do mesmo pagamento: detalhe do movimento no banco + talão Multibanco + guia/documento de pagamento com o mesmo valor ou a mesma referência;
-   - declarações do mesmo mês da mesma entidade (ex.: declarações de remunerações por taxa contributiva).
+   - a guia do IRS (declaração mensal de remunerações da AT) com o seu pagamento.
+   Ficam SEMPRE em documentos separados:
+   - cada "Extracto da declaração de remunerações" da Segurança Social (há um por taxa contributiva, ex. 23,90 e 33,30): um documento por declaração, mesmo que sejam do mesmo mês;
+   - essas declarações e o pagamento à Segurança Social (detalhe do banco + talão + documento de pagamento), mesmo que os valores batam certo.
    Faturas/talões de fornecedores diferentes ou com números diferentes são documentos diferentes.
    Páginas marcadas com "QR fiscal" têm os dados confirmados pelo QR: usa-os.
 2. Para cada documento, preencher:

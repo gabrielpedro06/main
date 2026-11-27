@@ -149,18 +149,21 @@ Há **três** escritores, que convém conhecer:
    com `dias_gozados` calculado em JS (sem fins de semana, **sem feriados e sem
    tolerâncias**). Chamado depois de aprovar/cancelar, registar ausência, mudar a
    ficha ou criar/apagar tolerâncias.
-2. **Trigger `sincronizar_saldo_ferias_apos_alteracao`** (migração 042) — em cada
-   insert/update de `ferias` cujo tipo contenha "fer", recalcula `dias_gozados` com a
-   função SQL `calcular_dias_ferias_gozados`, que só exclui fins de semana (**conta
-   feriados e tolerâncias**). Só atualiza linhas existentes (não cria).
+2. **Trigger `sincronizar_saldo_ferias_apos_alteracao`** (042, refeito na 090) — em cada
+   insert/update/delete de `ferias` de férias (com ou sem acento, `bizin_tipo_e_ferias`) ou de
+   tolerância, recalcula `dias_gozados` com `calcular_dias_ferias_gozados`, que **conta como a
+   app**: sem fins de semana, feriados (`bizin_feriados`, igual a `getFeriados`) nem tolerâncias;
+   parciais = horas/8. Tolerância global → recalcula todos; pedidos que atravessam o ano →
+   os dois anos. Só atualiza linhas existentes (não cria).
 3. **`provisionar_saldos_ferias(p_ano)`** (040) — cria as linhas do ano para todos os
    perfis ativos: `dias_atribuidos` = limite do perfil se `p_ano` é o ano de admissão,
    senão 22; `dias_transitados` = `dias_disponiveis` do ano anterior (sem limite);
    em conflito recalcula `dias_gozados` e, se for o ano seguinte, os transitados.
 
-Consequência: os dois cálculos de `dias_gozados` (JS e SQL) diferem quando há
-feriados ou tolerâncias dentro de férias. O valor que fica é o do último a escrever —
-normalmente o JS, porque corre depois do trigger. Ver §12.
+Desde a 090 (27/11/2026) os dois cálculos de `dias_gozados` (JS e SQL) dão o mesmo valor
+(testado com PGlite contra `feriasSaldo.js`: feriados 2024–2035, tipos com/sem acento,
+parciais, tolerâncias globais e pessoais). Antes, o SQL ignorava os pedidos "Férias" (com
+acento) e contava feriados e tolerâncias. **Ao mudar uma regra num lado, mudar no outro.**
 
 ### 4.4 Provisionamento anual
 

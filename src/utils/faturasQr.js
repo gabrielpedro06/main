@@ -427,7 +427,10 @@ function kindMeta(kind, pages, text) {
   } else {
     meta.category = "Impostos / Estado";
     meta.entity = "Segurança Social";
-    meta.label = ["Declaracao_Remuneracoes", periodoRef(text)].filter(Boolean).join("_");
+    // Uma declaração por taxa contributiva (ex.: 23,90 e 33,30): a taxa distingue os ficheiros
+    const taxas = [...new Set([...text.matchAll(/taxa\s*contributiva\s*:?\s*(\d{1,2}[.,]\d{2})/gi)].map((t) => t[1].replace(".", ",")))];
+    meta.label = ["Declaracao_Remuneracoes", periodoRef(text), taxas.length === 1 ? `Taxa_${taxas[0].replace(",", "_")}` : ""]
+      .filter(Boolean).join("_");
     const d = text.match(/data\s*de\s*entrega\s*:?\s*(20\d{2})[-/](\d{2})[-/](\d{2})/i);
     meta.date = d ? isoFrom(d[1], d[2], d[3]) : "";
     // Várias declarações do mesmo mês (uma por taxa contributiva): soma as contribuições

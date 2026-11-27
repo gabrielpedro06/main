@@ -722,11 +722,10 @@ function decideBreak(a, prev, g, hubNifs = new Set()) {
     if (a.refs.some((r) => g.refs.has(r))) return false;
     return !a.amounts.some((v) => g.amounts.has(v));
   }
-  if (a.kind === "declRem" && g.kind === "declRem") {
-    // Declarações do mesmo mês e da mesma entidade (ex.: uma por taxa contributiva) ficam juntas
-    if (!a.declRef || !g.declRef || a.declRef !== g.declRef) return true;
-    return Boolean(a.niss && g.niss && a.niss !== g.niss);
-  }
+  // Extratos da declaração de remunerações da SS: cada um (um por taxa contributiva) é um documento
+  // à parte, e também separados do pagamento à SS (pedido da contabilidade, 27/11/2026).
+  // Folhas de continuação de uma declaração longa não repetem o cabeçalho (kind "") e ficam juntas.
+  if (a.kind === "declRem" && g.kind === "declRem") return true;
   if (a.kind && !g.kind && g.pages && (g.title || g.hasTotal)) return true;
 
   // 0. ATCUD: código único por fatura. Comparado só com outros ATCUD.

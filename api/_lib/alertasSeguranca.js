@@ -78,7 +78,8 @@ const GRAV = { alta: { cor: "#b91c1c", nome: "Alta" }, media: { cor: "#b45309", 
 async function emailsAdmins(admin) {
   const { data } = await admin.from("profiles").select("email, role, tipo, ativo");
   return [...new Set((data || [])
-    .filter((p) => p.ativo !== false && emailValido(p.email) && [p.role, p.tipo].some((r) => PAPEIS.admin.includes(String(r || "").toLowerCase())))
+    // mesmo critério da BD (bizin_papel): vale o role; o tipo só conta se não houver role
+    .filter((p) => p.ativo !== false && emailValido(p.email) && PAPEIS.admin.includes(String(p.role || p.tipo || "").toLowerCase()))
     .map((p) => p.email.trim().toLowerCase()))];
 }
 

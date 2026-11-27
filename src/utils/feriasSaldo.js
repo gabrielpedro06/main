@@ -765,7 +765,7 @@ export async function sincronizarSaldoFeriasPerfil({
       dias_atribuidos: diasAtribuidos,
       dias_transitados: diasTransitados,
       dias_gozados: saldo.diasConsumidos,
-      transito_expira_em: `${ano + 1}-03-31`,
+      transito_expira_em: getCarryoverDeadline(ano), // prazo dos dias transitados desta linha (igual ao SQL, 090)
       atualizado_em: new Date().toISOString(),
     }, { onConflict: "user_id,ano" });
 

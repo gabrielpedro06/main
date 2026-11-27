@@ -67,6 +67,9 @@ Os descodificadores do pdf.js (JBIG2/JPEG2000 em WebAssembly, ICC, fontes, cmaps
 ### Separação e metadados
 
 - `segmentPages`: regras de texto (`computeBreaks` em `pdfOrganizerEngine.js`) corrigidas pelo QR — páginas com o mesmo QR (ATCUD ou NIF+nº) ficam juntas, QR diferente começa documento novo.
+- Pagamentos ao Estado (sem QR): detalhe do movimento no banco + talão Multibanco + guia ficam juntos pelo mesmo valor ou referência (a guia do IRS da AT vai com o seu pagamento).
+- **Segurança Social** (pedido da contabilidade, 27/11/2026): o pagamento à SS é um documento e **cada extrato da declaração de remunerações** (um por taxa contributiva) é outro, mesmo do mesmo mês. O nome do ficheiro leva a taxa (`…_Declaracao_Remuneracoes_Junho_2026_Taxa_23_90`). A instrução da IA (`api/organizador/ia.js`) tem a mesma regra.
+- Para testar a separação fora do browser: pdf.js (com `wasmUrl`, sem ele as imagens CCITT dos scanners Ricoh saem brancas) + `@napi-rs/canvas` + tesseract.js em Node, com o mesmo `readPdfPage`.
 - `buildDocMeta`: categoria (Faturas, Vencimentos, Extratos bancários, Gastos, Contratos, Guias, Impostos / Estado, Outros), tipo, NIF, fornecedor, data, nº, ATCUD, total, confiança (`alta`/`media`/…) e campos em falta. O NIF do adquirente (a própria empresa) é ignorado como fornecedor.
 - Fornecedores corrigidos à mão ficam "aprendidos" por NIF em `localStorage["bz-pdf-fornecedores"]`.
 - Revisão manual: tesoura entre páginas (separar), juntar ao anterior, rodar, excluir página, editar campos. Duplicados detetados pelo ATCUD. Filtros: todos / a rever / duplicados.

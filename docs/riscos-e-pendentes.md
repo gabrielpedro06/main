@@ -18,11 +18,8 @@ Esta lista foi feita a 20/11/2026, ao documentar o código. São achados de leit
 8. ~~**Recuperação de password partida**~~ **corrigido (25/11/2026)**, confirmado por um colaborador: o ecrã de 2FA aparecia e desaparecia.
    - Causa: o HashRouter + o `AuthContext` terminavam a sessão de recuperação, que não tinha o cookie `bz_mfa`.
    - Ver `utils/recuperacao.js` e a secção "Recuperação de palavra-passe" em `01-arquitetura.md`.
-   - Pendente: o serviço de email incluído no Supabase envia poucos emails por hora. Configurar um SMTP próprio em Authentication → Emails → SMTP Settings.
-9. **Possível bug nas férias em SQL** *(a confirmar com `select distinct tipo from ferias`)*:
-   - as funções reconhecem férias com `lower(tipo) like '%fer%'`, mas a app grava "Férias" com acento;
-   - SQL e JS calculam os dias gozados de maneiras diferentes (o SQL não desconta feriados nem tolerâncias);
-   - `transito_expira_em` está incoerente entre os dois.
+   - ~~Pendente: SMTP próprio~~ **configurado (27/11/2026)**: Supabase → Authentication → Emails → SMTP com o relay da Brevo (`smtp-relay.brevo.com:587`, conta Geoflicks, remetente verificado). Atenção: o bloqueio de IPs não autorizados da Brevo tem de estar desligado (o Supabase envia de IPs variáveis).
+9. ~~**Bug nas férias em SQL**~~ **corrigido (090, 27/11/2026)**: confirmado (há `Férias` e `ferias`; o SQL ignorava os com acento e contava feriados e tolerâncias). O SQL passou a contar exatamente como a app (testado), o trigger também reage a tolerâncias e a pedidos apagados, e `transito_expira_em` ficou igual nos dois. **Correr a 090 antes de 1 de dezembro** (o cron prepara 2027 a partir do saldo de 2026).
 10. ~~**"Parar e concluir" em `Projetos.jsx` conclui o projeto inteiro**~~ **corrigido (27/11/2026)**: `completeLogItem` conclui o mais específico (tarefa → atividade → projeto)., porque `completeLogItem` dá prioridade ao `projeto_id`.
 11. ~~**Os links de entregáveis e anexos de tarefas podem não abrir.**~~ **resolvido**: os cliques em links de baldes privados passam por `instalarAberturaSegura()` (`utils/ficheirosPrivados.js`), que abre um link temporário. Usam `getPublicUrl` no balde `documentos`, que é privado.
 

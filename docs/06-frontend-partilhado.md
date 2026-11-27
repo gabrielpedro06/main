@@ -549,9 +549,10 @@ Encontrados ao documentar; não corrigidos.
   dentro dessas janelas podem ficar tapados.
 - **Feriados duplicados:** `WidgetCalendar` tem uma cópia local de `getFeriados`; o feriado de
   Faro (7/9) é municipal e está nas duas listas. Mudar num sítio obriga a mudar no outro.
-- **`transito_expira_em`** gravado como `${ano+1}-03-31` na linha do ano `ano`, enquanto os
-  transitados dessa linha (vindos de `ano-1`) expiram a `${ano}-03-31` no cálculo. Confirmar o
-  significado da coluna antes de a usar.
+- **`transito_expira_em`** = `${ano}-03-31` na linha do ano `ano` (prazo dos transitados que ela
+  tem), igual no SQL e na app desde a 090. A app decide a validade com `getCarryoverDeadline(ano)`.
+- **Feriados também em SQL:** `bizin_feriados(ano)` (090) é uma cópia de `getFeriados`. Mudar
+  um feriado obriga a mudar os três sítios (`feriasSaldo.js`, `WidgetCalendar`, `bizin_feriados`).
 - `obterSaldoFeriasAno` aceita `dataAdmissao` mas não a usa (aviso de lint pré-existente).
 - `KM_REQUEST_TYPE` e `TOLERANCIA_TIPO` redefinidos localmente em `CalendarioColaborador`
   (já existem em `decisaoPedido.js`/`feriasSaldo.js`).

@@ -139,7 +139,8 @@ async function pedidoAusencia(req, ctx) {
 
   const { data: admins } = await ctx.admin.from("profiles").select("email, role, tipo, ativo");
   const destinos = [...new Set((admins || [])
-    .filter((p) => p.ativo !== false && p.email && [p.role, p.tipo].some((r) => PAPEIS.admin.includes(String(r || "").toLowerCase())))
+    // mesmo critério da BD (bizin_papel): vale o role; o tipo só conta se não houver role
+    .filter((p) => p.ativo !== false && p.email && PAPEIS.admin.includes(String(p.role || p.tipo || "").toLowerCase()))
     .map((p) => p.email.trim().toLowerCase()))];
   if (!destinos.length) return { ok: true, sent: 0, failed: 0 };
 

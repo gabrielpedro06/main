@@ -93,7 +93,7 @@ let cacheDados = null;
 
 async function carregarDados() {
   const [proj, ent, pes] = await Promise.all([
-    supabase.from("projetos").select("id, titulo, codigo, estado, clientes!cliente_id ( marca, sigla )").order("created_at", { ascending: false }).limit(800),
+    supabase.from("projetos").select("id, titulo, codigo_projeto, estado, clientes!cliente_id ( marca, sigla )").order("created_at", { ascending: false }).limit(800),
     supabase.from("clientes").select("id, marca, sigla, nif").order("marca").limit(2000),
     supabase.from("profiles").select("*").order("nome"),
   ]);
@@ -219,8 +219,8 @@ export default function CommandMenu() {
     if (termos.length && dados) {
       juntar("projeto", dados.projetos.map((p) => ({
         chave: `p${p.id}`,
-        titulo: p.titulo || p.codigo || `Projeto ${p.id}`,
-        sub: [p.codigo, p.clientes?.sigla || p.clientes?.marca].filter(Boolean).join(" · "),
+        titulo: p.titulo || p.codigo_projeto || `Projeto ${p.id}`,
+        sub: [p.codigo_projeto, p.clientes?.sigla || p.clientes?.marca].filter(Boolean).join(" · "),
         extra: p.estado,
         rota: `/dashboard/projetos/${p.id}`,
       })));
