@@ -126,7 +126,7 @@
 .mk-board::-webkit-scrollbar { height: 10px; }
 .mk-board::-webkit-scrollbar-thumb { background: var(--n-300); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
 
-.mk-col { display: flex; flex-direction: column; min-height: 220px; max-height: calc(100vh - 290px); border-radius: 18px; background: color-mix(in srgb, var(--c) 5%, var(--lx-f4f6f9, #f4f6f9)); border: 1px solid color-mix(in srgb, var(--c) 12%, var(--n-200)); scroll-snap-align: start; animation: mkRise 0.45s var(--mk-ease) both; transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.mk-col { display: flex; flex-direction: column; min-height: 220px; max-height: calc(100vh - 330px); border-radius: 18px; background: color-mix(in srgb, var(--c) 5%, var(--lx-f4f6f9, #f4f6f9)); border: 1px solid color-mix(in srgb, var(--c) 12%, var(--n-200)); scroll-snap-align: start; animation: mkRise 0.45s var(--mk-ease) both; transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .mk-col.is-over { background: color-mix(in srgb, var(--c) 12%, var(--sup-1)); border-color: color-mix(in srgb, var(--c) 45%, var(--sup-1)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 14%, transparent); }
 .mk-col-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 10px 14px; position: relative; }
 .mk-col-head::before { content: ""; position: absolute; left: 14px; right: 14px; top: 0; height: 3px; border-radius: 0 0 4px 4px; background: var(--c); }

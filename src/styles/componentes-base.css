@@ -263,7 +263,9 @@ textarea.bz-campo.is-fixo:not(#bt) { resize: none; }
       .is-title), notas (.is-note)…
       O Marketing mantém o realce na cor da marca (sem :focus aqui).
    --------------------------------------------------------------------- */
-html :is(.rh-input, .en-input, .pa-input, .af-input, .gm-input, .mk-input, .tk-input, .ti-input, .pd-input, .pf-input, .cc-input) {
+/* campos do Marketing com aspeto próprio (título no cabeçalho colorido, texto da cópia, citação da
+   persona) ficam de fora; :where() não mexe na prioridade dos restantes */
+html :is(.rh-input, .en-input, .pa-input, .af-input, .gm-input, .mk-input:not(:where(.mk-dtitle, .mk-copy-text, .mk-pquote-input)), .tk-input, .ti-input, .pd-input, .pf-input, .cc-input) {
   min-height: 42px;
   border: 1px solid var(--cor-linha-forte) !important;
   border-radius: var(--raio-sm);

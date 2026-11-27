@@ -16,6 +16,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../context/AuthContext";
 import SlidingTabs from "../components/SlidingTabs";
 import FancySelect from "../components/FancySelect";
+import QuadroDeslizante from "../components/QuadroDeslizante";
 import ConteudoDrawer from "../components/marketing/ConteudoDrawer";
 import { Avatar, AvatarStack, PersonaFace } from "../components/marketing/mkFields";
 import CalendarioEditorial from "../components/marketing/CalendarioEditorial";
@@ -653,6 +654,7 @@ export default function Marketing() {
           const pecas = conteudos.filter((c) => ids.includes(c.id)).map((c) => ({ id: c.id, titulo: c.titulo, minutos: crono.tempoDe(c.id).total }));
           return <CampanhaTempo nome={fCamp} tempo={tempo} pecas={pecas} nPecas={ids.length} perfis={perfis} userId={user?.id} onAbrir={setAbertoId} />;
         })()}
+        <QuadroDeslizante seletor="mk-board">
         <div className="mk-board" key={marcaAtual}>
           {ETAPAS.map((etapa, ci) => {
             const lista = colunas[etapa.id] || [];
@@ -716,6 +718,7 @@ export default function Marketing() {
             );
           })}
         </div>
+        </QuadroDeslizante>
         </>
       ) : tab === "estrategia" ? (
         <Estrategia
